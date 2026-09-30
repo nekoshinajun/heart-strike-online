@@ -19,17 +19,13 @@ export class NextPlayerState {
     g.applyCharacter(p);   // 手番キャラの ATK/DEF/属性/タイプに切替
     g.ui.setPlayers(g.turn.players, g.turn.index);
     g.ui.showTurn(p, label);
-    // オンラインでは攻撃表示より先に「次のキャッチ担当」を明確に知らせる。
-    // direct は会話回答/ダウン後など返球を挟まないため、キャッチ予告は出さない。
-    if (g.online && !direct) {
-      const mine = g.online.isMyTurn();
-      g.ui.showCatchNotice(p, mine);
-      if (mine) { g.ui.flash(p.color, 0.18); g.audio.incoming(); }
-    }
+    // オンライン:前の人の攻撃ターン開始から、自分が次のキャッチ担当なら下部に常時予告。
+    // 中央通知・追加待機は使わず、実際にキャッチ判定するまで表示を維持する。
+    if (g.online && !direct) g.ui.showCatchNotice(p, g.online.isMyTurn());
     g.cam.setPlayerX(p.x);
     g.boss.lookAtPlayer(p.x);
     g.ball.setStyle(p.color, g.turn.tierLevel);
-    this.wait = g.online && !direct ? 0.95 : 0.28;
+    this.wait = 0.28;
   }
   update(dt) {
     this.wait -= dt;
@@ -108,6 +104,7 @@ export class PlayerDefenseState {
   decide(r) {
     const g = this.g;
     this.result = r;
+    if (g.online && g.online.isMyTurn()) g.ui.hideCatchNotice();
     if (g.online && g.online.isMyTurn()) { const d=g.catchJudge.detail; g.online.sendCatch((d?.dt ?? 1) * 1000, r); }
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], g.catchJudge.describe());
     g.audio.judge(r);
@@ -193,6 +190,7 @@ export class PlayerDefenseState {
   }
 
   exit() {
+    this.g.ui.hideCatchNotice?.();
     this.g.ui.showPrompt(null);
     this.g.catchJudge.reset();
   }
