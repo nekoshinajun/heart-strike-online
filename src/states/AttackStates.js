@@ -66,7 +66,7 @@ export class PlayerAttackState {
     g.ui.setThrowInfo(flick, th);
     if (!th) { g.ui.showPrompt('flick', g.turn.current.color); return; }
     const special = g.energy.consumeSpecial();
-    if (g.online) g.online.sendThrow(th);
+    if (g.online) g.online.sendThrow(th, !!special);
     g.sm.change(GameState.BALL_TO_BOSS, { th, flick, special });
   }
 
