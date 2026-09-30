@@ -325,18 +325,18 @@ export const Config = {
   //   gateSize … Heart Gate の大きさ / obstacleCount … 障害物の上限の倍率 / extraMovers … パターンに足す「動く障害物」の数
   //   obstacleSpeed … 障害物の速さ / highRouteWeight … 高難度 Route Pattern(tier: 'hard')の出やすさ(0 = 等確率)
   //   exp … 獲得 EXP 倍率 / locked … 将来の解放条件用(今回は全部 false)
-  // DifficultyData:難易度の主軸は Heart Gate の大きさ(gateSize)。キャッチ判定幅は全難易度共通(Config.catch)。
-  // 防御面の差は GREAT / GOOD / MISS の被ダメージ(damageTaken)と返球速度で作る。障害物の数・速さは難易度の中心にしない(全難易度同じ)
+  // DifficultyData:ゲームプレイ上、難易度で変えるのは Heart Gate の大きさ(gateSize)と被ダメージ(damageTaken)だけ。
+  // キャッチ判定幅・返球速度・HEART容量・Energy配置・障害物は全難易度共通。exp はクリア報酬倍率。
   difficulties: {
-    NORMAL: { id: 'NORMAL', label: 'NORMAL', ja: 'ノーマル', desc: '標準難易度', note: 'Heart Gate が大きく狙いやすい。3D 投球を普通に楽しめる', color: '#3fd98a',
+    NORMAL: { id: 'NORMAL', label: 'NORMAL', ja: 'ノーマル', desc: '標準難易度', note: 'Heart Gate が大きく、被ダメージは標準', color: '#3fd98a',
       heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.0, energyDensity: 1.0, energyJitter: 0, gateSize: 1.0,
       obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 0, exp: 1.0, locked: false },
-    HARD: { id: 'HARD', label: 'HARD', ja: 'ハード', desc: '上級者向け', note: '同じルールで Gate が小さい。正確な AIM・POWER・SPIN が必要', color: '#ff9b1f',
-      heartCapacity: 1.5, returnSpeed: 1.15, damageTaken: 1.25, energyDensity: 0.8, energyJitter: 0.15, gateSize: 0.72,
-      obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 1.5, exp: 1.5, locked: false },
-    HELL: { id: 'HELL', label: 'HELL', ja: '地獄', desc: '最高難易度', note: 'Gate がかなり小さい。POWER・AIM・SPIN・Gate・Energy・Catch のすべてを使いこなせ', color: '#ff3d5a',
-      heartCapacity: 2.0, returnSpeed: 1.3, damageTaken: 1.5, energyDensity: 0.7, energyJitter: 0.3, gateSize: 0.5,
-      obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 4, exp: 2.5, locked: false },
+    HARD: { id: 'HARD', label: 'HARD', ja: 'ハード', desc: '上級者向け', note: 'キャッチ判定は同じ。Gate が小さく、受けるダメージが増える', color: '#ff9b1f',
+      heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.25, energyDensity: 1.0, energyJitter: 0, gateSize: 0.72,
+      obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 0, exp: 1.5, locked: false },
+    HELL: { id: 'HELL', label: 'HELL', ja: '地獄', desc: '最高難易度', note: 'キャッチ判定は同じ。Gate がかなり小さく、受けるダメージがさらに増える', color: '#ff3d5a',
+      heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.5, energyDensity: 1.0, energyJitter: 0, gateSize: 0.5,
+      obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 0, exp: 2.5, locked: false },
   },
   difficultyOrder: ['NORMAL', 'HARD', 'HELL'],
   // 実行中の難易度の値(GameManager.startStage が設定。判定・返球などはここを読む)
