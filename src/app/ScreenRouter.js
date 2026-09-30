@@ -118,14 +118,14 @@ export const NAV_TABS = [
   { id: 'training', label: '育成', icon: 'up' },
   { id: 'stage', label: '攻略', icon: 'heart', center: true },
   { id: 'gacha', label: 'ガチャ', icon: 'gift' },
-  { id: 'partyTab', label: '編成', icon: 'team' },
+  { id: 'partyTab', label: 'コレクション', icon: 'cards' },
 ];
 const ICONS = {
   home: '<path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1z"/>',
   up: '<path d="M12 4 5 11h4.5v8h5v-8H19z"/>',
   heart: '<path d="M12 20.5s-7.5-4.6-7.5-10.1C4.5 7.4 6.7 5.5 9 5.5c1.4 0 2.4.7 3 1.7.6-1 1.6-1.7 3-1.7 2.3 0 4.5 1.9 4.5 4.9 0 5.5-7.5 10.1-7.5 10.1z"/>',
   gift: '<path d="M4 10h16v3H4zM5.5 13h13v7h-13zM12 10v10M12 10c-1.5-3-5-4-5-1.5S12 10 12 10zm0 0c1.5-3 5-4 5-1.5S12 10 12 10z" fill-rule="evenodd"/>',
-  team: '<circle cx="8.5" cy="9" r="3"/><circle cx="15.5" cy="9" r="3"/><path d="M3 19c.5-3.2 2.8-5 5.5-5s5 1.8 5.5 5zM12.6 14.8c.9-.5 1.9-.8 2.9-.8 2.7 0 5 1.8 5.5 5h-6.4"/>',
+  cards: '<path d="M5.5 5.5h10v13h-10z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m8 3.5 9.5 2.2-2.1 9.3M3.5 8l2-1" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m8.2 11 2-2 2 2-2 2z"/>',
 };
 export const iconSvg = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] ?? ''}</svg>`;
 
