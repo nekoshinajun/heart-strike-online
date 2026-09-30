@@ -19,10 +19,17 @@ export class NextPlayerState {
     g.applyCharacter(p);   // 手番キャラの ATK/DEF/属性/タイプに切替
     g.ui.setPlayers(g.turn.players, g.turn.index);
     g.ui.showTurn(p, label);
+    // オンラインでは攻撃表示より先に「次のキャッチ担当」を明確に知らせる。
+    // direct は会話回答/ダウン後など返球を挟まないため、キャッチ予告は出さない。
+    if (g.online && !direct) {
+      const mine = g.online.isMyTurn();
+      g.ui.showCatchNotice(p, mine);
+      if (mine) { g.ui.flash(p.color, 0.18); g.audio.incoming(); }
+    }
     g.cam.setPlayerX(p.x);
     g.boss.lookAtPlayer(p.x);
     g.ball.setStyle(p.color, g.turn.tierLevel);
-    this.wait = 0.28;
+    this.wait = g.online && !direct ? 0.95 : 0.28;
   }
   update(dt) {
     this.wait -= dt;
