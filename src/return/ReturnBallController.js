@@ -36,8 +36,6 @@ export class ReturnBallController {
   /** 画面比の返球地点を決める */
   pickPosition() {
     const R = Config.returnBall;
-    const oldRandom=this.random;
-    if(forcedSeed!=null){let x=(Number(forcedSeed)||1)>>>0;this.random=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296}}
     const prof = bossProfile();
     const A = this.area();
     const { w, h } = this.viewport;
@@ -69,6 +67,11 @@ export class ReturnBallController {
    * @returns { screenN, world, lateEnd, spawn, chargeTime, duration, markerLead, ctrlOffset, power }
    */
   plan(rally, forcedScreenN = null, forcedSeed = null) {
+    const oldRandom = this.random;
+    if (forcedSeed != null) {
+      let x = (Number(forcedSeed) || 1) >>> 0;
+      this.random = () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) / 4294967296; };
+    }
     const R = Config.returnBall;
     const prof = bossProfile();
     const { w, h } = this.viewport;
