@@ -66,14 +66,15 @@ export class ReturnBallController {
    * 返球計画を作る
    * @returns { screenN, world, lateEnd, spawn, chargeTime, duration, markerLead, ctrlOffset, power }
    */
-  plan(rally) {
+  plan(rally, forcedScreenN = null) {
     const R = Config.returnBall;
     const prof = bossProfile();
     const { w, h } = this.viewport;
     const speedMul = prof.returnSpeed * returnTier(rally).speed * (Config.runtime?.returnSpeed ?? 1);   // 難易度の返球速度
     const duration = R.baseDuration / speedMul;
 
-    const screenN = this.pickPosition();
+    const screenN = forcedScreenN ? { x: forcedScreenN.x, y: forcedScreenN.y } : this.pickPosition();
+    this.previousCatchPosition = screenN;
     const sx = screenN.x * w, sy = screenN.y * h;
     const depth = Config.ball.catchDepth;
     const world = this.player.screenToWorld(sx, sy, depth);
