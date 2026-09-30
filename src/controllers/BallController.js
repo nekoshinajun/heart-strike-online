@@ -74,9 +74,26 @@ export class BallController {
     if (!v) this.trail.forEach((t) => (t.sprite.visible = false));
   }
 
+  /** オンライン観戦中:手元の投球ハートだけをグレー表示 */
+  setDisabledLook(on) {
+    this.disabledLook = !!on;
+    if (on) {
+      this.mesh.material.color?.set?.('#8d96a0');
+      this.mesh.material.emissive?.set?.('#626a73');
+      this.mesh.material.emissiveIntensity = 0.08;
+      this.glow.material.color.set('#9aa2aa');
+      this.trail.forEach((t) => t.sprite.material.color.set('#9aa2aa'));
+    } else {
+      this.setStyle(this.color.getStyle(), this.styleLevel ?? 0);
+    }
+  }
+
   /** ラリー段階・プレイヤー色に応じた見た目 */
   setStyle(color, level = 0) {
+    this.styleLevel = level;
     this.color.set(color);
+    if (this.disabledLook) return this.setDisabledLook(true);
+    if (this.isHeart) this.mesh.material.color.set('#ff5fa2');
     this.glow.material.color.set(color);
     this.trail.forEach((t) => t.sprite.material.color.set(color));
     if (!this.isHeart) this.mesh.material.emissive.set(color);
