@@ -121,7 +121,7 @@ export class PlayerDefenseState {
 
     if (this.impacted) return;
     const timeout = judge.checkTimeout(now);
-    if (timeout) { this.decide(timeout); this.impact(); return; }
+    if (timeout) { if (g.online && !g.online.isMyTurn()) return; this.decide(timeout); this.impact(); return; }
     if (this.result && this.result !== Judge.MISS && now >= this.arrival) this.impact();
     if (this.result === Judge.MISS && now >= judge.lateLimit) this.impact();
   }
@@ -201,7 +201,7 @@ export class PlayerCatchState {
     this.wait -= dt;
     if (this.wait > 0) return;
     const g = this.g;
-    if (this.down) { g.sm.change(GameState.NEXT_PLAYER); return; }
+    if (this.down) { g.sm.change(GameState.NEXT_PLAYER, { direct: true, label: 'NEXT' }); return; }
     // FEVER ゲージ 100%:キャッチした人(この後投げる人)から FEVER 開始
     g.sm.change(g.fever.pendingStart && !g.fever.active ? GameState.FEVER_INTRO : GameState.PLAYER_ATTACK);
   }
