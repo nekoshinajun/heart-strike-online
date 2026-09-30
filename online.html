@@ -1108,6 +1108,61 @@ body{background:#030304;}
 .date-party{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.date-party div{position:relative;height:70px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:#090a10;overflow:hidden}.date-party img{width:100%;height:100%;object-fit:cover;object-position:center 18%}.date-party small{position:absolute;right:3px;bottom:3px;width:18px;height:18px;border-radius:50%;background:#ff5fa7;color:#fff;display:grid;place-items:center;font-weight:900}
 .gift-list{display:flex;gap:7px;overflow-x:auto}.gift-item{position:relative;flex:0 0 64px;height:70px;border:1px solid rgba(255,255,255,.11);border-radius:11px;background:linear-gradient(145deg,#171a24,#0a0b11);color:#fff}.gift-item i{display:block;font-style:normal;font-size:25px}.gift-item span{display:block;font-size:7px;color:#b8bdc8}.gift-item b{position:absolute;right:3px;bottom:3px;font-size:8px}
 .capture-mode{position:static!important;margin:10px 12px 0!important;background:#080a10!important}
+
+/* Bottom nav v2 — match supplied ornate HEART STRIKE reference */
+:root{--navh:82px}
+.bnav{
+  left:7px;right:7px;bottom:0;
+  height:calc(82px + var(--sab));
+  padding:5px calc(var(--sar) + 4px) var(--sab) calc(var(--sal) + 4px);
+  align-items:flex-start;
+  overflow:visible;
+  border:1px solid rgba(247,203,208,.30);
+  border-bottom:0;
+  border-radius:22px 22px 0 0;
+  background:
+    linear-gradient(180deg,rgba(39,19,29,.97),rgba(12,8,13,.985) 38%,rgba(5,5,8,.995));
+  box-shadow:
+    0 -1px 0 rgba(255,228,218,.12),
+    0 -9px 30px rgba(0,0,0,.62),
+    inset 0 1px rgba(255,230,221,.10),
+    inset 0 0 28px rgba(255,79,154,.035);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+}
+.bnav::before{content:"";position:absolute;left:11px;right:11px;top:5px;height:1px;background:linear-gradient(90deg,transparent,rgba(247,203,208,.40),transparent)}
+.bnav::after{content:"✦";position:absolute;left:50%;top:-8px;transform:translateX(-50%);color:#e8bdc4;font-size:13px;text-shadow:0 0 9px rgba(255,109,170,.55)}
+.bnav .nv{
+  height:68px;gap:3px;color:#a58e98;
+  font-family:var(--display);font-size:10px;font-weight:800;
+  text-shadow:0 1px 4px #000;
+}
+.bnav .nv-ic{width:37px;height:37px;border-radius:0;background:transparent!important;box-shadow:none!important}
+.bnav .nv .ic{width:29px;height:29px;fill:currentColor;filter:drop-shadow(0 2px 3px #000)}
+.bnav .nv-l{font-size:10px;letter-spacing:.02em;color:inherit!important}
+.bnav .nv.on{color:#f2cbd1}
+.bnav .nv.on .nv-ic{filter:drop-shadow(0 0 8px rgba(255,199,210,.25))}
+.bnav .nv.center{
+  transform:none;height:68px;color:#b99aa5;
+}
+.bnav .nv.center .nv-ic{
+  width:43px;height:40px;border-radius:0;
+  background:transparent!important;border:0!important;
+  box-shadow:none!important;
+}
+.bnav .nv.center .ic{width:37px;height:37px;fill:currentColor}
+.bnav .nv.center.on{color:#ff78ae}
+.bnav .nv.center.on::before{
+  content:"";position:absolute;left:50%;top:-7px;width:62px;height:62px;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,81,153,.22),rgba(255,81,153,.06) 48%,transparent 70%);
+  filter:blur(2px);pointer-events:none
+}
+.bnav .nv.center.on .nv-ic{filter:drop-shadow(0 0 8px rgba(255,85,157,.9)) drop-shadow(0 0 18px rgba(255,85,157,.45))}
+.bnav .nv.center.on .nv-l{color:#ff9bc2!important;text-shadow:0 0 8px rgba(255,74,151,.65)}
+.bnav .nv.center.glow .nv-ic,.bnav .nv.center.pulse .nv-ic{box-shadow:none!important}
+#game.nav-on .menu{padding-bottom:calc(82px + var(--sab) + 8px)}
+#game.nav-on #appScreen .as-body{padding-bottom:calc(82px + var(--sab) + 16px)}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
