@@ -166,33 +166,39 @@ export class MenuFlow {
   /** @param stageId Deep Link で選択状態にしてスクロールするステージ */
   showStageSelect({ stageId } = {}) {
     if (stageId) this.stage = STAGES.find((s) => s.id === stageId) ?? this.stage;
-    this.frame('stage', 'STAGE SELECT', 'ステージを選んでね', { primary: 'このステージへ' });
-    if (!document.getElementById('playmodeStyle')) { const s=document.createElement('style'); s.id='playmodeStyle'; s.textContent='.playmode-tabs{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px;background:#f7fcff}.playmode-tabs button{min-height:48px;border:1px solid #bcdde9;border-radius:14px;background:#fff;color:#36536a;font-weight:900}.playmode-tabs button.sel{background:linear-gradient(135deg,#ff6fae,#ff4f95);color:#fff;border-color:transparent;box-shadow:0 5px 14px #ff4f9540}.playmode-tabs small{display:block;font-size:9px;margin-top:2px}';document.head.appendChild(s); }
-    this.body.innerHTML = `<div class="playmode-tabs"><button type="button" data-mode="solo" class="${this.playMode==='solo'?'sel':''}">SOLO</button><button type="button" data-mode="multi" class="${this.playMode==='multi'?'sel':''}">MULTI <small>2–4 PLAYERS</small></button></div><div class="stagelist">${STAGES.map((s) => {
-      const b = s.boss, cleared = this.progress.isCleared(s.id);
-      return `<button type="button" class="stagecard${s === this.stage ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="--ac:${ATTRIBUTES[b.attribute].color}">
-        <div class="sthumb" style="background-image:url('${BOSS_IMAGES[b.image] ?? BOSS_IMAGES[b.fallbackImage] ?? ''}')"></div>
-        <div class="sinfo">
-          <div class="sno">STAGE ${s.no}${cleared ? '<em>CLEAR</em>' : ''}</div>
-          <div class="sclears">${Config.difficultyOrder.map((d) => `<span class="${this.progress.isCleared(s.id, d) ? 'on' : ''}" style="--dc:${difficultyData(d).color}">${this.progress.isCleared(s.id, d) ? '✓' : ''}${difficultyData(d).label}</span>`).join('')}</div>
-          <div class="sname">${esc(s.name)}</div>
-          <div class="sboss">♡ ${esc(b.name)}</div>
-          <div class="srow">BOSS ATTRIBUTE:${attrTag(b.attribute)}</div>
-          <div class="srow">推奨:${attrTag(s.recommended)}</div>
-          <div class="srow"><span>HEART ${b.maxHeart.toLocaleString()}</span><span>+${s.exp} EXP</span></div>
-        </div>
-      </button>`;
-    }).join('')}</div>`;
-    for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click', () => { this.playMode=b.dataset.mode; for(const x of this.body.querySelectorAll('[data-mode]'))x.classList.toggle('sel',x===b); });
-    let focusEl = null;
-    for (const b of this.body.querySelectorAll('[data-act="stage"]')) {
-      const st = STAGES.find((s) => s.id === b.dataset.id);
-      b.addEventListener('click', () => this.pickStage(st));
-      b.addEventListener('focus', () => { this.stage = st; this.markSel(b, '.stagecard'); });
-      if (st === this.stage) focusEl = b;
-    }
-    if (stageId && focusEl) { try { focusEl.scrollIntoView({ block: 'center' }); } catch { /* noop */ } }
-    this.focus(focusEl);
+    this.frame('stage', '攻略', '今日、誰を口説きに行く？', { primary: '♡ 挑戦する' });
+    const selected = this.stage ?? STAGES[0];
+    const bossArt = (s) => BOSS_IMAGES[s.boss.image] ?? BOSS_IMAGES[s.boss.fallbackImage] ?? '';
+    const portrait = (id) => {
+      const ch = this.progress.character(id);
+      return ch ? artUrl(ch, 'cutout') : '';
+    };
+    const gifts = [
+      ['🥤','スペシャルドリンク','3'],['👜','バッグ','1'],['💎','アクセ','5'],['🍰','スイーツ','12'],['💐','花束','8']
+    ];
+    this.body.innerHTML = `
+      <div class="capture-stage" style="--boss:url('${bossArt(selected)}')">
+        <div class="capture-glow"></div>
+        <section class="capture-profile">
+          <small>CAST ${String(selected.no).padStart(2,'0')}</small>
+          <strong>${esc(selected.boss.name)}</strong>
+          <span>♡ LOVE <b>${this.progress.isCleared(selected.id) ? '100' : '0'}%</b></span>
+          <p>${esc(selected.concept ?? 'あなたのハート、ちゃんと届くかな？')}</p>
+        </section>
+        <button type="button" class="capture-start" data-act="start">♡<b>挑戦する</b><small>START</small></button>
+      </div>
+      <div class="cast-strip">${STAGES.map((s)=>`<button type="button" class="cast-tab${s===selected?' sel':''}" data-act="stage" data-id="${s.id}" style="background-image:url('${bossArt(s)}')"><i>${s.no}</i><span>${esc(s.boss.name)}</span>${this.progress.isCleared(s.id)?'<em>CLEAR</em>':''}</button>`).join('')}<button class="cast-tab locked" disabled><i>04</i><span>???</span>🔒</button><button class="cast-tab locked" disabled><i>05</i><span>???</span>🔒</button></div>
+      <section class="date-panel"><header><b>♡ デートメンバー</b><span>PARTY 1</span><button type="button" data-act="party">編成</button></header><div class="date-party">${this.progress.party.map((id,i)=>`<div><img src="${portrait(id)}" alt=""><small>${'ABCD'[i]}</small></div>`).join('')}</div></section>
+      <section class="gift-panel"><header><b>🎁 プレゼント</b><span>持っていくと攻略をちょっと有利に</span></header><div class="gift-list">${gifts.map(g=>`<button type="button" class="gift-item"><i>${g[0]}</i><span>${g[1]}</span><b>×${g[2]}</b></button>`).join('')}</div></section>
+      <div class="playmode-tabs capture-mode"><button type="button" data-mode="solo" class="${this.playMode==='solo'?'sel':''}">SOLO</button><button type="button" data-mode="multi" class="${this.playMode==='multi'?'sel':''}">MULTI <small>2–4</small></button></div>`;
+    for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click',()=>{this.playMode=b.dataset.mode;for(const x of this.body.querySelectorAll('[data-mode]'))x.classList.toggle('sel',x===b)});
+    for (const b of this.body.querySelectorAll('[data-act="stage"]')) b.addEventListener('click',()=>{const st=STAGES.find(s=>s.id===b.dataset.id);if(!st)return;this.stage=st;this.showStageSelect({stageId:st.id})});
+    this.body.querySelector('[data-act="start"]')?.addEventListener('click',()=>this.pickStage(this.stage));
+    this.body.querySelector('[data-act="party"]')?.addEventListener('click',()=>this.router.go('partyTab'));
+    this.primary.hidden = true;
+    this.back.hidden = true;
+    this.homeBtn.hidden = true;
+    this.focus(this.body.querySelector('.capture-start'));
   }
 
   markSel(el, sel) {
