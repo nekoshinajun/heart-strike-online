@@ -1231,6 +1231,19 @@ body{background:#030304;}
 .sh-primary{border:1px solid rgba(241,201,208,.45)!important;background:radial-gradient(circle at 45% 25%,#ff91bc,#e64b8d 60%,#85214e)!important;font-family:'Noto Serif JP',YuMincho,serif!important}
 #onlineLobby .ol-card{border:1px solid rgba(215,174,185,.42)!important;background:linear-gradient(180deg,rgba(39,18,28,.98),rgba(8,6,10,.99))!important;box-shadow:0 20px 55px #000c,inset 0 0 0 3px rgba(215,174,185,.025)!important}
 #onlineLobby button,#onlineLobby input,#onlineLobby select{font-family:'Noto Serif JP',YuMincho,serif!important}
+
+/* HOME layout correction 2026-10-01 */
+#home .hm-brand{display:none!important}
+#home .hm-top{left:auto!important;right:calc(var(--sar) + 14px)!important;top:calc(var(--sat) + 12px)!important;width:auto!important;gap:8px!important;align-items:flex-end!important}
+#home .hm-top .hm-row{width:auto!important;min-height:0!important;justify-content:flex-end!important;gap:7px!important}
+#home .hm-top .hm-row:has(.hm-player){display:none!important}
+#home .hm-icons{display:flex!important;flex-direction:column!important;gap:7px!important;align-items:flex-end!important}
+#home .hm-icons button{width:42px!important;height:42px!important;border-radius:12px!important}
+#home .hm-gem{margin-bottom:2px!important}
+#home .hm-pick{bottom:calc(var(--navh) + var(--sab) + 20px)!important;z-index:14!important;height:68px!important}
+#home .bnav{z-index:13!important}
+#home .hm-fav{bottom:calc(var(--navh) + var(--sab) + 108px)!important}
+#home .hm-char{bottom:calc(var(--navh) + var(--sab) + 94px)!important}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
