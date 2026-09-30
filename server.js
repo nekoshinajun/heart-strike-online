@@ -29,6 +29,17 @@ const server=http.createServer(async(req,res)=>{try{
  if(u.pathname==='/api/room/create'&&req.method==='POST'){const b=await body(req);let c;do c=code();while(rooms.has(c));const pid=id(),token=id();const visibility=b.visibility==='public'?'public':'private';if(visibility==='private'&&!String(b.password||'').trim())return json(res,400,{error:'PASSWORD_REQUIRED'});const password=visibility==='private'?crypto.createHash('sha256').update(String(b.password)).digest('hex'):null;const r={code:c,status:'LOBBY',hostId:pid,currentIndex:0,seq:0,touched:now(),createdAt:now(),catchSeq:0,visibility,password,stageId:String(b.stageId||'stage1'),difficulty:String(b.difficulty||'NORMAL'),players:[{id:pid,token,name:(b.name||'HOST').slice(0,16),characterId:b.characterId||'minamo',ready:false,connected:true,alive:true,slot:'A'}]};rooms.set(c,r);return json(res,200,{token,playerId:pid,room:pub(r)});}
  if(u.pathname==='/api/room/join'&&req.method==='POST'){const b=await body(req),r=roomOf(b.code);if(!r||r.status!=='LOBBY')return json(res,404,{error:'ROOM_NOT_FOUND'});if(r.password&&crypto.createHash('sha256').update(String(b.password||'')).digest('hex')!==r.password)return json(res,403,{error:'PASSWORD_REQUIRED'});if(r.players.length>=4)return json(res,409,{error:'ROOM_FULL'});const pid=id(),token=id();r.players.push({id:pid,token,name:(b.name||'PLAYER').slice(0,16),characterId:b.characterId||'hinoka',ready:false,connected:true,alive:true,slot:'ABCD'[r.players.length]});r.touched=now();send(r,'PLAYER_JOINED');return json(res,200,{token,playerId:pid,room:pub(r)});}
  if(u.pathname==='/api/room/action'&&req.method==='POST'){const b=await body(req),r=roomOf(b.code),p=player(r,b.token);if(!r||!p)return json(res,403,{error:'BAD_SESSION'});r.touched=now();
+   if(b.action==='LEAVE'){
+     const leavingId=p.id,wasHost=r.hostId===p.id;
+     const set=clients.get(p.id);if(set)for(const x of set){try{x.end()}catch{}}clients.delete(p.id);
+     r.players=r.players.filter(x=>x.id!==p.id);
+     if(!r.players.length){rooms.delete(r.code);return json(res,200,{ok:true,deleted:true});}
+     r.players.forEach((x,i)=>x.slot='ABCD'[i]);
+     if(wasHost)r.hostId=r.players[0].id;
+     if(r.currentIndex>=r.players.length)r.currentIndex=0;
+     r.touched=now();send(r,'PLAYER_LEFT',{playerId:leavingId,newHostId:r.hostId});
+     return json(res,200,{ok:true});
+   }
    if(b.action==='READY'){p.ready=!!b.ready;send(r,'PLAYER_READY');return json(res,200,{ok:true});}
    if(b.action==='CHARACTER'){if(r.status!=='LOBBY')return json(res,409,{error:'IN_GAME'});p.characterId=b.characterId;send(r,'PLAYER_CHARACTER');return json(res,200,{ok:true});}
    if(b.action==='START'){if(p.id!==r.hostId)return json(res,403,{error:'HOST_ONLY'});if(r.players.length<2||!r.players.every(x=>x.ready))return json(res,409,{error:'NEED_2_TO_4_READY'});r.status='PLAYING';r.currentIndex=0;r.phase='WAIT_THROW';r.field=makeField();r.talk50Triggered=false;r.lastThrowPlayerId=null;send(r,'GAME_START',{turnPlayerId:r.players[0].id,field:r.field});return json(res,200,{ok:true});}
