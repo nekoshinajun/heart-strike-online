@@ -40,5 +40,7 @@ export class OnlineSession{
  } sendCatch(deltaMs,grade){return this.action('CATCH',{deltaMs,grade})} sendDown(){return this.action('PLAYER_DOWN')} remoteCatch(m){let s=this.g.sm.current;if(this.g.sm.currentName===GameState.PLAYER_DEFENSE&&!s.result){s.decide(m.grade);return}this.pendingCatch=m} update(){
   if(this.pendingThrow&&this.g.sm.currentName===GameState.PLAYER_ATTACK){const m=this.pendingThrow;this.applyRemoteThrow(m);return}
   if(!this.pendingCatch)return;let s=this.g.sm.current;if(this.g.sm.currentName===GameState.PLAYER_DEFENSE&&!s.result){const m=this.pendingCatch;this.pendingCatch=null;s.decide(m.grade)}
- } isMyTurn(){return this.room?.players[this.room.currentIndex]?.id===this.playerId} isDown(){return this.room?.players.find(p=>p.id===this.playerId)?.alive===false}
+ } nextPlayableIndex(){const ps=this.room?.players||[];if(!ps.length)return -1;const from=this.room.currentIndex??0;for(let i=1;i<=ps.length;i++){const n=(from+i)%ps.length;if(ps[n].alive!==false&&ps[n].connected!==false)return n}return from}
+ isNextCatchPlayer(){const i=this.nextPlayableIndex();return i>=0&&this.room?.players[i]?.id===this.playerId}
+ isMyTurn(){return this.room?.players[this.room.currentIndex]?.id===this.playerId} isDown(){return this.room?.players.find(p=>p.id===this.playerId)?.alive===false}
 }
