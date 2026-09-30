@@ -33,6 +33,13 @@ export class PlayerAttackState {
     if (g.affection.answerMode) g.cam.focusOn(g.boss.partCenter('head'), 14);
     else g.cam.reset();
     g.ui.showPrompt('flick', p.color);
+    // オンライン:「次にキャッチする本人」には、前の人の投球ターン開始から予告を出し続ける。
+    if (g.online) {
+      const ni = g.online.nextPlayableIndex?.() ?? -1;
+      const next = ni >= 0 ? g.turn.players[ni] : null;
+      if (g.online.isNextCatchPlayer?.() && next) g.ui.showCatchNotice(next, true);
+      else g.ui.hideCatchNotice?.();
+    }
     g.thrower.cancel();
     g.space.spawnForThrow(g.online?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
   }
@@ -65,6 +72,8 @@ export class PlayerAttackState {
     if (th === undefined) return; // 掴んでいなかった
     g.ui.setThrowInfo(flick, th);
     if (!th) { g.ui.showPrompt('flick', g.turn.current.color); return; }
+    // 前の人が投げ終えた瞬間に NEXT 予告を消す。
+    if (g.online) g.ui.hideCatchNotice?.();
     const special = g.energy.consumeSpecial();
     if (g.online) g.online.sendThrow(th, !!special);
     g.sm.change(GameState.BALL_TO_BOSS, { th, flick, special });
