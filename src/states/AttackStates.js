@@ -34,7 +34,7 @@ export class PlayerAttackState {
     else g.cam.reset();
     g.ui.showPrompt('flick', p.color);
     g.thrower.cancel();
-    g.space.spawnForThrow(g.online?.turnSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
+    g.space.spawnForThrow(g.online?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
   }
 
   update() {
