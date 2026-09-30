@@ -1,0 +1,38 @@
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
+
+const ROOT=path.dirname(fileURLToPath(import.meta.url));
+const PORT=Number(process.env.PORT||8787);
+const rooms=new Map();
+const clients=new Map();
+const now=()=>Date.now();
+const code=()=>String(Math.floor(100000+Math.random()*900000));
+const id=()=>crypto.randomBytes(9).toString('base64url');
+function pub(r){return {code:r.code,status:r.status,hostId:r.hostId,currentIndex:r.currentIndex,seq:r.seq,players:r.players.map(p=>({id:p.id,name:p.name,characterId:p.characterId,ready:p.ready,connected:p.connected,slot:p.slot}))};}
+function send(room,type,data={}){room.seq++;const msg=`event: message\ndata: ${JSON.stringify({type,seq:room.seq,room:pub(room),...data})}\n\n`;for(const p of room.players){const set=clients.get(p.id);if(set)for(const res of set){try{res.write(msg)}catch{}}}}
+function json(res,status,obj){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(obj));}
+async function body(req){let s='';for await(const c of req){s+=c;if(s.length>1e6)throw Error('too large')}return s?JSON.parse(s):{};}
+function roomOf(c){return rooms.get(String(c||''));}
+function player(r,t){return r?.players.find(p=>p.token===t);}
+function cleanup(){for(const [c,r] of rooms)if(now()-r.touched>2*60*60*1000){rooms.delete(c);}}
+setInterval(cleanup,60000).unref();
+const server=http.createServer(async(req,res)=>{try{
+ const u=new URL(req.url,'http://x');
+ if(u.pathname==='/health')return json(res,200,{ok:true,rooms:rooms.size});
+ if(u.pathname==='/api/room/create'&&req.method==='POST'){const b=await body(req);let c;do c=code();while(rooms.has(c));const pid=id(),token=id();const r={code:c,status:'LOBBY',hostId:pid,currentIndex:0,seq:0,touched:now(),players:[{id:pid,token,name:(b.name||'HOST').slice(0,16),characterId:b.characterId||'minamo',ready:false,connected:true,slot:'A'}]};rooms.set(c,r);return json(res,200,{token,playerId:pid,room:pub(r)});}
+ if(u.pathname==='/api/room/join'&&req.method==='POST'){const b=await body(req),r=roomOf(b.code);if(!r||r.status!=='LOBBY')return json(res,404,{error:'ROOM_NOT_FOUND'});if(r.players.length>=4)return json(res,409,{error:'ROOM_FULL'});if(r.players.some(p=>p.characterId===b.characterId))return json(res,409,{error:'CHARACTER_TAKEN'});const pid=id(),token=id();r.players.push({id:pid,token,name:(b.name||'PLAYER').slice(0,16),characterId:b.characterId||'hinoka',ready:false,connected:true,slot:'ABCD'[r.players.length]});r.touched=now();send(r,'PLAYER_JOINED');return json(res,200,{token,playerId:pid,room:pub(r)});}
+ if(u.pathname==='/api/room/action'&&req.method==='POST'){const b=await body(req),r=roomOf(b.code),p=player(r,b.token);if(!r||!p)return json(res,403,{error:'BAD_SESSION'});r.touched=now();
+   if(b.action==='READY'){p.ready=!!b.ready;send(r,'PLAYER_READY');return json(res,200,{ok:true});}
+   if(b.action==='CHARACTER'){if(r.status!=='LOBBY')return json(res,409,{error:'IN_GAME'});if(r.players.some(x=>x!==p&&x.characterId===b.characterId))return json(res,409,{error:'CHARACTER_TAKEN'});p.characterId=b.characterId;send(r,'PLAYER_CHARACTER');return json(res,200,{ok:true});}
+   if(b.action==='START'){if(p.id!==r.hostId)return json(res,403,{error:'HOST_ONLY'});if(r.players.length<2||!r.players.every(x=>x.ready))return json(res,409,{error:'NEED_2_TO_4_READY'});r.status='PLAYING';r.currentIndex=0;r.phase='WAIT_THROW';send(r,'GAME_START',{turnPlayerId:r.players[0].id,seed:crypto.randomInt(1,2147483647)});return json(res,200,{ok:true});}
+   if(b.action==='THROW'){if(r.status!=='PLAYING'||r.phase!=='WAIT_THROW'||r.players[r.currentIndex]?.id!==p.id)return json(res,409,{error:'NOT_YOUR_TURN'});const turnPlayerId=p.id;r.currentIndex=(r.currentIndex+1)%r.players.length;r.phase='WAIT_CATCH';send(r,'THROW',{fromPlayerId:turnPlayerId,nextPlayerId:r.players[r.currentIndex].id,throwData:b.throwData,eventId:id(),serverTime:now()});return json(res,200,{ok:true});}
+   if(b.action==='CATCH'){if(r.status!=='PLAYING'||r.phase!=='WAIT_CATCH'||r.players[r.currentIndex]?.id!==p.id)return json(res,409,{error:'NOT_CATCH_PLAYER'});const d=Number(b.deltaMs);const tg=Math.abs(d)<=8.3?'PERFECT':Math.abs(d)<=33.3?'GREAT':Math.abs(d)<=66.7?'GOOD':'MISS';const order=['PERFECT','GREAT','GOOD','MISS'];const cg=order.includes(b.grade)?b.grade:tg;const grade=order[Math.max(order.indexOf(tg),order.indexOf(cg))];r.phase='WAIT_THROW';send(r,'CATCH',{playerId:p.id,grade,deltaMs:d,eventId:id(),serverTime:now()});return json(res,200,{ok:true,grade});}
+   return json(res,400,{error:'BAD_ACTION'});
+ }
+ if(u.pathname==='/api/events'){const r=roomOf(u.searchParams.get('code')),p=player(r,u.searchParams.get('token'));if(!r||!p){res.writeHead(403);return res.end();}p.connected=true;res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache','connection':'keep-alive','x-accel-buffering':'no'});res.write(`event: message\ndata: ${JSON.stringify({type:'STATE_SYNC',seq:r.seq,room:pub(r)})}\n\n`);if(!clients.has(p.id))clients.set(p.id,new Set());clients.get(p.id).add(res);req.on('close',()=>{clients.get(p.id)?.delete(res);p.connected=false;r.touched=now();send(r,'PLAYER_CONNECTION',{playerId:p.id,connected:false});});return;}
+ let fp=u.pathname==='/'?'/online.html':u.pathname;fp=path.normalize(fp).replace(/^\.\.(\/|\\)/,'');const full=path.join(ROOT,fp);if(!full.startsWith(ROOT)||!fs.existsSync(full)||fs.statSync(full).isDirectory()){res.writeHead(404);return res.end('not found');}const ext=path.extname(full);const ct={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.webp':'image/webp','.png':'image/png','.json':'application/json'}[ext]||'application/octet-stream';res.writeHead(200,{'content-type':ct,'cache-control':ext==='.html'?'no-store':'public,max-age=3600'});fs.createReadStream(full).pipe(res);
+}catch(e){json(res,500,{error:String(e.message||e)})}});
+server.listen(PORT,'0.0.0.0',()=>console.log(`HEART STRIKE Online http://0.0.0.0:${PORT}`));
