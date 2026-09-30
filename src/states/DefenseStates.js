@@ -19,9 +19,6 @@ export class NextPlayerState {
     g.applyCharacter(p);   // 手番キャラの ATK/DEF/属性/タイプに切替
     g.ui.setPlayers(g.turn.players, g.turn.index);
     g.ui.showTurn(p, label);
-    // オンライン:前の人の攻撃ターン開始から、自分が次のキャッチ担当なら下部に常時予告。
-    // 中央通知・追加待機は使わず、実際にキャッチ判定するまで表示を維持する。
-    if (g.online && !direct) g.ui.showCatchNotice(p, g.online.isMyTurn());
     g.cam.setPlayerX(p.x);
     g.boss.lookAtPlayer(p.x);
     g.ball.setStyle(p.color, g.turn.tierLevel);
