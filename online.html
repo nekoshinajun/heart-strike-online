@@ -1163,6 +1163,42 @@ body{background:#030304;}
 .bnav .nv.center.glow .nv-ic,.bnav .nv.center.pulse .nv-ic{box-shadow:none!important}
 #game.nav-on .menu{padding-bottom:calc(82px + var(--sab) + 8px)}
 #game.nav-on #appScreen .as-body{padding-bottom:calc(82px + var(--sab) + 16px)}
+
+/* Ornamental typography + framed panels from supplied reference */
+:root{--ornament:#e8bdc4;--ornament-hi:#ffd9df;--inkrose:#d8b4bd}
+.bnav{
+ border:1px solid rgba(232,189,196,.42)!important;
+ border-bottom:0!important;
+ background:linear-gradient(180deg,rgba(40,18,28,.97),rgba(13,8,13,.99) 42%,rgba(5,4,7,.995))!important;
+ box-shadow:0 -1px rgba(255,221,225,.16),0 -10px 30px #000a,inset 0 0 0 3px rgba(232,189,196,.025),inset 0 1px rgba(255,231,232,.10)!important
+}
+.bnav::before{height:3px!important;top:3px!important;background:linear-gradient(90deg,transparent,rgba(232,189,196,.18) 12%,rgba(255,222,226,.5) 50%,rgba(232,189,196,.18) 88%,transparent)!important}
+.bnav::after{content:"✦  ·  ✧  ·  ✦"!important;top:-10px!important;font-family:Georgia,'Times New Roman',serif!important;font-size:10px!important;letter-spacing:3px!important;color:#efc7cd!important}
+.bnav .nv{color:#bca0aa!important;font-family:Georgia,'Times New Roman','Noto Serif JP',serif!important;font-weight:800!important}
+.bnav .nv .ic{fill:none!important;stroke:currentColor!important;stroke-width:1.65!important;stroke-linecap:round!important;stroke-linejoin:round!important;filter:drop-shadow(0 1px 1px #000) drop-shadow(0 0 3px rgba(232,189,196,.12))!important}
+.bnav .nv-l{font-family:'Noto Serif JP',YuMincho,'Hiragino Mincho ProN',serif!important;font-weight:800!important;font-size:10px!important;color:inherit!important}
+.bnav .nv.on{color:#f3cbd2!important}
+.bnav .nv.center.on{color:#ff84b4!important}
+.bnav .nv.center.on .ic{filter:drop-shadow(0 0 5px rgba(255,101,165,.95)) drop-shadow(0 0 13px rgba(255,101,165,.55))!important}
+.capture-profile{
+ border:1px solid rgba(232,189,196,.58)!important;border-radius:18px!important;
+ background:linear-gradient(145deg,rgba(25,12,20,.90),rgba(7,6,10,.84))!important;
+ box-shadow:0 13px 34px #000a,inset 0 0 0 3px rgba(232,189,196,.035),inset 0 1px rgba(255,230,230,.11)!important;
+ font-family:'Noto Serif JP',YuMincho,'Hiragino Mincho ProN',serif!important
+}
+.capture-profile::before{content:"✦  ✧  ✦";position:absolute;left:50%;top:-10px;transform:translateX(-50%);padding:0 7px;color:#eac0c6;background:#160c13;font-family:Georgia,serif;font-size:10px;letter-spacing:2px;text-shadow:0 0 7px rgba(255,120,170,.4)}
+.capture-profile::after{content:"";position:absolute;inset:5px;border:1px solid rgba(232,189,196,.12);border-radius:13px;pointer-events:none}
+.capture-profile small{font-family:Georgia,'Times New Roman',serif!important;color:#f0c8cf!important;letter-spacing:.16em!important}
+.capture-profile strong{font-family:'Noto Serif JP',YuMincho,'Hiragino Mincho ProN',serif!important;color:#f7b8d0!important;font-weight:600!important;text-shadow:0 0 12px rgba(255,105,164,.28)!important}
+.capture-profile p{font-family:'Noto Serif JP',YuMincho,'Hiragino Mincho ProN',serif!important;color:#eee1e3!important}
+.capture-profile span{font-family:Georgia,'Times New Roman',serif!important;color:#f0c5cc!important}
+.date-panel,.gift-panel{
+ position:relative;border-color:rgba(232,189,196,.38)!important;
+ background:linear-gradient(145deg,rgba(30,15,23,.94),rgba(9,7,11,.97))!important;
+ box-shadow:0 12px 30px #0008,inset 0 0 0 3px rgba(232,189,196,.025),inset 0 1px rgba(255,232,232,.08)!important
+}
+.date-panel::before,.gift-panel::before{content:"✦";position:absolute;left:50%;top:-8px;transform:translateX(-50%);padding:0 6px;background:#160c13;color:#e7bac2;font-family:Georgia,serif;font-size:9px}
+.date-panel header b,.gift-panel header b,.date-panel header button{font-family:'Noto Serif JP',YuMincho,'Hiragino Mincho ProN',serif!important}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
