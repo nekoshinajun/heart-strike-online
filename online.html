@@ -881,6 +881,25 @@ body{background:#030304;}
 .exprow{background:#111116;border:1px solid rgba(255,255,255,.08);border-radius:15px}.expbar{background:#202026;box-shadow:none}.rstats div{border-color:rgba(255,255,255,.08)}
 .hcbox{border:1px solid rgba(255,77,105,.55);background:linear-gradient(180deg,#1a0c11,#090608);border-radius:20px;box-shadow:0 24px 70px #000c,0 0 32px rgba(255,61,90,.12)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important}}
+
+/* Boss-first battle composition: keep the heroine unobstructed */
+#game:not(.menuopen) .bossbar{
+  top:calc(1px + env(safe-area-inset-top,0px));
+  width:min(88%,360px);
+  padding:0 2px 2px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+#game:not(.menuopen) .bossbar .name{font-size:13px;letter-spacing:.10em;text-shadow:0 2px 8px #000,0 0 12px rgba(255,79,154,.32)}
+#game:not(.menuopen) .heartrow{margin-top:3px;grid-template-columns:auto 1fr auto;gap:7px}
+#game:not(.menuopen) .heartrow .track{height:7px;background:rgba(5,5,8,.38);border:1px solid rgba(255,255,255,.14);box-shadow:0 1px 6px #0008}
+#game:not(.menuopen) #rally{margin-top:1px;font-size:10px;line-height:1.1;text-shadow:0 1px 5px #000}
+#game:not(.menuopen) #rallyNum{font-size:14px}
+#game:not(.menuopen) #rallyMul{font-size:9px}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
