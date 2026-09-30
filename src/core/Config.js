@@ -8,7 +8,7 @@ export const Config = {
     maxHeart: 10000,      // ★ TotalHeart の満タン値(100% でクリア)。ステージ開始時に StageData の値で上書き
     heartOverride: Number(params.get('heart')) || 0,  // テスト用:URL ?heart= で全ステージの満タン値を上書き
     z: -14.45,            // ボス(2D板)のZ位置(奥)。v15:ハート玉→ボス面の距離を 14.8 → 19.3(約1.3倍)
-    scale: 1.38,          // ボス全体の拡大率(Colliderも一緒に拡大)。遠くした分を拡大して画面上の大きさ(約97%)を維持(旧 1.15)
+    scale: 1.55,          // ボスを主役にするため表示を約12%拡大(Colliderも一緒に拡大)
     profile: 'lulu',      // 使用する返球プロファイル(bossProfiles)
     name: 'DEMON GIRL',   // ボス名(HPバー表示)
     layout: 'demon',      // 使用するキャラ+当たり判定レイアウト:'demon'(同梱イラスト)/ 'lulu'(内蔵仮イラスト)/ 'image'(読み込み画像)
@@ -94,7 +94,7 @@ export const Config = {
   camera: {
     fov: 70,
     pos: { x: 0, y: 1.6, z: 8.5 },
-    lookAt: { x: 0, y: 9.04, z: -14.45 },  // 注視点もボスと一緒に奥へ(視線の角度は従来と同じ = 投球の見え方・狙いの感覚は同じ)
+    lookAt: { x: 0, y: 9.75, z: -14.45 },  // 注視点を上げ、画面上ではボスを少し下へ配置
   },
 
   ball: {
@@ -103,9 +103,9 @@ export const Config = {
     holdOffset: { x: 0, y: -1.3, z: -3.2 },  // z = 構え位置の奥行き(カメラからの距離)。y は旧仕様(未使用)
     // ★ HeartBallIdlePositionY:投球前のハート玉の画面上の高さ(画面高さ比。0=上端 / 1=下端)
     //   端末ごとの px 固定ではなく割合で指定。下に POWER CHARGE 用の空間を空けるため旧 0.78 → 0.60
-    idlePositionY: 0.60,
+    idlePositionY: 0.63,
     // ★ ハート玉より下に必ず残す操作空間(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
-    idleMinChargeSpace: 0.30,
+    idleMinChargeSpace: 0.27,
     catchDepth: 2.1,                          // キャッチ地点のカメラからの距離
   },
 
