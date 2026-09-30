@@ -16,8 +16,8 @@ export class OnlineSession{
  setField(f){if(!f)return;this.fieldPattern=f.pattern||this.fieldPattern;this.fieldSeed=Number(f.seed)||this.fieldSeed;this.setCatchPosition(f.catchPos,this.catchSeq)}
  setCatchPosition(pos,seq){this.catchPos=pos&&Number.isFinite(pos.x)&&Number.isFinite(pos.y)?{x:pos.x,y:pos.y}:null;this.catchSeq=Number(seq)||0} consumeCatchPosition(){const p=this.catchPos;this.catchPos=null;return p} serialize(th){return {power:th.power,spin:th.spin,strong:!!th.strong,start:[th.start.x,th.start.y,th.start.z],velocity:[th.velocity.x,th.velocity.y,th.velocity.z],curveAccel:th.curveAccel?[th.curveAccel.x,th.curveAccel.y,th.curveAccel.z]:null,direction:th.direction?[th.direction.x,th.direction.y,th.direction.z]:null}}
  deserialize(d){return {...d,start:new THREE.Vector3(...d.start),velocity:new THREE.Vector3(...d.velocity),curveAccel:d.curveAccel?new THREE.Vector3(...d.curveAccel):null,direction:d.direction?new THREE.Vector3(...d.direction):null}}
- sendThrow(th){this.optimisticThrow=true;this.action('THROW',{throwData:this.serialize(th)}).then(r=>{if(!r?.ok)this.optimisticThrow=false});return true}
- applyRemoteThrow(m){this.pendingThrow=null;this.g.sm.change(GameState.BALL_TO_BOSS,{th:this.deserialize(m.throwData),flick:{speed:0,dx:0,dy:0},special:null})}
+ sendThrow(th,special=false){this.optimisticThrow=true;this.action('THROW',{throwData:this.serialize(th),special:!!special}).then(r=>{if(!r?.ok)this.optimisticThrow=false});return true}
+ applyRemoteThrow(m){this.pendingThrow=null;this.g.sm.change(GameState.BALL_TO_BOSS,{th:this.deserialize(m.throwData),flick:{speed:0,dx:0,dy:0},special:m.special?{...this.g.cfg.special}:null})}
  remoteThrow(m){if(this.g.sm.currentName===GameState.PLAYER_ATTACK)this.applyRemoteThrow(m);else this.pendingThrow=m}
  remoteDisconnect(m){if(!this.room||this.room.status!=='PLAYING')return}
  remoteDown(m){
