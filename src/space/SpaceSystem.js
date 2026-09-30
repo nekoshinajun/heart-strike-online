@@ -107,14 +107,17 @@ export class SpaceSystem {
 
   // ---------------- 配置 ----------------
   /** 投球の前に呼ぶ(PlayerAttackState)。FEVER 中は FEVER 専用の Energy 配置(Gate / 障害物は置かない) */
-  spawnForThrow() {
+  spawnForThrow(seed = null) {
     const g = this.g;
     this.clear();
     if (g.affection?.answerMode) { g.energy.clear(); return; }   // 50% 会話の回答の1投:ボスの身体だけを見て投げる
     if (g.fever?.active) { g.energy.spawnForThrow(); return; }
     const sp = this.stageSpace;
+    const oldRandom = Math.random;
+    if (seed != null && g.online) Math.random = g.online.prepareTurnRandom();
     const list = sp.patterns?.length ? sp.patterns : Object.keys(Config.space.routePatterns);
     this.spawnPattern(this.pickPattern(list));
+    Math.random = oldRandom;
   }
 
   /** 難易度込みの重み付き抽選:tier:'hard' のルートは重み (1 + HighDifficultyRouteWeight)。
