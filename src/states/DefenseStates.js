@@ -40,7 +40,7 @@ export class BossReturnState {
   enter() {
     const g = this.g;
     // 自分のキャッチフェーズへ入る直前に、事前予告テロップを消す。
-    if (g.online && g.online.isMyTurn()) g.ui.hideCatchNotice?.();
+    if (g.online) { g.ui.hideCatchNotice?.(); g.online.beginAllCatch?.(); }
     g.cam.reset();
     const forcedCatch = g.online ? g.online.catchPos : null;
     const plan = g.returnBall.plan(g.turn.rally, forcedCatch, g.online?.fieldSeed);
@@ -87,7 +87,7 @@ export class PlayerDefenseState {
 
   onTap(e) {
     const g = this.g;
-    if (g.online && !g.online.isMyTurn()) return;
+    if (g.online && g.online.isDown()) return;
     if (this.result) return;
     const target = g.catchTarget.screen();
     const tap = e.x != null ? { x: e.x, y: e.y } : null;
@@ -103,8 +103,8 @@ export class PlayerDefenseState {
   decide(r) {
     const g = this.g;
     this.result = r;
-    if (g.online && g.online.isMyTurn()) g.ui.hideCatchNotice();
-    if (g.online && g.online.isMyTurn()) { const d=g.catchJudge.detail; g.online.sendCatch((d?.dt ?? 1) * 1000, r); }
+    if (g.online) g.ui.hideCatchNotice();
+    if (g.online && !g.online.isDown()) { const d=g.catchJudge.detail; g.online.sendCatch((d?.dt ?? 1) * 1000, r); }
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], g.catchJudge.describe());
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
@@ -127,7 +127,7 @@ export class PlayerDefenseState {
 
     if (this.impacted) return;
     const timeout = judge.checkTimeout(now);
-    if (timeout) { if (g.online && !g.online.isMyTurn()) return; this.decide(timeout); this.impact(); return; }
+    if (timeout) { if (g.online && g.online.isDown()) return; this.decide(timeout); this.impact(); return; }
     if (this.result && this.result !== Judge.MISS && now >= this.arrival) this.impact();
     if (this.result === Judge.MISS && now >= judge.lateLimit) this.impact();
   }
@@ -210,6 +210,8 @@ export class PlayerCatchState {
     if (this.wait > 0) return;
     const g = this.g;
     if (this.down) { g.sm.change(GameState.NEXT_PLAYER, { direct: true, label: 'NEXT' }); return; }
+    // マルチは全員のキャッチ完了を待ってから、サーバーが次の投球者へ進める。
+    if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId:g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait=0.05; return; }
     // FEVER ゲージ 100%:キャッチした人(この後投げる人)から FEVER 開始
     g.sm.change(g.fever.pendingStart && !g.fever.active ? GameState.FEVER_INTRO : GameState.PLAYER_ATTACK);
   }
