@@ -143,7 +143,7 @@ export class MenuFlow {
       case 'party': return this.partyMode === 'sortie' ? this.router.go('chars') : null;
       case 'chars': return this.startGame();
       case 'result': return this.g.backToMenu();          // ステージ選択
-      case 'over': return this.g.retryStage();            // もう一度
+      case 'over': return this.g.online ? this.g.backToMenu() : this.g.retryStage(); // Online は再戦しない
     }
   }
 
@@ -418,7 +418,7 @@ export class MenuFlow {
    * @param res { stage, results:[{before, after, levelUps, gained}], stats:[[k,v]] }
    */
   showResult(res) {
-    this.frame('result', 'RESULT', `STAGE ${res.stage.no}:${res.stage.boss.name} HEART MAX!`, { primary: 'ステージ選択', back: 'もう一度', home: 'HOME' });
+    this.frame('result', 'RESULT', `STAGE ${res.stage.no}:${res.stage.boss.name} HEART MAX!`, { primary: 'ステージ選択', back: this.g.online ? null : 'もう一度', home: 'HOME' });
     const D = res.difficulty ?? difficultyData('NORMAL'), exp = res.exp ?? res.stage.exp, rec = res.record;
     this.body.innerHTML = `
       <div class="rhead">STAGE ${String(res.stage.no).padStart(2, '0')} ${diffChip(D.id, 'big')}</div>
@@ -475,7 +475,7 @@ export class MenuFlow {
 
   // ---------------- GAME OVER ----------------
   showGameOver(stage, stats) {
-    this.frame('over', 'TRY AGAIN', `STAGE ${stage.no}:${stage.boss.name}`, { primary: 'もう一度', back: 'ステージ選択', home: 'HOME', diff: this.g.difficulty });
+    this.frame('over', 'TRY AGAIN', `STAGE ${stage.no}:${stage.boss.name}`, { primary: this.g.online ? 'ステージ選択' : 'もう一度', back: this.g.online ? null : 'ステージ選択', home: 'HOME', diff: this.g.difficulty });
     this.body.innerHTML = `
       <div class="clearlogo over">TRY AGAIN</div>
       <div class="menuhint">4人ともダウンしちゃった… EXP はクリア時にもらえます</div>
