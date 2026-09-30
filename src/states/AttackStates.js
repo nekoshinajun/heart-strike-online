@@ -30,6 +30,7 @@ export class PlayerAttackState {
     const p = g.turn.current;
     if (g.ball.mode !== 'held' && g.ball.mode !== 'catching') g.ball.hold(g.player.holdAnchor);
     g.ball.setStyle(p.color, g.turn.tierLevel);
+    g.ball.setDisabledLook?.(!!g.online && !g.online.isMyTurn());
     if (g.affection.answerMode) g.cam.focusOn(g.boss.partCenter('head'), 14);
     else g.cam.reset();
     g.ui.showPrompt('flick', p.color);
