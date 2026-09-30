@@ -138,6 +138,15 @@ export const STAGES = [
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'S_CURVE', 'GATE_CHAIN', 'WALL_GAP', 'STAR_DRIFT', 'BANK_STARS', 'WALL_GAP', 'STAR_DRIFT'],
       energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.2 },
   },
+  {
+    id: 'stage03', no: '03', name: '甘い夜のおねだり',
+    // 添付イラストを正式素材化するまでは stage03 専用画像キーを使用（未登録時は安全にフォールバック）
+    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 18000 },
+    recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
+    concept: '甘え上手な猫系の女の子。高級ラウンジの甘い夜を舞台に、ハートを届けて口説き落とす。',
+    space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
+      energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.0 },
+  },
 ];
 
 /**
