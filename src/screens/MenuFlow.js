@@ -226,7 +226,7 @@ export class MenuFlow {
         ${r ? `<div class="drec">CLEAR ${r.clearCount} / BEST RALLY ${r.bestRally} / GATE CHAIN ${r.bestGateChain} / BEST HEART ${r.bestHeartPerThrow.toLocaleString()}</div>` : ''}
       </button>`;
     }).join('')}</div>
-    <div class="hellwarn">⚠ 返球が速く、キャッチ判定がかなり狭い。障害物も多い上級者向けの難易度です</div>
+    <div class="hellwarn">⚠ キャッチ判定の厳しさは全難易度共通。HELL は Gate がかなり小さく、受けるダメージが大きい最高難易度です</div>
 `;
     for (const b of this.body.querySelectorAll('[data-act="diff"]')) {
       b.addEventListener('click', (e) => { this.selectDiff(b.dataset.id); if (e.detail === 0) this.confirmDiff(); });
