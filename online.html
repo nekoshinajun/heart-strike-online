@@ -934,6 +934,35 @@ body{background:#030304;}
   box-sizing:border-box;
 }
 #game:not(.menuopen) #energy em{overflow:hidden;text-overflow:ellipsis}
+
+/* HUD overlap correction */
+#game:not(.menuopen) #rally{
+  position:absolute;
+  left:2px;
+  top:42px;
+  width:76px;
+  white-space:nowrap;
+  z-index:2;
+}
+#game:not(.menuopen) #feverBar{
+  position:absolute;
+  left:82px;
+  right:2px;
+  top:39px;
+  width:auto;
+  margin:0;
+  z-index:1;
+}
+#game:not(.menuopen) #energy{
+  width:172px;
+  max-width:calc(100% - 78px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));
+  grid-template-columns:minmax(0,1fr) auto;
+}
+#game:not(.menuopen) #energy em{
+  overflow:visible;
+  text-overflow:clip;
+  white-space:nowrap;
+}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
@@ -964,7 +993,7 @@ body{background:#030304;}
     </div>
     <div id="throwType" hidden>STRAIGHT</div>
     <div id="powerGauge" hidden><span>POWER</span><div class="pgbar"><i></i></div><b>0%</b></div>
-    <button id="energy" type="button"><em>♡ HEART ENERGY</em><b>0 / 100</b><div class="egbar"><i></i></div></button>
+    <button id="energy" type="button"><em>♡ SPECIAL</em><b>0 / 100</b><div class="egbar"><i></i></div></button>
     <div id="players"></div>
     <div id="flash"></div>
 
