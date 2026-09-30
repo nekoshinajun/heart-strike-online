@@ -983,6 +983,26 @@ body{background:#030304;}
 .hm-icons{gap:6px}.hm-icons button{width:40px;height:40px;border:1px solid rgba(255,255,255,.09);background:linear-gradient(145deg,rgba(25,26,32,.72),rgba(8,9,13,.72));color:#f4f6f8;box-shadow:inset 0 1px rgba(255,255,255,.05),0 5px 14px #0005}.hm-icons button .ic{width:22px;height:22px}.hm-icons .dot{top:5px;right:5px;width:7px;height:7px;box-shadow:0 0 0 2px #090a0e}
 .hm-gem{border-color:rgba(126,232,255,.20);background:rgba(10,12,17,.76);box-shadow:0 7px 20px #0006,inset 0 1px rgba(255,255,255,.05)}
 .hm-fav{border-color:rgba(255,255,255,.15);background:rgba(10,11,15,.82);box-shadow:0 8px 22px #0007}
+
+/* ============================================================
+   HEART STRIKE / NIGHT LOUNGE — product identity v1
+   "ソシャゲっぽく遊べるギャルゲー"
+   ============================================================ */
+:root{--lounge:#070407;--lounge2:#14090f;--rose:#ff4f9a;--rose2:#ff94bd;--champagne:#e8c98d;--champagne2:#fff0c8;--cyan:#70dfff}
+#appScreen,.menu{background:radial-gradient(ellipse 90% 44% at 50% 4%,rgba(130,34,72,.24),transparent 62%),radial-gradient(ellipse 70% 28% at 50% 92%,rgba(232,201,141,.07),transparent 70%),linear-gradient(180deg,#120810,#070508 45%,#030304)!important}
+#appScreen::before,.menu::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 0 47%,rgba(255,236,204,.025) 50%,transparent 53%),radial-gradient(circle at 14% 18%,rgba(255,215,160,.18) 0 1px,transparent 1.5px),radial-gradient(circle at 81% 26%,rgba(255,90,158,.16) 0 1px,transparent 1.5px);background-size:auto,113px 127px,151px 163px;opacity:.5}
+.as-head,.mhead{background:linear-gradient(180deg,rgba(17,8,14,.96),rgba(8,5,8,.82));border-bottom:1px solid rgba(232,201,141,.16);box-shadow:0 8px 28px #0007}
+.as-title,.mtitle{font-family:var(--display);letter-spacing:.08em;color:#fff5ed;text-shadow:0 0 18px rgba(255,79,154,.16)}
+.as-lead,.mstep{color:#b8a9ad}.mlogo{color:#e8c98d}.mlogo em{color:#ff6ca9}
+.stagecard,.diffcard,.ccard,.as-row{border-color:rgba(232,201,141,.17);background:linear-gradient(145deg,rgba(29,15,23,.94),rgba(8,6,9,.96));box-shadow:0 14px 32px #0008,inset 0 1px rgba(255,244,224,.055)}
+.stagecard::after,.diffcard::after{content:"";position:absolute;inset:5px;border:1px solid rgba(232,201,141,.055);border-radius:inherit;pointer-events:none}
+.stagecard.sel,.diffcard.sel{border-color:rgba(255,112,171,.72);box-shadow:0 0 0 1px rgba(232,201,141,.16),0 18px 38px #000a,0 0 26px rgba(255,79,154,.14)}
+.sno,.dja,.srow,.dnote,.dstats{color:#aa999f}.sboss,.sname,.dlabel{color:#fff2ed}.sclears span{background:#0b070a;border-color:rgba(232,201,141,.12)}
+.mfoot .tapstart,.sh-primary,.r-btn:not(.ghost){background:linear-gradient(135deg,#a91f58,#ff4f9a 58%,#ff8db9);border:1px solid rgba(255,225,190,.22);box-shadow:0 9px 28px rgba(255,79,154,.20),inset 0 1px rgba(255,255,255,.20)}
+.mback,.r-btn.ghost,.as-chip{background:linear-gradient(180deg,#171016,#0c090c);border:1px solid rgba(232,201,141,.18);color:#f0dfd4!important}
+.bnav{background:linear-gradient(180deg,rgba(13,8,12,.96),rgba(4,3,4,.98));box-shadow:0 -1px rgba(232,201,141,.16),0 -16px 38px #000a}.bnav .nv.on{color:#ffe9dc}.bnav .nv.center .nv-ic{background:radial-gradient(circle at 45% 30%,#ff94bd,#e6387f 60%,#8e1849);border:1px solid rgba(255,225,190,.28);box-shadow:0 0 0 5px rgba(255,79,154,.06),0 9px 26px rgba(255,79,154,.28)}
+/* Gift/romance visual vocabulary */
+.gift-chip{border:1px solid rgba(232,201,141,.20);background:linear-gradient(145deg,#21151c,#0c090c);color:#f5e7dc;border-radius:14px;box-shadow:inset 0 1px rgba(255,255,255,.05)}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
