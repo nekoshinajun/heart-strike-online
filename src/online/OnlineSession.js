@@ -20,7 +20,7 @@ export class OnlineSession{
  connect(){this.es?.close();this.es=new EventSource(`/api/events?code=${this.code}&token=${this.token}`);this.es.onmessage=e=>{let m=JSON.parse(e.data);if(m.seq!=null&&m.seq<this.lastSeq)return;this.lastSeq=m.seq??this.lastSeq;this.room=m.room||this.room;if(m.room?.field)this.setField(m.room.field);this.render();this.onEvent(m)};this.es.onerror=()=>this.status('再接続中…')}
  async action(action,extra={}){try{return await this.post('/api/room/action',{code:this.code,token:this.token,action,...extra})}catch(e){this.status(e.message)}} status(s){let e=this.root?.querySelector('#olStatus');if(e)e.textContent=s}
  render(){if(!this.room)return;this.status(`${this.room.visibility==='private'?'パスワードルーム':'公開ルーム'} • ${this.room.players.length}/4`);this.root.querySelector('#olPlayers').innerHTML=this.room.players.map(p=>`<div class="ol-player"><i>${p.slot}</i><div>${esc(p.name)}<br><small>${esc(CHARACTERS.find(c=>c.id===p.characterId)?.name||p.characterId)}</small></div><span class="${p.ready?'ok':''}">${p.ready?'READY':'WAIT'}</span></div>`).join('');this.root.querySelector('#olReady').hidden=this.room.status!=='LOBBY';this.root.querySelector('#olStart').hidden=!(this.room.status==='LOBBY'&&this.room.hostId===this.playerId&&this.room.players.length>=2&&this.room.players.every(p=>p.ready))}
- onEvent(m){if(m.type==='GAME_START')this.startGame(m.field);if(m.type==='THROW'){this.lastThrowFrom=m.fromPlayerId;this.setField(m.field||{pattern:m.fieldPattern,seed:m.fieldSeed,catchPos:m.catchPos});this.catchSeq=Number(m.catchSeq)||this.catchSeq;if(m.fromPlayerId===this.playerId){this.optimisticThrow=false}else this.remoteThrow(m);}if(m.type==='CATCH_ROUND'){this.catchRoundDone=true;this.syncHealth();if(m.nextField)this.setField(m.nextField);this.finishCatchRound(m);}if(m.type==='GAME_OVER'){this.syncHealth();this.g.ball?.hide?.();this.g.sm.change(GameState.GAME_OVER);}if(m.type==='TALK50')this.startTalk50(m);if(m.type==='PLAYER_CONNECTION'&&m.connected===false)this.remoteDisconnect(m);if(m.type==='PLAYER_DOWN')this.remoteDown(m)}
+ onEvent(m){if(m.type==='GAME_START')this.startGame(m.field);if(m.type==='THROW'){this.lastThrowFrom=m.fromPlayerId;this.setField(m.field||{pattern:m.fieldPattern,seed:m.fieldSeed,catchPos:m.catchPos});this.catchSeq=Number(m.catchSeq)||this.catchSeq;if(m.fromPlayerId===this.playerId){this.optimisticThrow=false}else this.remoteThrow(m);}if(m.type==='CATCH_ROUND'){this.catchRoundDone=true;this.syncHealth();if(m.nextField)this.setField(m.nextField);this.finishCatchRound(m);}if(m.type==='GAME_OVER'){this.syncHealth();this.g.ball?.hide?.();this.g.sm.change(GameState.GAME_OVER);}if(m.type==='CATCH_PLAYER'){this.syncHealth();}if(m.type==='TALK50')this.startTalk50(m);if(m.type==='PLAYER_CONNECTION'&&m.connected===false)this.remoteDisconnect(m);if(m.type==='PLAYER_DOWN')this.remoteDown(m)}
  startGame(field){this.root.style.display='none';this.g.online=this;this.setField(field);let party=this.room.players.map(p=>this.g.progress.character(p.characterId));const stage=STAGES.find(s=>s.id===this.room.stageId)||this.stage||STAGES[0];this.g.setDifficulty(this.room.difficulty||this.difficulty||'NORMAL');this.g.startStage(stage,party);this.syncHealth()}
  syncHealth(){if(!this.room?.players||!this.g?.turn?.players)return;this.room.players.forEach((rp,i)=>{const lp=this.g.turn.players[i];if(!lp)return;lp.maxHp=rp.maxHp||100;lp.hp=Number.isFinite(rp.hp)?rp.hp:(rp.alive===false?0:lp.hp)});this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index)}
  setField(f){if(!f)return;this.fieldPattern=f.pattern||this.fieldPattern;this.fieldSeed=Number(f.seed)||this.fieldSeed;this.setCatchPosition(f.catchPos,this.catchSeq)}
@@ -38,14 +38,10 @@ export class OnlineSession{
   if(i>=0&&this.g.turn.players[i])this.g.turn.players[i].hp=0;
   this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index);
   if(!m.disconnected)return;
-  const ni=this.room.players.findIndex(p=>p.id===m.nextPlayerId);
-  if(ni>=0)this.g.turn.index=ni;
-  this.pendingCatch=null;
-  if(this.g.sm.currentName===GameState.PLAYER_DEFENSE||this.g.sm.currentName===GameState.PLAYER_CATCH||this.g.sm.currentName===GameState.BOSS_RETURN){
-    this.g.catchTarget?.hide?.();this.g.ball?.hide?.();
-    this.g.applyCharacter(this.g.turn.current);
-    this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index);
-    this.g.sm.change(GameState.PLAYER_ATTACK);
+  this.syncHealth();
+  if(this.g.sm.currentName===GameState.PLAYER_ATTACK){
+    const ni=this.room.players.findIndex(p=>p.id===m.nextPlayerId);
+    if(ni>=0){this.g.turn.index=ni;this.g.applyCharacter(this.g.turn.current);this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index);}
   }
  } sendCatch(deltaMs,grade,damage=0){return this.action('CATCH',{deltaMs,grade,damage})} sendDown(){return this.action('PLAYER_DOWN')} beginAllCatch(){this.catchRoundDone=false;const i=this.room?.players?.findIndex(p=>p.id===this.playerId)??-1;if(i>=0&&this.g.turn.players[i]){this.g.turn.index=i;this.g.applyCharacter(this.g.turn.current);this.g.ui.setPlayers(this.g.turn.players,i)}} finishCatchRound(m){const i=this.room?.players?.findIndex(p=>p.id===m.nextPlayerId)??-1;if(i>=0&&this.g.turn.players[i]){this.g.turn.index=i;this.g.applyCharacter(this.g.turn.current);this.g.ui.setPlayers(this.g.turn.players,i)}if(this.g.sm.currentName===GameState.PLAYER_CATCH)this.g.sm.change(GameState.PLAYER_ATTACK)} remoteCatch(m){} update(){
   if(this.pendingThrow&&this.g.sm.currentName===GameState.PLAYER_ATTACK){const m=this.pendingThrow;this.applyRemoteThrow(m);return}
