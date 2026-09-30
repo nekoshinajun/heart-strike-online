@@ -40,8 +40,8 @@ export class BossReturnState {
   enter() {
     const g = this.g;
     g.cam.reset();
-    if (g.online) g.online.prepareCatchRandom();
-    const plan = g.returnBall.plan(g.turn.rally);
+    const forcedCatch = g.online ? g.online.consumeCatchPosition() : null;
+    const plan = g.returnBall.plan(g.turn.rally, forcedCatch);
     this.plan = plan;
     this.wait = plan.chargeTime;
     this.chargeFx = 0;
