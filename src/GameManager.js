@@ -385,6 +385,7 @@ export class GameManager {
     this.clock += dt;
 
     this.sm.update(dt);
+    this.online?.update?.();
     this.boss.update(dt);
     this.ball.update(dt);
     if (this.energy.collecting && (this.ball.mode === 'flying' || this.ball.mode === 'flown')) this.energy.check(this.ball.prev, this.ball.pos);
