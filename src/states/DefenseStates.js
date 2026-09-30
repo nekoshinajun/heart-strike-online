@@ -174,6 +174,7 @@ export class PlayerDefenseState {
     if (g.turn.allDown) { g.ball.hide(); g.sm.change(GameState.GAME_OVER); return; }
     if (p.hp <= 0) {
       g.ui.showJudge(`${p.id} DOWN`, 'miss', '#ff3d5a');
+      if (g.online && g.online.isMyTurn()) g.online.sendDown();
       g.ball.hide();
       g.sm.change(GameState.PLAYER_CATCH, { down: true });
       return;
