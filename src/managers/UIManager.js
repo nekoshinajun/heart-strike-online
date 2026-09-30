@@ -245,7 +245,7 @@ export class UIManager {
     if (!el) return;
     el.querySelector('i').style.transform = `scaleX(${Math.min(1, value / max)})`;
     el.querySelector('b').textContent = `${Math.round(value)} / ${max}`;
-    el.querySelector('em').textContent = armed ? '♡ SPECIAL 待機中' : ready ? '♡ SPECIAL MAX' : `♡ ${this.energyLabel ?? 'HEART ENERGY'}`;
+    el.querySelector('em').textContent = '♡ SPECIAL';
     el.classList.toggle('ready', ready);
     el.classList.toggle('armed', armed);
     if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
