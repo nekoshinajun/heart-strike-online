@@ -171,7 +171,7 @@ export class MenuFlow {
     this.body.innerHTML = `<div class="playmode-tabs"><button type="button" data-mode="solo" class="${this.playMode==='solo'?'sel':''}">SOLO</button><button type="button" data-mode="multi" class="${this.playMode==='multi'?'sel':''}">MULTI <small>2–4 PLAYERS</small></button></div><div class="stagelist">${STAGES.map((s) => {
       const b = s.boss, cleared = this.progress.isCleared(s.id);
       return `<button type="button" class="stagecard${s === this.stage ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="--ac:${ATTRIBUTES[b.attribute].color}">
-        <div class="sthumb" style="background-image:url('${BOSS_IMAGES[b.image] ?? ''}')"></div>
+        <div class="sthumb" style="background-image:url('${BOSS_IMAGES[b.image] ?? BOSS_IMAGES[b.fallbackImage] ?? ''}')"></div>
         <div class="sinfo">
           <div class="sno">STAGE ${s.no}${cleared ? '<em>CLEAR</em>' : ''}</div>
           <div class="sclears">${Config.difficultyOrder.map((d) => `<span class="${this.progress.isCleared(s.id, d) ? 'on' : ''}" style="--dc:${difficultyData(d).color}">${this.progress.isCleared(s.id, d) ? '✓' : ''}${difficultyData(d).label}</span>`).join('')}</div>
