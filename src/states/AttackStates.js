@@ -212,7 +212,9 @@ export class BossHitState {
       g.stats.bestHit = Math.max(g.stats.bestHit ?? 0, r.heartGain);   // 記録:BestHeartPerThrow
       g.affection.onHeartChanged();   // LOVE 25% ごとの表情
       // HEART 50% 会話の直前:命中の瞬間にゲーム速度を一瞬落とす(HEART MAX になった時は除く)
-      this.talkLead = !g.boss.full && !g.affection.answerMode && !!g.affection.pendingTalk();
+      const pendingTalk = !g.boss.full && !g.affection.answerMode ? g.affection.pendingTalk() : null;
+      if (g.online && pendingTalk) g.online.requestTalk50(pendingTalk);
+      this.talkLead = !g.online && !!pendingTalk;
       // Heart50TriggerDelay:HEART 表示が 50% を超えてから会話(暗転)を始めるまでの実時間。ヒットストップ / スロー / FEVER に左右されない
       if (this.talkLead) { g.setTimeScale(g.cfg.talk.hitSlow); this.talkAt = performance.now() + g.cfg.talk.heart50TriggerDelay * 1000; g.heart50ReachedAt = performance.now(); }
       g.turn.addRally();
@@ -293,7 +295,7 @@ export class BossHitState {
     if (this.answer) { const answer = this.answer; this.answer = null; g.sm.change(GameState.TALK_REACTION, { answer }); return; }
     if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }
     const talk = g.affection.pendingTalk();
-    if (talk) { g.sm.change(GameState.TALK_QUESTION, { talk }); return; }
+    if (talk && !g.online) { g.sm.change(GameState.TALK_QUESTION, { talk }); return; }
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
     g.sm.change(GameState.NEXT_PLAYER);
   }
