@@ -39,6 +39,8 @@ export class BossReturnState {
   constructor(g) { this.g = g; }
   enter() {
     const g = this.g;
+    // 自分のキャッチフェーズへ入る直前に、事前予告テロップを消す。
+    if (g.online && g.online.isMyTurn()) g.ui.hideCatchNotice?.();
     g.cam.reset();
     const forcedCatch = g.online ? g.online.catchPos : null;
     const plan = g.returnBall.plan(g.turn.rally, forcedCatch, g.online?.fieldSeed);
