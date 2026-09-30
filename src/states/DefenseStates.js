@@ -90,7 +90,9 @@ export class PlayerDefenseState {
     const target = g.catchTarget.screen();
     const tap = e.x != null ? { x: e.x, y: e.y } : null;
     const short = Math.min(g.viewport.w, g.viewport.h);
-    const r = g.catchJudge.input(g.gameTimeAt(e.time), tap, target, short);
+    // pointer event の timeStamp はブラウザ/端末で基準が異なることがある。
+    // CatchJudge の arrival は g.clock 基準なので、入力判定も同じ g.clock を使う。
+    const r = g.catchJudge.input(g.clock, tap, target, short);
     if (!r) return;
     if (tap) g.ui.tapRipple(tap.x, tap.y, JUDGE_COLOR[r]);
     this.decide(r);
