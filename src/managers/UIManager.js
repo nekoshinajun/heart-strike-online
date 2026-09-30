@@ -265,6 +265,23 @@ export class UIManager {
     t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
   }
 
+  showCatchNotice(player, mine = false) {
+    let el = document.getElementById('catchNotice');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'catchNotice';
+      el.style.cssText = 'position:fixed;inset:0;z-index:90;display:grid;place-items:center;pointer-events:none;text-align:center;font-family:var(--display);text-shadow:0 3px 16px #0008;';
+      document.getElementById('ui').appendChild(el);
+    }
+    const title = mine ? 'NEXT — あなたの番！' : `${player?.name ?? ''} がキャッチ！`;
+    const sub = mine ? 'キャッチに備えて！' : '';
+    el.innerHTML = `<div style="padding:18px 28px;border-radius:22px;background:#10243dcc;color:#fff;border:2px solid ${player?.color ?? '#fff'};box-shadow:0 0 35px ${player?.color ?? '#fff'}88"><b style="display:block;font-size:clamp(24px,6vw,44px)">${title}</b>${sub ? `<span style="display:block;margin-top:6px;font-size:clamp(14px,3vw,20px)">${sub}</span>` : ''}</div>`;
+    el.hidden = false;
+    el.animate([{opacity:0,transform:'scale(.88)'},{opacity:1,transform:'scale(1)'},{opacity:1},{opacity:0}],{duration:1050,easing:'ease-out'});
+    clearTimeout(this.catchNoticeTimer);
+    this.catchNoticeTimer=setTimeout(()=>{el.hidden=true},1050);
+  }
+
   /** LOVE MAX ♡(攻略成功):画面中央に大きく */
   showLoveMax(on = true) {
     let el = document.getElementById('loveMax');
