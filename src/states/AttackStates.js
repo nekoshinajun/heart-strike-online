@@ -34,13 +34,8 @@ export class PlayerAttackState {
     if (g.affection.answerMode) g.cam.focusOn(g.boss.partCenter('head'), 14);
     else g.cam.reset();
     g.ui.showPrompt('flick', p.color);
-    // オンライン:「次にキャッチする本人」には、前の人の投球ターン開始から予告を出し続ける。
-    if (g.online) {
-      const ni = g.online.nextPlayableIndex?.() ?? -1;
-      const next = ni >= 0 ? g.turn.players[ni] : null;
-      if (g.online.isNextCatchPlayer?.() && next) g.ui.showCatchNotice(next, true);
-      else g.ui.hideCatchNotice?.();
-    }
+    // MULTI は全員が毎返球をキャッチするため、旧「NEXT キャッチ担当」予告は表示しない。
+    if (g.online) g.ui.hideCatchNotice?.();
     g.thrower.cancel();
     g.space.spawnForThrow(g.online?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
   }
