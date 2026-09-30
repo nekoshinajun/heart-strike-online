@@ -61,6 +61,7 @@ export class MenuFlow {
     this.firstId = null;
     this.selectedSlot = 0;
     this.diff = 'NORMAL';
+    this.playMode = 'solo';
 
     // メニュー上の操作はゲーム入力(投球・タップ)へ流さない
     for (const ev of ['pointerdown', 'pointerup']) this.el.addEventListener(ev, (e) => e.stopPropagation());
@@ -166,7 +167,8 @@ export class MenuFlow {
   showStageSelect({ stageId } = {}) {
     if (stageId) this.stage = STAGES.find((s) => s.id === stageId) ?? this.stage;
     this.frame('stage', 'STAGE SELECT', 'ステージを選んでね', { primary: 'このステージへ' });
-    this.body.innerHTML = `<div class="stagelist">${STAGES.map((s) => {
+    if (!document.getElementById('playmodeStyle')) { const s=document.createElement('style'); s.id='playmodeStyle'; s.textContent='.playmode-tabs{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px;background:#f7fcff}.playmode-tabs button{min-height:48px;border:1px solid #bcdde9;border-radius:14px;background:#fff;color:#36536a;font-weight:900}.playmode-tabs button.sel{background:linear-gradient(135deg,#ff6fae,#ff4f95);color:#fff;border-color:transparent;box-shadow:0 5px 14px #ff4f9540}.playmode-tabs small{display:block;font-size:9px;margin-top:2px}';document.head.appendChild(s); }
+    this.body.innerHTML = `<div class="playmode-tabs"><button type="button" data-mode="solo" class="${this.playMode==='solo'?'sel':''}">SOLO</button><button type="button" data-mode="multi" class="${this.playMode==='multi'?'sel':''}">MULTI <small>2–4 PLAYERS</small></button></div><div class="stagelist">${STAGES.map((s) => {
       const b = s.boss, cleared = this.progress.isCleared(s.id);
       return `<button type="button" class="stagecard${s === this.stage ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="--ac:${ATTRIBUTES[b.attribute].color}">
         <div class="sthumb" style="background-image:url('${BOSS_IMAGES[b.image] ?? ''}')"></div>
@@ -181,6 +183,7 @@ export class MenuFlow {
         </div>
       </button>`;
     }).join('')}</div>`;
+    for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click', () => { this.playMode=b.dataset.mode; for(const x of this.body.querySelectorAll('[data-mode]'))x.classList.toggle('sel',x===b); });
     let focusEl = null;
     for (const b of this.body.querySelectorAll('[data-act="stage"]')) {
       const st = STAGES.find((s) => s.id === b.dataset.id);
@@ -247,6 +250,10 @@ export class MenuFlow {
     if (D.locked) return;
     if (D.id === 'HELL' && !this.progress.flag('hellConfirmed')) return this.openConfirm();
     this.g.setDifficulty(D.id);
+    if (this.playMode === 'multi') {
+      window.__online?.openLobby?.(this.stage, D.id);
+      return;
+    }
     this.router.go('party');
   }
 
