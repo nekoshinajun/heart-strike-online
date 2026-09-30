@@ -209,7 +209,7 @@ export class PlayerCatchState {
     this.wait -= dt;
     if (this.wait > 0) return;
     const g = this.g;
-    if (this.down) { g.sm.change(GameState.NEXT_PLAYER, { direct: true, label: 'NEXT' }); return; }
+    if (this.down) { if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId:g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait=0.05; return; } g.sm.change(GameState.NEXT_PLAYER, { direct: true, label: 'NEXT' }); return; }
     // マルチは全員のキャッチ完了を待ってから、サーバーが次の投球者へ進める。
     if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId:g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait=0.05; return; }
     // FEVER ゲージ 100%:キャッチした人(この後投げる人)から FEVER 開始
