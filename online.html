@@ -1244,6 +1244,28 @@ body{background:#030304;}
 #home .bnav{z-index:13!important}
 #home .hm-fav{bottom:calc(var(--navh) + var(--sab) + 108px)!important}
 #home .hm-char{bottom:calc(var(--navh) + var(--sab) + 94px)!important}
+
+/* HOTFIX: keep HOME utility rail visible after hiding obsolete header text */
+#home .hm-top{
+  display:block!important;left:auto!important;right:calc(var(--sar) + 12px)!important;
+  top:calc(var(--sat) + 12px)!important;width:44px!important;height:auto!important;
+  z-index:20!important;overflow:visible!important
+}
+#home .hm-top .hm-row{display:contents!important}
+#home .hm-brand,#home .hm-player,#home .hm-reserve{display:none!important}
+#home .hm-gem{
+  position:absolute!important;right:0!important;top:0!important;
+  transform:translateX(0)!important;white-space:nowrap!important;z-index:21!important
+}
+#home .hm-icons{
+  position:absolute!important;right:0!important;top:42px!important;
+  display:flex!important;flex-direction:column!important;gap:8px!important;
+  width:42px!important;z-index:22!important;visibility:visible!important;opacity:1!important
+}
+#home .hm-icons button{
+  display:grid!important;visibility:visible!important;opacity:1!important;
+  flex:0 0 42px!important;width:42px!important;height:42px!important;margin:0!important
+}
 </style>
 
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
