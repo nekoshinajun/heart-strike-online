@@ -47,7 +47,7 @@ function boot() {
   try {
     window.__game = new GameManager(container, document.getElementById('view'), window.__app);
     window.__app.attachGame(window.__game);
-    if (new URLSearchParams(location.search).get('online') === '1') window.__online = new OnlineSession(window.__game);
+    window.__online = new OnlineSession(window.__game);
   } catch (e) {
     const m = String(e?.message || e);
     window.__app.gameError = /WebGL/i.test(m) ? 'WebGL を使えません' : m;
