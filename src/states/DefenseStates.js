@@ -104,7 +104,7 @@ export class PlayerDefenseState {
     const g = this.g;
     this.result = r;
     if (g.online) g.ui.hideCatchNotice();
-    if (g.online && !g.online.isDown()) { const d=g.catchJudge.detail; g.online.sendCatch((d?.dt ?? 1) * 1000, r); }
+    if (g.online && !g.online.isDown()) { const d=g.catchJudge.detail; const p=g.turn.current; const damage=Math.round(DefenseCalculator.penalty(r, this.plan.power, p.chara?.def ?? BattleTuning.defBase) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1)); g.online.sendCatch((d?.dt ?? 1) * 1000, r, damage); }
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], g.catchJudge.describe());
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
@@ -177,10 +177,10 @@ export class PlayerDefenseState {
       g.ui.damageNumber(s.x, s.y + 40, `-${dmg}`, { color: '#ff5a6e', label: p.id });
     }
 
-    if (g.turn.allDown) { g.ball.hide(); g.sm.change(GameState.GAME_OVER); return; }
+    if (!g.online && g.turn.allDown) { g.ball.hide(); g.sm.change(GameState.GAME_OVER); return; }
     if (p.hp <= 0) {
       g.ui.showJudge(`${p.id} DOWN`, 'miss', '#ff3d5a');
-      if (g.online && g.online.isMyTurn()) g.online.sendDown();
+      // Online DOWN is finalized by the server from this player's CATCH result.
       g.ball.hide();
       g.sm.change(GameState.PLAYER_CATCH, { down: true });
       return;
