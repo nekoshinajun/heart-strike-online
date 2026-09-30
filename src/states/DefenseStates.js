@@ -40,7 +40,7 @@ export class BossReturnState {
   enter() {
     const g = this.g;
     // 自分のキャッチフェーズへ入る直前に、事前予告テロップを消す。
-    if (g.online) { g.ui.hideCatchNotice?.(); g.online.beginAllCatch?.(); }
+    if (g.online) { g.ui.hideCatchNotice?.(); g.online.beginAllCatch?.(); g.ui.showJudge('CATCH!', 'tier', g.turn.current.color); }
     g.cam.reset();
     const forcedCatch = g.online ? g.online.catchPos : null;
     const plan = g.returnBall.plan(g.turn.rally, forcedCatch, g.online?.fieldSeed);
