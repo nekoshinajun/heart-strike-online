@@ -107,16 +107,16 @@ export class SpaceSystem {
 
   // ---------------- 配置 ----------------
   /** 投球の前に呼ぶ(PlayerAttackState)。FEVER 中は FEVER 専用の Energy 配置(Gate / 障害物は置かない) */
-  spawnForThrow(seed = null) {
+  spawnForThrow(forcedPattern = null, seed = null) {
     const g = this.g;
     this.clear();
     if (g.affection?.answerMode) { g.energy.clear(); return; }   // 50% 会話の回答の1投:ボスの身体だけを見て投げる
     if (g.fever?.active) { g.energy.spawnForThrow(); return; }
     const sp = this.stageSpace;
     const oldRandom = Math.random;
-    if (seed != null && g.online) Math.random = g.online.prepareTurnRandom();
+    if (seed != null && g.online) { let x=(Number(seed)||1)>>>0; Math.random=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296}; }
     const list = sp.patterns?.length ? sp.patterns : Object.keys(Config.space.routePatterns);
-    this.spawnPattern(this.pickPattern(list));
+    this.spawnPattern(forcedPattern && Config.space.routePatterns[forcedPattern] ? forcedPattern : this.pickPattern(list));
     Math.random = oldRandom;
   }
 
