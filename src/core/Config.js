@@ -94,7 +94,7 @@ export const Config = {
   camera: {
     fov: 70,
     pos: { x: 0, y: 1.6, z: 8.5 },
-    lookAt: { x: 0, y: 9.75, z: -14.45 },  // 注視点を上げ、画面上ではボスを少し下へ配置
+    lookAt: { x: 0, y: 10.65, z: -14.45 },  // ボスを画面内でさらに下へ配置
   },
 
   ball: {
