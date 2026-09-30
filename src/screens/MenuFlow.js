@@ -4,6 +4,7 @@ import { BOSS_IMAGES } from '../assets/bossImages.js';
 import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { devInput, storage, Haptic } from '../app/Platform.js';
+import { artUrl } from '../data/CharacterArt.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
 const LONG_PRESS_MOVE = 10;  // これ以上指が動いたら長押しをやめる(スクロールを邪魔しない)
