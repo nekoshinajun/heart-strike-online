@@ -382,13 +382,13 @@ export class GameManager {
   }
 
   /**
-   * 育成に入るキャラ:SOLO = 参加した4人 / MULTI = 自分のキャラだけ(他のプレイヤーの育成データには触れない)
+   * 育成に入るキャラ:SOLO = 参加した4人 / MULTI = 自分が担当したキャラだけ(1〜2人。他のプレイヤーの育成データには触れない)
    */
   growthMembers() {
     if (this.online) {
-      const o = this.online, i = o.room?.players?.findIndex((p) => p.id === o.playerId) ?? -1;
-      const c = this.partyOrder?.[i];
-      return c && !c.remote && this.progress.isOwned(c.id) ? [c.id] : [];
+      const o = this.online;
+      const mine = o.myUnitIndexes().map((i) => this.partyOrder?.[i]).filter((c) => c && !c.remote && this.progress.isOwned(c.id));
+      return [...new Set(mine.map((c) => c.id))];
     }
     return (this.partyOrder ?? []).map((c) => c.id).filter((id) => this.progress.isOwned(id));
   }

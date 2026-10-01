@@ -189,7 +189,10 @@ export class PlayerDefenseState {
     const g = this.g;
     this.result = r;
     if (g.online) g.ui.hideCatchNotice();
-    if (g.online && !g.online.isDown()) { const d=g.catchJudge.detail; const p=g.turn.current; const damage=Math.round(DefenseCalculator.penalty(r, this.plan.power, p.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1)); g.online.sendCatch((d?.dt ?? 1) * 1000, r, damage); }
+    // MULTI:1回の判定を自分が担当する生存キャラ全員へ(ダメージは各キャラの DEF で個別)
+    // HP は判定した時点の値から引く(サーバーの CATCH_PLAYER で先に同期されても二重に引かない)
+    if (g.online) this.hpBefore = new Map(g.turn.players.map((pl) => [pl, pl.hp]));
+    if (g.online && !g.online.isDown()) { const d = g.catchJudge.detail; const damages = {}; for (const i of g.online.myUnitIndexes()) { const pl = g.turn.players[i]; if (pl?.hp > 0) damages[i] = this.damageFor(pl, r); } g.online.sendCatch((d?.dt ?? 1) * 1000, r, damages); }
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], g.catchJudge.describe());
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
@@ -217,6 +220,11 @@ export class PlayerDefenseState {
     if (this.result === Judge.MISS && now >= judge.lateLimit) this.impact();
   }
 
+  damageFor(pl, r) {
+    const g = this.g;
+    return Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
+  }
+
   impact() {
     const g = this.g;
     if (this.impacted) return;
@@ -229,7 +237,7 @@ export class PlayerDefenseState {
     const pos = g.ball.pos.clone();
     // Defense:判定ごとのペナルティを DEF で軽減(DefenseCalculator は差し替え可能)
     // 難易度:PERFECT は常に 0。GREAT / GOOD / MISS の被ダメージだけ DifficultyData.damageTaken 倍
-    const damageFor = (pl) => Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
+    const damageFor = (pl) => this.damageFor(pl, r);
 
     if (r !== Judge.MISS) g.ui.tutorialDone('catch');
     if (r === Judge.PERFECT) {
@@ -254,14 +262,14 @@ export class PlayerDefenseState {
       g.turn.resetRally();
     }
 
-    // ボスの反撃は全員へ:SOLO は1回の判定を生存している全員に適用(ダメージは各自の DEF で個別)/ MULTI は自分のキャラだけ
-    const targets = g.online ? [p] : g.turn.players.filter((pl) => pl.hp > 0);
+    // ボスの反撃は全員へ:SOLO は1回の判定を生存している全員に適用(ダメージは各自の DEF で個別)/ MULTI は自分が担当するキャラだけ(1〜2人)
+    const targets = (g.online ? g.online.myUnitIndexes().map((i) => g.turn.players[i]) : g.turn.players).filter((pl) => pl && (g.online ? this.hpBefore?.get(pl) ?? pl.hp : pl.hp) > 0);
     const s0 = g.player.toScreen(pos);
     const downs = [];
     targets.forEach((pl, k) => {
       const dmg = damageFor(pl);
       if (dmg <= 0) return;
-      g.turn.damage(pl, dmg);
+      if (g.online) { pl.hp = Math.max(0, (this.hpBefore?.get(pl) ?? pl.hp) - dmg); g.bus.emit('playerHp', pl); } else g.turn.damage(pl, dmg);
       const i = g.turn.players.indexOf(pl);
       g.ui.hitPlayer(i);
       g.ui.damageNumber(s0.x + (k - (targets.length - 1) / 2) * 46, s0.y + 40 + (k % 2) * 26, `-${dmg}`, { color: '#ff5a6e', label: pl.id });
@@ -273,7 +281,7 @@ export class PlayerDefenseState {
     if (downs.length) {
       g.ui.showJudge(`${downs.map((d) => d.id).join('・')} DOWN`, 'miss', '#ff3d5a');
       // Online DOWN is finalized by the server from this player's CATCH result.
-      if (g.online) { g.ball.hide(); g.sm.change(GameState.PLAYER_CATCH, { down: true }); return; }
+      if (g.online && g.online.myUnitIndexes().every((i) => !(g.turn.players[i]?.hp > 0))) { g.ball.hide(); g.sm.change(GameState.PLAYER_CATCH, { down: true }); return; }
     }
     g.sm.change(GameState.PLAYER_CATCH, { judge: r });
   }
@@ -300,7 +308,7 @@ export class PlayerCatchState {
     if (this.wait > 0) return;
     const g = this.g;
     // マルチは全員のキャッチ完了を待ってから、サーバーが次のフェーズの先頭の投球者を決める
-    if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId: g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait = 0.05; return; }
+    if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextIndex: g.online.room?.currentIndex }); else this.wait = 0.05; return; }
     // 次の PLAYER ATTACK PHASE(生存している A 側から。FEVER ゲージ 100% ならこのフェーズが FEVER)
     g.sm.change(GameState.NEXT_PLAYER, { phase: true });
   }

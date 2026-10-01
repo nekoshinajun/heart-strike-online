@@ -54,6 +54,7 @@ export class UIManager {
       c.fill.style.transform = `scaleX(${p.hp / p.maxHp})`;
       c.d.classList.toggle('active', i === current);
       c.d.classList.toggle('down', p.hp <= 0);
+      c.d.classList.toggle('mine', !!p.mine);   // MULTI:自分が担当するキャラ
     });
   }
 

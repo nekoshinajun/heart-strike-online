@@ -260,6 +260,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pattr { position: absolute; right: -5px; top: -4px; font-size: 11px; font-style: normal; filter: drop-shadow(0 1px 0 #000); }
 .pbar { width: 36px; height: 4px; background: #000; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px #000; }
 .pbar i { display: block; height: 100%; background: var(--pc); transform-origin: left; transition: transform 250ms; }
+.pcard.mine::after { content: "YOU"; position: absolute; right: -4px; top: -7px; padding: 0 4px; border-radius: 999px; background: #ff4fa8; color: #fff; font: 400 8px/12px var(--display); letter-spacing: .04em; box-shadow: 0 0 0 1.5px #000; }
 .pcard.active { opacity: 1; filter: none; transform: scale(1.22); z-index: 1; }
 .pcard.active .picon { box-shadow: 0 0 0 2px #050507, 0 0 0 3px var(--pc), 0 0 18px color-mix(in srgb, var(--pc) 55%, transparent); animation: nowpulse 900ms ease-in-out infinite alternate; }
 .pcard.active::before { content: "NOW ▶"; position: absolute; right: calc(100% + 5px); top: 13px; font-family: var(--display); font-size: 9px; color: #fff; background: #0b0b0f; padding: 3px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 18px #0007; text-shadow: 0 1px 0 #000; letter-spacing: .04em; white-space: nowrap; }
@@ -1176,6 +1177,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #onlineLobby .ol-player i { font-style: normal; font-weight: 800; color: var(--hs-pink-deep); }
 #onlineLobby .ol-player small { color: var(--hs-ink-soft); }
 #onlineLobby .ol-player .ok { color: var(--hs-mint); font-weight: 800; }
+#onlineLobby #olMine { margin: 10px 0 4px; padding: 10px 12px 6px; border: 1px solid var(--hs-line-soft); border-radius: 16px; background: var(--hs-pink-pale); }
+#onlineLobby #olMine .ol-sub { margin: 0 0 4px; font-weight: 800; color: var(--hs-pink-deep); }
+#onlineLobby .ol-pick { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 6px; font-size: 12px; text-align: left; color: var(--hs-ink-soft); }
 #onlineLobby .ol-card::-webkit-scrollbar, #onlineLobby #olRooms::-webkit-scrollbar { width: 4px; }
 #onlineLobby .ol-card::-webkit-scrollbar-thumb, #onlineLobby #olRooms::-webkit-scrollbar-thumb { background: var(--hs-pink-soft); border-radius: 4px; }
 </style>
