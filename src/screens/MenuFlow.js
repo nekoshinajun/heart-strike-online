@@ -1,6 +1,5 @@
 import { STAGES, CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
 import { attributeRelation } from '../data/BattleCalc.js';
-import { BOSS_IMAGES } from '../assets/bossImages.js';
 import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { devInput, storage, Haptic } from '../app/Platform.js';
@@ -8,6 +7,8 @@ import { artUrl } from '../data/CharacterArt.js';
 import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById, giftById, giftIcon, giftName } from '../data/RomanceData.js';
 import { STAT_LABELS } from '../data/GrowthData.js';
 import { roleTag, rewardLabel } from '../app/Roles.js';
+import { shopOfStage, castsOf } from '../data/ShopData.js';
+import { showShopMap, showShop, capTop, castArt, castLine } from './CaptureScreens.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
 const LONG_PRESS_MOVE = 10;  // これ以上指が動いたら長押しをやめる(スクロールを邪魔しない)
@@ -97,7 +98,7 @@ export class MenuFlow {
         else if (e.key.startsWith('Arrow') || e.key === 'Tab') { e.preventDefault(); const o = document.activeElement?.dataset.cf === 'go' ? 'no' : 'go'; this.confirmEl.querySelector(`[data-cf="${o}"]`).focus(); }
         return;
       }
-      if (this.screen === 'stage' && e.key.startsWith('Arrow')) {
+      if (this.screen === 'cast' && e.key.startsWith('Arrow')) {
         e.preventDefault(); e.stopPropagation();
         const order = Config.difficultyOrder, i = order.indexOf(this.diff);
         const d = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1;
@@ -122,6 +123,7 @@ export class MenuFlow {
 
   frame(screen, title, step, { primary, back, diff, home } = {}) {
     this.screen = screen;
+    if (screen !== 'shopmap') this.city?.stop();   // 夜の街マップのアニメーションは表示中だけ
     this.el.hidden = false;
     this.g.container.classList.add('menuopen');
     this.el.dataset.screen = screen;
@@ -148,13 +150,13 @@ export class MenuFlow {
     // フォーカス中のカード(Tab移動した場合)はそれを押したことにする
     // Tab キーで移動してきたカードだけ「押したこと」にする(マウス / タッチで触ったカードに Enter を取られない)
     if (a && this.kbNav && this.el.contains(a) && a !== this.primary && a !== this.back && a.dataset.act && a.dataset.act !== 'diff') { a.click(); return; }
-    if (this.screen === 'stage') return this.startStage();
+    if (this.screen === 'cast') return this.startStage();
     this.onPrimary();
   }
 
   onPrimary() {
     switch (this.screen) {
-      case 'stage': return this.startStage();
+      case 'cast': return this.startStage();
       case 'party': return this.partyMode === 'sortie' ? this.router.go('chars') : null;
       case 'chars': return this.startGame();   // 攻略開始:すぐインゲームへ(ボス紹介はインゲームの開始演出)
       case 'result': return this.g.backToMenu();          // ステージ選択
@@ -186,22 +188,26 @@ export class MenuFlow {
   showStageSelect({ stageId, difficulty } = {}) {
     if (stageId) this.stage = STAGES.find((s) => s.id === stageId) ?? this.stage;
     const selected = this.stage ?? STAGES[0];
-    if (stageId || difficulty) this.diff = difficulty ?? this.diff;
+    if (stageId || difficulty) this.diff = difficulty ?? 'NORMAL';   // キャストを選び直したら NORMAL から
     if (!this.diffUnlocked(selected.id, this.diff)) this.diff = 'NORMAL';
     this.recommended = difficulty ?? null;
-    this.frame('stage', '攻略', '今日、誰を口説きに行く？');
+    this.frame('cast', '攻略', '今日、誰を口説きに行く？');
     const heroine = heroineByStage(selected.id);
-    const bossArt = (s) => BOSS_IMAGES[s.boss.image] ?? BOSS_IMAGES[s.boss.fallbackImage] ?? '';
+    const shop = shopOfStage(selected.id);
+    this.shopSel = shop?.id ?? this.shopSel;
+    const bossArt = castArt;
     const order = Config.difficultyOrder;
     // ステージの状態:CLEAR(どれかの難易度でクリア)/ NEW(まだ一度もクリアしていない)/ LOCK(未公開の枠)
     const status = (s) => (this.progress.isCleared(s.id) ? '<em class="st clear">CLEAR</em>' : '<em class="st new">NEW</em>');
+    // 下のキャスト一覧:同じお店のキャスト(+ 近日登場の枠)
+    const mates = shop ? castsOf(shop).map((c) => c.stage) : STAGES;
+    const soon = Array.from({ length: shop?.soonSlots ?? 0 }, (_, k) => mates.length + k + 1);
     const diffRow = (id) => {
       const D = difficultyData(id), open = this.diffUnlocked(selected.id, id), clear = this.progress.isCleared(selected.id, id);
-      const prev = order[order.indexOf(id) - 1];
       // 状態の文言:狭い画面では .long を隠してアイコンだけ(🔒 / ✓)
-      const state = !open ? `🔒<span class="long"> ${esc(difficultyData(prev).label)}クリアで解放</span>` : clear ? '<span class="long">CLEAR </span>✓' : id === this.recommended ? 'おすすめ' : '未クリア';
+      const state = !open ? '未解放' : clear ? 'クリア済' : id === this.recommended ? 'おすすめ' : '未クリア';
       return `<button type="button" class="diffcard${clear ? ' clear' : ''}${open ? '' : ' locked'}" data-act="diff" data-id="${id}" style="--dc:${D.color}" aria-disabled="${!open}" aria-pressed="false">
-        <i class="dot"></i><b>${D.label}</b><small>${state}</small></button>`;
+        <b>${D.label}${clear ? ' ✓' : open ? '' : ' 🔒'}</b><small>${state}</small></button>`;
     };
     const voices = heroine ? this.progress.rewardVoices(heroine.id) : [];
     const voiceRow = voices.some((v) => v.voice)
@@ -214,27 +220,29 @@ export class MenuFlow {
         <div class="sg-bg"></div>
         <img class="sg-art" src="${bossArt(selected)}" alt="${esc(selected.boss.name)}">
         <div class="sg-fx" aria-hidden="true"><i></i><i></i><i></i></div>
-        <div class="sg-modes playmode-tabs" role="tablist">
+        ${capTop(true)}
+        <div class="sg-modes" role="tablist">
           <button type="button" role="tab" data-mode="solo"><b>ソロプレイ</b><small>SOLO PLAY</small></button>
           <button type="button" role="tab" data-mode="multi"><b>マルチプレイ</b><small>MULTI PLAY ・ 2–4人</small></button>
         </div>
-        <p class="sg-lead">${esc('今日、誰を口説きに行く？')}</p>
+        <header class="sg-head"><h1>攻略<em class="script">Story</em></h1><p>今日、誰を口説きに行く？<i>♡</i></p></header>
         <section class="sg-card">
           <header>${roleTag('heroine', 'sm')}<small>STAGE ${String(selected.no).padStart(2, '0')}</small></header>
-          <h2>${esc(selected.boss.name)}</h2>
+          <h2>${esc(selected.boss.name)}${heroine?.roman ? `<em class="script">${esc(heroine.roman)}</em>` : ''}</h2>
           ${heroine?.cv ? `<span class="cv">CV ${esc(heroine.cv)}</span>` : ''}
           ${selected.name ? `<span class="sg-title">${esc(selected.name)}</span>` : ''}
-          <p class="sg-line">${phrase(`「${selected.line ?? 'あなたのハート、ちゃんと届くかな？'}」`)}</p>
-          <div class="sg-diff"><small>難易度</small>${order.map(diffRow).join('')}</div>
+          <p class="sg-line">${phrase(`「${castLine(heroine, selected)}」`)}</p>
+          <div class="sg-diff"><small>難易度選択</small>${order.map(diffRow).join('')}</div>
           ${voiceRow}
           <p class="sg-note" hidden></p>
         </section>
         <button type="button" class="capture-start sg-start" data-act="start"><span class="h">♡</span><span class="t"><b>挑戦する</b><small>START</small></span><em class="sub"></em></button>
-        <div class="sg-strip cast-strip">${STAGES.map((s) => `<button type="button" class="cast-tab${s === selected ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="background-image:url('${bossArt(s)}')"><i>${String(s.no).padStart(2, '0')}</i><span>${esc(s.boss.name)}</span>${status(s)}</button>`).join('')}<button type="button" class="cast-tab locked" disabled><i>04</i><span>???</span><em class="st lock">LOCK</em></button><button type="button" class="cast-tab locked" disabled><i>05</i><span>???</span><em class="st lock">LOCK</em></button></div>
+        <div class="sg-strip cast-strip">${mates.map((s) => `<button type="button" class="cast-tab${s === selected ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="background-image:url('${bossArt(s)}')"><i>${String(s.no).padStart(2, '0')}</i><span>${esc(s.boss.name)}</span>${status(s)}</button>`).join('')}${soon.map((no) => `<button type="button" class="cast-tab locked" disabled><i>${String(no).padStart(2, '0')}</i><b class="lk" aria-hidden="true"></b><span>???</span><em class="st lock">LOCK</em></button>`).join('')}</div>
         ${support}
       </div>`;
     for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click', () => this.setPlayMode(b.dataset.mode));
-    for (const b of this.body.querySelectorAll('[data-act="stage"]')) b.addEventListener('click', () => { const st = STAGES.find((s) => s.id === b.dataset.id); if (!st || st === this.stage) return; this.stage = st; this.g.audio?.tick?.(); this.showStageSelect({ stageId: st.id }); });
+    for (const b of this.body.querySelectorAll('[data-act="stage"]')) b.addEventListener('click', () => { const st = STAGES.find((s) => s.id === b.dataset.id); if (!st || st === this.stage) return; this.g.audio?.tick?.(); this.router.go('cast', { stageId: st.id }); });
+    this.body.querySelector('[data-act="back"]')?.addEventListener('click', () => this.router.back());
     for (const b of this.body.querySelectorAll('[data-act="diff"]')) b.addEventListener('click', () => this.selectDiff(b.dataset.id));
     this.body.querySelector('[data-act="start"]')?.addEventListener('click', () => this.startStage());
     this.setPlayMode(this.playMode, { quiet: true });
@@ -242,6 +250,10 @@ export class MenuFlow {
     this.body.querySelector('.cast-tab.sel')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
     this.focus(this.body.querySelector('.sg-start'));
   }
+
+  /** ① 夜の街マップ(お店を選ぶ)/ ② お店の中(キャスト一覧)。中身は CaptureScreens.js */
+  showShopMap(p) { showShopMap(this, p); }
+  showShop(p) { showShop(this, p); }
 
   /** 難易度の解放(NORMAL は最初から / ひとつ下の難易度をクリアで解放。上の難易度をクリア済みなら解放扱い)*/
   diffUnlocked(stageId, id) { return this.progress.isDifficultyUnlocked(stageId, id, Config.difficultyOrder); }
@@ -256,7 +268,7 @@ export class MenuFlow {
   /** 難易度を選ぶ(まだ解放されていない難易度は選べない。理由をカードに出す)*/
   selectDiff(id, { quiet = false } = {}) {
     const D = difficultyData(id), note = this.body.querySelector('.sg-note');
-    if (this.screen === 'stage' && !this.diffUnlocked(this.stage.id, D.id)) {
+    if (this.screen === 'cast' && !this.diffUnlocked(this.stage.id, D.id)) {
       if (note) { const prev = Config.difficultyOrder[Config.difficultyOrder.indexOf(D.id) - 1]; note.textContent = `${difficultyData(prev).label} をクリアすると ${D.label} が解放されます`; note.hidden = false; }
       const b = this.body.querySelector(`.diffcard[data-id="${D.id}"]`);
       b?.classList.remove('deny'); void b?.offsetWidth; b?.classList.add('deny');
@@ -319,7 +331,7 @@ export class MenuFlow {
     if (!this.confirmEl) return;
     this.confirmEl.remove();
     this.confirmEl = null;
-    if (this.screen === 'stage') this.focus(this.body.querySelector('.sg-start'));
+    if (this.screen === 'cast') this.focus(this.body.querySelector('.sg-start'));
   }
   get selectedDifficulty() { return this.diff; }
 

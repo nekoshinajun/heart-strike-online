@@ -61,6 +61,16 @@ export class ScreenRouter {
     this.activate(this.top, { restore: false, from: prev?.id });
   }
 
+  /** 履歴ごと置き換えて一番上の画面だけを開く(下の階層は「戻る」で開く)。先頭は TAB_ROOT */
+  reset(entries) {
+    this.closeAllSheets();
+    const prev = this.top;
+    for (const e of [...this.stack].reverse()) if (!entries.some((x) => x.id === e.id)) this.def(e.id).hide?.(e.params);
+    this.stack = entries.map((e) => ({ id: e.id, params: e.params ?? {} }));
+    this.lastTab = entries[0]?.id ?? this.lastTab;
+    this.activate(this.top, { restore: false, from: prev?.id });
+  }
+
   /** 今の画面を置き換える(履歴を増やさない) */
   replace(id, params = {}) {
     const prev = this.stack.pop();
