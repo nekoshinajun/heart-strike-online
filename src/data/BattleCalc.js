@@ -52,7 +52,7 @@ export function throwModifiers(chara) {
   const t = TYPES[chara?.type] ?? TYPES.STRAIGHT;
   const st = chara?.stats ?? {};
   const ab = chara?.abilities ?? [];
-  return { speedMul: t.straightPowerMul, curveMul: statEffect('curve', st.curve ?? 50), controlError: statEffect('control', st.control ?? 50) * abilityMul(ab, 'control'), abilities: ab };
+  return { speedMul: t.straightPowerMul, curveMul: statEffect('curve', st.curve ?? 50), controlError: statEffect('control', st.control ?? 50) * abilityMul(ab, 'control', {}, { onlyAlways: true }), abilities: ab };
 }
 
 /**

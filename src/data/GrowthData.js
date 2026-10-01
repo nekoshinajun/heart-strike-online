@@ -93,10 +93,12 @@ export const ABILITIES = {
   ctl_l: { name: 'CONTROL UP+', desc: 'CONTROL +8', effects: [{ kind: 'stat', stat: 'control', add: 8 }] },
   crv_l: { name: 'CURVE UP+', desc: 'CURVE +8', effects: [{ kind: 'stat', stat: 'curve', add: 8 }] },
   all_round: { name: 'ALL ROUND', desc: '全ステータス +3', effects: ['attack', 'defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 3 })) },
-  power_heart: { name: 'POWER HEART', desc: '深く引いた(速い)球が命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { pullMin: 0.85 } }] },
+  // ★ 統一ルール:引く量(球速)では HEART(ダメージ)は変わらない。引く量を条件にするのはダメージ以外の効果だけ
+  //   power_heart / slow_curve は ID はそのまま(選択済みのセーブもそのまま有効)、効果だけ HEART 倍率 → 投球性能に変更
+  power_heart: { name: 'POWER HEART', desc: '深く引いた(速い)球は CONTROL のブレ ×0.6(狙いどおりまっすぐ飛ぶ)', effects: [{ kind: 'control', mul: 0.6, when: { pullMin: 0.85 } }] },
   pure_straight: { name: 'PURE STRAIGHT', desc: 'カーブなしで命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },
   spin_lover: { name: 'SPIN LOVER', desc: 'カーブで命中すると HEART ×1.06', effects: [{ kind: 'heart', mul: 1.06, when: { spin: true } }] },
-  slow_curve: { name: 'SOFT CURVE', desc: '浅く引いたカーブ球が命中すると HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { pullMax: 0.35, spin: true } }] },
+  slow_curve: { name: 'SOFT CURVE', desc: '浅く引いた(遅い)球のカーブ ×1.2', effects: [{ kind: 'curve', mul: 1.2, when: { pullMax: 0.35 } }] },
   calm_aim: { name: 'CALM AIM', desc: 'CONTROL のブレを 30% 軽減', effects: [{ kind: 'control', mul: 0.7 }] },
   steady_hand: { name: 'STEADY HAND', desc: 'CONTROL のブレを 50% 軽減', effects: [{ kind: 'control', mul: 0.5 }] },
   tough_heart: { name: 'TOUGH HEART', desc: '受けるダメージ ×0.92', effects: [{ kind: 'guard', mul: 0.92 }] },

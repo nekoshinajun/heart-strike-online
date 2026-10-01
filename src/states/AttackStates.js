@@ -211,8 +211,9 @@ export class BossHitState {
       const bonusTable = Config.energy.throwBonus;
       const energyMul = bonusTable[Math.min(orbs, bonusTable.length - 1)];
       const sMul = special ? special.heartMul : 1;
-      // アビリティ(条件つき):投げた子のアビリティ × この投球の内容(引っ張り量・SPIN・球質・SPECIAL・FEVER・Energy)
-      const abilityHeart = abilityMul(ch?.abilities, 'heart', { pull: th.pull, throwSpin: th.throwSpin ?? th.spin, effects: th.effects, special: !!special, fever: g.fever.active, energy: orbs });
+      // アビリティ(条件つき):投げた子のアビリティ × この投球の内容(SPIN・球質・SPECIAL・FEVER・Energy)
+      // ★ 統一ルール:引く量(球速)ではダメージは変わらない → HEART のアビリティ条件には pull を渡さない
+      const abilityHeart = abilityMul(ch?.abilities, 'heart', { throwSpin: th.throwSpin ?? th.spin, effects: th.effects, special: !!special, fever: g.fever.active, energy: orbs });
       const hm = heartMultiplier({
         attack: ch?.stats?.attack ?? 50, ability: abilityHeart, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
         rally: mul, energy: energyMul, special: sMul, fever: g.fever.heartMul,
