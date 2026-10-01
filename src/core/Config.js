@@ -398,9 +398,10 @@ export const Config = {
   //   exp … 獲得 EXP 倍率 / locked … 将来の解放条件用(今回は全部 false)
   // DifficultyData:ゲームプレイ上、難易度で変えるのは Heart Gate の大きさ(gateSize)と被ダメージ(damageTaken)だけ。
   // キャッチ判定幅・返球速度・HEART容量・Energy配置・障害物は全難易度共通。exp はクリア報酬倍率。
+  //   damageTaken … ボスの攻撃の被ダメージ倍率(DEFENCE の軽減の後に掛かる・PERFECT は常に 0)。★ NORMAL は 0.6(以前の 60%)
   difficulties: {
-    NORMAL: { id: 'NORMAL', label: 'NORMAL', ja: 'ノーマル', desc: '標準難易度', note: 'Heart Gate が大きく、被ダメージは標準', color: '#3fd98a',
-      heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.0, energyDensity: 1.0, energyJitter: 0, gateSize: 1.0,
+    NORMAL: { id: 'NORMAL', label: 'NORMAL', ja: 'ノーマル', desc: '標準難易度', note: 'Heart Gate が大きく、受けるダメージが少ない', color: '#3fd98a',
+      heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 0.6, energyDensity: 1.0, energyJitter: 0, gateSize: 1.0,
       obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 0, exp: 1.0, locked: false },
     HARD: { id: 'HARD', label: 'HARD', ja: 'ハード', desc: '上級者向け', note: 'キャッチ判定は同じ。Gate が小さく、受けるダメージが増える', color: '#ff9b1f',
       heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.25, energyDensity: 1.0, energyJitter: 0, gateSize: 0.72,
