@@ -15,6 +15,9 @@ import { Config as __Cfg } from './core/Config.js';
 import { App } from './app/App.js';
 import { Log } from './app/Platform.js';
 import { OnlineSession } from './online/OnlineSession.js';
+import { characterById } from './data/GameData.js';
+import { artUrl } from './data/CharacterArt.js';
+import { BOSS_IMAGES } from './assets/bossImages.js';
 
 const BUILD = __Cfg.app.version;
 function setStatus(text, bad = false) {
@@ -53,9 +56,45 @@ function boot() {
     window.__app.gameError = /WebGL/i.test(m) ? 'WebGL を使えません' : m;
     Log.warn('INIT', 'game init failed (isolated):', m);
   }
-  window.__app.start();
+  showTitle(container, () => window.__app.start());
   setStatus(`${__Cfg.app.title} ${BUILD}`);
   Log.info('INIT', `boot ${BUILD}`);
 }
+
+function showTitle(container, onStart) {
+  const ally = characterById('minamo') ?? characterById('hinoka');
+  const allyArt = artUrl(ally, 'cutout') || '';
+  const targetArt = BOSS_IMAGES.demon || '';
+  const el = document.createElement('section');
+  el.id = 'titleScreen';
+  el.className = 'hs-title';
+  el.setAttribute('aria-label', 'HEART STRIKE タイトル');
+  el.innerHTML = `
+    <div class="ht-sky"></div><div class="ht-city" aria-hidden="true"></div>
+    <div class="ht-glow" aria-hidden="true"></div>
+    <img class="ht-girl ht-ally" src="${allyArt}" alt="">
+    <img class="ht-girl ht-target" src="${targetArt}" alt="">
+    <div class="ht-hearts" aria-hidden="true"><i>♡</i><i>♡</i><i>♡</i><b>♥</b></div>
+    <div class="ht-copy">
+      <div class="ht-kicker">GIRLS × FLIRT × HEART BATTLE</div>
+      <h1><span>HEART</span><em>STRIKE</em><b>♡</b></h1>
+      <p class="ht-jp">ハートを投げて、あの娘を落とせ♡</p>
+    </div>
+    <button class="ht-start" type="button"><span>TOUCH TO START</span><b>♡</b></button>
+    <p class="ht-loop">育てる。口説く。落とす。<br><small>最高難易度のその先に、彼女だけの特別な声。</small></p>
+    <div class="ht-note">© HEART STRIKE</div>`;
+  container.appendChild(el);
+  let started = false;
+  const start = () => {
+    if (started) return; started = true;
+    try { window.__app?.audio?.tick?.(); } catch {}
+    el.classList.add('leaving');
+    setTimeout(() => { el.remove(); onStart(); }, 420);
+  };
+  el.querySelector('.ht-start').addEventListener('click', start);
+  el.addEventListener('pointerup', (e) => { if (!e.target.closest('.ht-start')) start(); });
+  window.addEventListener('keydown', (e) => { if (!started && (e.key === 'Enter' || e.key === ' ')) start(); }, { once: true });
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
 else boot();
