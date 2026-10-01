@@ -74,7 +74,6 @@ export class GameManager {
     this.catchTarget = new CatchTargetController(this.player, this.cam, this.viewport);
     this.returnBall = new ReturnBallController(this.player, this.boss, this.viewport);
     this.ui = new UIManager(this.turn.players);
-    this.ui.onRouteToggle = () => this.toggleThrowRoute();   // 投球ルート DIRECT / CURVE の切り替え(左上)
     this.audio = app.audio;
     this.input = new InputManager(container, this.bus);
     this.inspector = new InspectorPanel(this);
@@ -306,16 +305,8 @@ export class GameManager {
     else this.sm.change(S.BOSS_TAUNT);
   }
 
-  /** 投球ルート(プレイヤーの選択。保存して次回も同じ)。強さ・ダメージは変わらない(操作感だけ) */
-  get throwRoute() { const r = this.progress?.data?.settings?.throwRoute; return Config.throwRoute.routes[r] ? r : Config.throwRoute.default; }
-  setThrowRoute(id) {
-    if (!Config.throwRoute.routes[id] || this.thrower?.grabbing) return false;   // 投球操作中は切り替えない
-    this.progress.data.settings.throwRoute = id;
-    this.progress.save();
-    this.ui.setRoute(id, Config.throwRoute.routes[id].label);
-    return true;
-  }
-  toggleThrowRoute() { const ids = Object.keys(Config.throwRoute.routes); return this.setThrowRoute(ids[(ids.indexOf(this.throwRoute) + 1) % ids.length]); }
+  /** 投球ルート:今は選択なし(下へ引く量だけで球質が変わる)。将来の拡張用に Config.throwRoute.default を返す */
+  get throwRoute() { return Config.throwRoute.default; }
 
   /** このステージの攻略対象の攻撃ボイス(データ:RomanceData の attackVoices。ファイルのあるものだけ)*/
   attackVoices() { return (heroineByStage(this.stage?.id)?.attackVoices ?? []).filter((v) => v?.src); }
@@ -369,7 +360,6 @@ export class GameManager {
     this.newGame();
     this.menu.hide();
     this.applyCharacter(this.turn.current);
-    this.ui.setRoute(this.throwRoute, Config.throwRoute.routes[this.throwRoute].label);
     this.ball.hold(this.player.holdAnchor);
     // バトル開始演出:バトル BGM(上で最初から再生)が流れる中でボス紹介 → BATTLE START → A の投球(OpeningState)
     //   MULTI はサーバーが配った長さ(全員同じ)。RETRY も新しいバトルとして同じ流れ

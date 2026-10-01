@@ -401,17 +401,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #opening .op-line { margin: 8px auto 0; max-width: 340px; font-size: 15px; font-weight: 800; color: #ffe2f1; text-shadow: 0 0 8px #ff5fa2, 0 1px 3px #000; }
 #opening.name .op-target, #opening.name .op-name, #opening.diff .op-diff, #opening.text .op-profile, #opening.text .op-line { opacity: 1; transform: none; }
 #opening.out .op-card, #opening.out .op-dim { opacity: 0; transition: opacity .35s ease; }   /* .dim より後に書く(同じ詳細度で上書き)*/
-/* 投球ルート(DIRECT / CURVE):左上の小さな切り替え。親指で操作するハートから離して誤タップしない */
-#routeToggle { position: absolute; left: calc(8px + env(safe-area-inset-left, 0px)); top: 62px; z-index: 7; display: flex; align-items: baseline; gap: 5px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(7,7,10,.66); color: #fff; font-family: var(--display); letter-spacing: .1em; pointer-events: auto; touch-action: manipulation; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-#routeToggle small { font-size: 8px; color: #b9b0d6; }
-#routeToggle b { font-weight: 400; font-size: 12px; }
-#routeToggle[data-route="DIRECT"] { box-shadow: 0 0 0 1px #3ee8ff inset; }
-#routeToggle[data-route="DIRECT"] b { color: #9ff3ff; }
-#routeToggle[data-route="CURVE"] { box-shadow: 0 0 0 1px #ff9ccc inset; }
-#routeToggle[data-route="CURVE"] b { color: #ffc2e1; }
-#routeToggle.pop { animation: rtPop .3s ease; }
-@keyframes rtPop { 50% { transform: scale(1.12); } }
-#game.menuopen #routeToggle { display: none; }
 #throwInfo { position: absolute; top: 164px; right: 10px; max-width: 46%; text-align: right; font-size: 10px; line-height: 1.5; color: var(--dim); text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; }
 #throwInfo b { color: var(--ink); }
 #game[data-state="TITLE"] #debug, #game[data-state="TITLE"] #throwInfo, #game[data-state="TITLE"] #partsWrap { display: none; }
@@ -1219,7 +1208,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     </div>
     <div id="throwType" hidden>STRAIGHT</div>
     <div id="powerGauge" hidden><span>SPEED</span><div class="pgbar"><i></i></div><b>0%</b></div>
-    <button id="routeToggle" type="button" aria-label="投球ルートの切り替え"><small>ROUTE</small><b>DIRECT</b></button>
     <div id="ballFx" hidden aria-hidden="true"><i class="bf-spin"></i><i class="bf-drive"></i><b class="bf-pop"></b></div>
     <button id="energy" type="button"><em>♡ SPECIAL</em><b>0 / 100</b><div class="egbar"><i></i></div></button>
     <div id="players"></div>

@@ -181,13 +181,15 @@ export const Config = {
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
   },
 
-  // ---- 投球ルート(プレイヤーが自由に選ぶ操作感の違い。強さ・ダメージは同じ)----
-  //   curveMul … 投球の SPIN(カーブ)の効き / preSpinMul … PRE-SPIN の効き / driveMul … DRIVE の効き
+  // ---- 投球ルート(★ 今はプレイヤーの操作に出さない:基本操作は「狙う・引く・投げる」だけ)----
+  //   球速と直進性は下へ引く量だけで連続的に変わる(浅い = 曲がりやすい CURVE 寄り / 深い = まっすぐ DIRECT 寄り)
+  //   DIRECT / CURVE のデータは将来の拡張用に残す(選択 UI は無い)
   throwRoute: {
-    default: 'DIRECT',
+    default: 'STANDARD',
     routes: {
-      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },   // 直進性が高く、狙った所へ素直に飛ぶ
-      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },       // 変化球を扱いやすい
+      STANDARD: { label: 'STANDARD', curveMul: 1, preSpinMul: 1, driveMul: 1 },
+      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },
+      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },
     },
   },
   // ---- 下へ引く量(chargeRatio 0〜1)= 球速と直進性。ダメージには使わない ----
@@ -216,9 +218,10 @@ export const Config = {
   // ---- 投球前の球質(ハートを掴んだまま仕込む)。判定と効果の数値はここだけ ----
   //   PRE-SPIN:指で円を描く(時計回り = RIGHT / 反時計回り = LEFT)→ 投球時の SPIN に掛かる
   //   DRIVE   :上下へ素早く往復 → 終盤で下へ沈む
+  //   ★ 今はプレイヤーの操作に出さない(enabled: false)。基本操作は「狙う・引く・投げる」だけ。仕組みは将来の球種用に残す
   //   どちらも「下へ引いて POWER → 上へ弾く」通常操作とは区別する(誤認識しない条件)
   preSpin: {
-    enabled: true,
+    enabled: false,
     sampleStepPx: 6,        // 指の軌跡をこの間隔で間引いて向きの変化を測る
     minTurnDeg: 300,        // ★ 成立に必要な回転量(指の進む向きが同じ向きに回った合計)
     fullTurnDeg: 360,       // この回転量で strength = 1
@@ -232,7 +235,7 @@ export const Config = {
     baseSpin: 0.2,          // ★ ストレートに投げた時の回転の名残(SPIN 0 → 仕込んだ向きへ弱く曲がる。0 で無効)
   },
   drive: {
-    enabled: true,
+    enabled: false,
     minStrokes: 4,          // ★ 上下の往復回数(下→上→下→上 = 4ストローク)。「下へ引いて弾く」は2ストロークなので成立しない
     minAmplitudeRatio: 0.022, // 1ストロークの最低移動量(画面の高さ比)
     fullAmplitudeRatio: 0.06, // この振れ幅で strength = 1

@@ -201,7 +201,7 @@ export class UIManager {
     const f = (v, d = 2) => Number(v).toFixed(d);
     const ps = th?.effects?.find((e) => e.type === 'preSpin'), dr = th?.effects?.find((e) => e.type === 'drive');
     this.lastThrowHTML = th
-      ? `SPEED <b>${Math.round(th.power * 100)}%</b>(引き ${f(th.pull ?? 0)})${th.route ? ` ROUTE <b>${th.route}</b>` : ''} 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>`
+      ? `SPEED <b>${Math.round(th.power * 100)}%</b>(引き ${f(th.pull ?? 0)}) 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>`
         + `PRE-SPIN <b>${ps ? (ps.dir > 0 ? 'RIGHT' : 'LEFT') : 'NONE'}</b> ${f(ps?.strength ?? 0)} ・ DRIVE <b>${dr ? 'ON' : 'OFF'}</b> ${f(dr?.strength ?? 0)}<br>`
         + `Throw SPIN ${f(th.throwSpin ?? th.spin)} → Final curve <b>${{ left: '← 左', right: '右 →', straight: 'ストレート' }[th.curveDir] ?? ''}</b> ${f(th.spin)} 強さ ${f(th.curveStrength, 1)}`
       : '投げていません(上へ弾いて離すと投球)';
@@ -251,21 +251,6 @@ export class UIManager {
     el.textContent = type === 'CURVE' ? 'CURVE' : 'STRAIGHT';
     el.dataset.type = type === 'CURVE' ? 'CURVE' : 'STRAIGHT';
     el.hidden = false;
-  }
-
-  /** 投球ルート(DIRECT / CURVE)の表示。onRouteToggle はタップで呼ばれる */
-  setRoute(id, label = id) {
-    const el = $('routeToggle');
-    if (!el) return;
-    if (!this.routeWired) {
-      this.routeWired = true;
-      // ゲームの入力(ハートを掴む)へ流さない
-      for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend']) el.addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
-      el.addEventListener('click', (e) => { e.stopPropagation(); this.onRouteToggle?.(); });
-    }
-    el.dataset.route = id;
-    el.querySelector('b').textContent = label;
-    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
   }
 
   /**
