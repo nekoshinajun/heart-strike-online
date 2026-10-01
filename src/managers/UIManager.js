@@ -3,6 +3,7 @@ import { Config } from '../core/Config.js';
 import { STAT_KEYS, STAT_LABELS } from '../data/GrowthData.js';
 import { statRadarSVG } from '../screens/StatRadar.js';
 import { portraitStyle } from '../data/CharacterArt.js';
+import { rarityBadge } from '../app/Rarity.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -80,7 +81,7 @@ export class UIManager {
     el.style.setProperty('--pc', p.color); el.style.setProperty('--ac', a?.color ?? '#fff'); el.style.setProperty('--rc', r?.color ?? '#fff');
     el.innerHTML = `
       <div class="pst-head"><span class="pst-face"${ps ? ` style="${ps}"` : ''}></span>
-        <div class="pst-name"><b>${esc(ch.name)}</b><small><i class="pst-rank">${r?.id ?? ''}</i> ${a?.icon ?? ''} ${a?.label ?? ''} / ${t?.label ?? ''}</small><em>♡ Lv.${ch.level ?? 1}</em></div>
+        <div class="pst-name"><b>${esc(ch.name)}</b><small>${rarityBadge(ch.rank, 'pst-rank')} ${a?.icon ?? ''} ${a?.label ?? ''} / ${t?.label ?? ''}</small><em>♡ Lv.${ch.level ?? 1}</em></div>
         <i class="pst-slot">${p.id}</i></div>
       ${p.ownerName ? `<div class="pst-owner">${p.mine ? 'YOU' : esc(p.ownerName)}</div>` : ''}
       <div class="pst-hp${p.hp <= 0 ? ' down' : ''}"><span>HP</span><i><i style="transform:scaleX(${hpK})"></i></i><b>${Math.max(0, Math.round(p.hp))}</b>/${p.maxHp ?? 100}</div>

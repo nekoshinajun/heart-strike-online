@@ -145,8 +145,6 @@ export const Config = {
     // HEART(ダメージ)は球速で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
     //   旧 ATK 倍率(ATK÷50:平均 ×2.0 前後)を新しい ATTACK 倍率(50 = ×1.0)へ置き換えた分もここで引き継ぐ(1.15 × 2.0)
     heartFlat: 2.3,
-    // ガチャのハート投げ(GachaThrowInput)だけが使う「下へ引いて弾く」入力の数値
-    chargeThreshold: 18, lockThreshold: 10, maxChargeDistanceRatio: 0.384,
   },
 
   // ---- カーブ(spin -1〜1 → 飛行中の横の力)。spin はジェスチャーの回転量から(throwInput)----

@@ -36,7 +36,8 @@ export class ScreenRouter {
   /** インゲーム(バトル)中か:battle:true の画面(GAME)*/
   get inBattle() { return !!this.top && !!this.def(this.top.id).battle; }
   /** Bottom Navigation を出すか:インゲーム以外はすべて表示(SHEET は暗幕の下に Nav を残す)*/
-  get navVisible() { return !!this.top && !this.inBattle; }
+  /** 全画面の演出(noNav)と戦闘中は下のナビを出さない */
+  get navVisible() { return !!this.top && !this.inBattle && !this.def(this.top.id).noNav; }
 
   /** 画面へ移動 */
   go(id, params = {}) {

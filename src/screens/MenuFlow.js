@@ -7,6 +7,7 @@ import { artUrl } from '../data/CharacterArt.js';
 import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById, giftById, giftIcon, giftName } from '../data/RomanceData.js';
 import { STAT_LABELS } from '../data/GrowthData.js';
 import { roleTag, rewardLabel } from '../app/Roles.js';
+import { rarityAttr, rarityBadge, raritySparkle } from '../app/Rarity.js';
 import { shopOfStage, castsOf } from '../data/ShopData.js';
 import { showShopMap, showShop, capTop, castArt, castArtData, faceCrop, castLine } from './CaptureScreens.js';
 
@@ -50,8 +51,9 @@ export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
   const img = ps
     ? `<div class="avatar" style="${ps}"><i>${a.icon}</i></div>`
     : `<div class="avatar ph" style="--ac:${a.color}"><span>${esc(ch.name[0])}</span><i>${a.icon}</i></div>`;
-  return `<div class="ccard${compact ? ' compact' : ''}" style="--rc:${r.color};--ac:${a.color}">
-    <div class="crank">${r.id}</div>${slot ? `<div class="cslot">${slot}</div>` : ''}${badge}
+  void r;
+  return `<div class="ccard rar-frame${compact ? ' compact' : ''}" ${rarityAttr(ch.rank)} style="--ac:${a.color}">
+    ${rarityBadge(ch.rank, 'crank')}${raritySparkle(ch.rank)}${slot ? `<div class="cslot">${slot}</div>` : ''}${badge}
     ${img}
     <div class="cname">${esc(ch.name)}</div>
     <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${t.label}</span></div>

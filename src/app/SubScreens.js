@@ -10,6 +10,7 @@ import { statRadarSVG } from '../screens/StatRadar.js';
 export { statRadarSVG };
 import { Haptic } from './Platform.js';
 import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from './Roles.js';
+import { rarityAttr, rarityBadge, raritySparkle } from './Rarity.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -61,9 +62,10 @@ export class AppScreens {
   trainCardHTML(id, { party = false } = {}) {
     const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
     const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
-    return `<button type="button" class="tl-card${party ? ' party' : ''}${si >= 0 ? ' in' : ''}" data-id="${id}" style="--ac:${a.color};--rc:${r.color}" aria-label="${esc(ch.name)}${si >= 0 ? `(編成中 ${'ABCD'[si]})` : ''}">
+    void r;
+    return `<button type="button" class="tl-card rar-frame${party ? ' party' : ''}${si >= 0 ? ' in' : ''}" data-id="${id}" ${rarityAttr(ch.rank)} style="--ac:${a.color}" aria-label="${esc(ch.name)}${si >= 0 ? `(編成中 ${'ABCD'[si]})` : ''}">
       <span class="tl-art"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false" loading="lazy"></span>
-      <span class="tl-rank">${r.id}</span>
+      ${rarityBadge(ch.rank, 'tl-rank')}${raritySparkle(ch.rank)}
       ${si >= 0 ? `<span class="tl-in" title="編成中"><i>✓</i>${'ABCD'[si]}</span>` : ''}
       ${home ? '<span class="tl-home" title="ホーム設定中">⌂</span>' : ''}
       <span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span>
@@ -112,7 +114,7 @@ export class AppScreens {
         ${n > 1 ? `<button type="button" class="td-nav prev" data-nav="-1" aria-label="前のキャラクター">‹</button><button type="button" class="td-nav next" data-nav="1" aria-label="次のキャラクター">›</button>` : ''}
         <div class="td-side">
         <section class="td-plate">
-          <div class="td-badges"><span class="td-rank">${r.id}</span><span class="td-attr">${a.icon} ${a.label}</span><span class="td-type">${t.label}</span></div>
+          <div class="td-badges">${rarityBadge(ch.rank, 'td-rank')}<span class="td-attr">${a.icon} ${a.label}</span><span class="td-type">${t.label}</span></div>
           <h2 class="td-name">${esc(ch.name)}</h2>
           <div class="td-lv"><small>♡ AFFECTION</small><b>Lv.${ch.level}</b>${ch.maxLevel ? '<em>MAX</em>' : ''}</div>
           <div class="td-exp"><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `EXP ${ch.expInto} / ${ch.expNeed}`}</small></div>
@@ -272,7 +274,7 @@ export class AppScreens {
         <p class="as-lead">${roleTag('ally')} 一緒に戦ってくれる女の子。ガチャで出会えます</p>
         <div class="as-grid">${CHARACTERS.map((c) => owned.has(c.id)
           ? `<button type="button" class="as-card" data-id="${c.id}">${cardHTML(this.p.character(c.id))}</button>`
-          : `<div class="as-card unowned" data-rank="${c.rank}"><div class="un-sil" style="background-image:url('${artUrl(c, 'cutout')}')"></div><div class="un-q">？？？</div><div class="un-how">ガチャで出会える</div></div>`).join('')}</div>`;
+          : `<div class="as-card unowned rar-frame" data-rank="${c.rank}" ${rarityAttr(c.rank)}>${rarityBadge(c.rank, 'un-rank')}<div class="un-sil" style="background-image:url('${artUrl(c, 'cutout')}')"></div><div class="un-q">？？？</div><div class="un-how">ガチャで出会える</div></div>`).join('')}</div>`;
       for (const b of this.body.querySelectorAll('button[data-id]')) b.addEventListener('click', () => this.app.router.go('detail', { id: b.dataset.id }));
     } else {
       this.body.innerHTML = `${tabs}

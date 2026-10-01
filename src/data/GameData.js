@@ -10,11 +10,12 @@ export const ATTRIBUTES = {
 
 // 属性倍率(有利 1.3 / 通常 1.0 / 不利 0.7)は Config.battle.attributeMul(★ 調整パネルから変更可)
 
-/** ランク(R / SR / SSR …追加可)。order は並び順、color は枠色 */
+// レアリティ(枠の色・光は全カード共通:src/app/Rarity.js + online.html の「レアリティ」)。color は小さな文字表示用
 export const RANKS = {
-  R:   { id: 'R',   order: 1, color: '#9fb4d0' },
-  SR:  { id: 'SR',  order: 2, color: '#ffd23e' },
-  SSR: { id: 'SSR', order: 3, color: '#ff7ad9' },
+  N:   { id: 'N',   order: 0, color: '#a7aebb' },
+  R:   { id: 'R',   order: 1, color: '#5d9bf2' },
+  SR:  { id: 'SR',  order: 2, color: '#a576f5' },
+  SSR: { id: 'SSR', order: 3, color: '#f7a23e' },
 };
 
 /**

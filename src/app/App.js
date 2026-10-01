@@ -68,7 +68,7 @@ export class App {
     R.register('trainGift', { kind: KIND.SHEET, show: () => S.openTrainSheet('gift'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
     R.register('gachaConfirm', { kind: KIND.SHEET, show: (p) => this.gacha.showConfirm(p), hide: () => this.sheet.close() });
     R.register('gachaRates', { kind: KIND.SHEET, show: () => this.gacha.showRates(), hide: () => this.sheet.close() });
-    R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });
+    R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, noNav: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });
     R.register('gachaResult', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: (p) => this.gacha.showResult(p) });
     // 3D ゲームが使えない環境でも HOME / ガチャは動く(攻略・編成は案内だけ)
     for (const id of ['stage', 'partyTab']) R.register(id, { kind: id === 'stage' ? KIND.TAB_ROOT : KIND.SUB, layer: 'app', opaque: true, show: () => this.showGameUnavailable() });
