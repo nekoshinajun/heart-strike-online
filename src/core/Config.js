@@ -109,7 +109,7 @@ export const Config = {
     holdOffset: { x: 0, y: -1.3, z: -3.2 },  // z = 構え位置の奥行き(カメラからの距離)。y は旧仕様(未使用)
     // ★ HeartBallIdlePositionY:投球前のハート玉の画面上の高さ(画面高さ比。0=上端 / 1=下端)
     //   端末ごとの px 固定ではなく割合で指定。下に POWER CHARGE 用の空間を空けるため旧 0.78 → 0.60
-    idlePositionY: 0.86,
+    idlePositionY: 0.75,
     // ★ ハート玉より下に必ず残す操作空間(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
     idleMinChargeSpace: 0.08,
     catchDepth: 2.1,                          // キャッチ地点のカメラからの距離
