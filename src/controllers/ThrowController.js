@@ -111,7 +111,10 @@ export class ThrowController {
     const raw=powerFromFlick(fi);
     const min=Config.power.minThrowPower;
     const power=min+(1-min)*raw;
-    const spin=this.curve.value*(Config.throwInput.rotate.maxSpin??1);
+    // Pokémon GO同様、事前に回していなくてもフリック軌跡そのものが弧ならカーブさせる。
+    // curve.value がある時は回転入力を優先。0付近なら CurveThrowCalculator に軌跡解析を任せる。
+    const rotationSpin=this.curve.value*(Config.throwInput.rotate.maxSpin??1);
+    const spin=Math.abs(rotationSpin)>0.015 ? rotationSpin : null;
     const th=g.player.computeThrow(fi,power,g.player.holdAnchor(),[],g.throwRoute,spin);
     if(!th){ g.ball.catchTo(g.player.holdAnchor,0.16); this.phase=ThrowPhase.IDLE; return null; }
     th.start=g.player.holdAnchor();
