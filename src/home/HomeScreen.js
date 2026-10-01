@@ -16,7 +16,7 @@ const topIcon = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">$
 /**
  * HOME:メニュー一覧ではなく「推し(Favorite Character)に会う場所」
  *   Top Bar(HEART STRIKE / Player / HEART GEM / Mission / Present / Settings / 予備)→ 吹き出し → 全身 → ♡変更 → TODAY'S PICK → Bottom Nav
- * Gacha / Result との受け渡し:queueTrigger('afterClear') / receiveGachaResults([{id,isNew}]) / setFavorite(id) だけ。
+ * Gacha / Result との受け渡し:queueTrigger('afterClear') / receiveGachaResults([{id,isNew}]) だけ。ホームのキャラの変更(setFavorite)は育成 → キャラクター詳細からだけ。
  * どのセリフにするか(newlySetHome / setHome / afterGacha / afterClear)は HOME 側が決める。
  */
 export class HomeScreen {
@@ -48,14 +48,12 @@ export class HomeScreen {
           </nav>
         </div>
       </header>
-      <button type="button" class="hm-fav">♡ 変更</button>
       <button type="button" class="hm-pick" hidden><span class="pk-thumb"></span><span class="pk-main"><span class="pk-h">TODAY'S PICK <span class="role heroine sm">🎧 攻略対象</span></span><span class="pk-t"></span><span class="pk-s"></span></span><span class="pk-go">挑戦 ▶</span></button>`;
     this.img = el.querySelector('.hm-char img');
     this.charEl = el.querySelector('.hm-char');
     this.bubble = el.querySelector('.hm-bubble');
     for (const ev of ['pointerdown', 'pointerup']) el.addEventListener(ev, (e) => e.stopPropagation());
     for (const b of el.querySelectorAll('[data-go]')) b.addEventListener('click', () => app.router.go(b.dataset.go));
-    el.querySelector('.hm-fav').addEventListener('click', () => app.router.go('favoriteSheet'));
     el.querySelector('.hm-pick').addEventListener('click', () => this.pick && app.deepLink({ screen: 'stage', ...this.pick }));
     this.bubble.addEventListener('click', () => { if (this.bubbleDest) { const d = this.bubbleDest; this.hideBubble(); app.deepLink(d); } });
     this.bindCharacter();
@@ -72,7 +70,10 @@ export class HomeScreen {
     if (cur && (cur.key === 'newlySetHome' || cur.key === 'setHome')) return;
     this.p.setPendingHomeTrigger('afterGacha', { results: results.map((r) => ({ id: r.id, isNew: !!r.isNew })) });
   }
-  /** お気に入りを設定(Gacha Result / Character Detail / Favorite Sheet 共通)。newlySetHome / setHome は HOME 到着時に再生 */
+  /**
+   * ホームのキャラを設定。★ 呼んでよいのは「育成 → キャラクター詳細 → ホームに設定」だけ(AppScreens.setHomeCharacter)。
+   * HOME / ガチャ結果 / プロフィール / シートなど、ほかの画面からホームのキャラを変える導線は置かない。newlySetHome / setHome は HOME 到着時に再生
+   */
   setFavorite(id) {
     const r = this.p.setFavorite(id);
     if (!r) return false;

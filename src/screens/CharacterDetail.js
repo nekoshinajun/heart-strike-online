@@ -38,11 +38,7 @@ export const DETAIL_SECTIONS = [
     id: 'about',
     render: (ch) => (ch.description ? `<p class="cd-desc">${esc(ch.description)}</p>` : ''),
   },
-  {
-    // ♡ ホームに設定(所持キャラのみ)。HOME / 育成 / 編成 / ガチャ結果から開いても同じ Detail
-    id: 'home',
-    render: (ch, ctx) => (ch.owned ? `<button type="button" class="cd-home${ctx.isFavorite ? ' on' : ''}" data-act="setHome">${ctx.isFavorite ? '♡ ホームに設定中' : '♡ ホームに設定'}</button>` : ''),
-  },
+  // ホームのキャラの設定はここには置かない(育成 → キャラクター詳細の「ホームに設定」だけ)
 ];
 
 /**
@@ -70,12 +66,6 @@ export class CharacterDetail {
     this.el = el;
     this.img = el.querySelector('.cd-art img');
     this.ids = CHARACTERS.map((c) => c.id);
-    el.querySelector('.cd-sections').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-act="setHome"]');
-      if (!b || !this.current.owned) return;
-      this.app.home.setFavorite(this.current.id);
-      this.render(0);
-    });
     for (const ev of ['pointerdown', 'pointerup', 'click']) el.addEventListener(ev, (e) => e.stopPropagation());
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.querySelector('.cd-back').addEventListener('click', () => this.close());
@@ -146,7 +136,7 @@ export class CharacterDetail {
     art.style.setProperty('--dr', `${d.rot ?? 0}deg`);
     this.img.src = artUrl(ch, 'fullBody');
     this.img.alt = ch.name;
-    const ctx = { isFavorite: this.progress.favoriteId === ch.id };
+    const ctx = {};
     el.querySelector('.cd-sections').innerHTML = DETAIL_SECTIONS.map((s) => `<section data-section="${s.id}">${s.render(ch, ctx)}</section>`).join('');
     this.progress.markIntroduced(ch.id);
     if (dir) { art.classList.remove('in-l', 'in-r'); void art.offsetWidth; art.classList.add(dir > 0 ? 'in-r' : 'in-l'); }

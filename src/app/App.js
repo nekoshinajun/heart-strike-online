@@ -9,7 +9,7 @@ import { setupMobile } from '../core/MobileSupport.js';
 import { CharacterDetail } from '../screens/CharacterDetail.js';
 import { ScreenRouter, KIND, BottomNav, SheetHost } from './ScreenRouter.js';
 import { HomeScreen } from '../home/HomeScreen.js';
-import { AppScreens, FavoriteSheet } from './SubScreens.js';
+import { AppScreens } from './SubScreens.js';
 import { GachaUI } from '../gacha/GachaUI.js';
 import { Log, safe, nullObject, Haptic } from './Platform.js';
 import { MENU_SLOT } from '../audio/BgmTracks.js';
@@ -40,7 +40,6 @@ export class App {
     this.sheet = new SheetHost(this.router, sheetEl);
     this.home = new HomeScreen(this, homeEl);
     this.screens = new AppScreens(this, appEl);
-    this.favSheet = new FavoriteSheet(this);
     this.gacha = new GachaUI(this, gachaEl);
     this.detail = new CharacterDetail(this, this.progress, container);
     safe('TOUCH', () => setupMobile(this));
@@ -62,7 +61,9 @@ export class App {
     R.register('present', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showPresent() });
     R.register('settings', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showSettings() });
     R.register('detail', { kind: KIND.SUB, layer: null, overlay: true, opaque: true, show: (p, c) => { if (!c.restore) this.detail.open(p.id); }, hide: () => this.detail.hide() });
-    R.register('favoriteSheet', { kind: KIND.SHEET, show: () => this.favSheet.show(), hide: () => this.favSheet.hide() });
+    // 育成 → キャラクター詳細:アビリティ / プレゼントはボタンで開くシート(詳細の下へ直接並べない)
+    R.register('trainAbility', { kind: KIND.SHEET, show: () => S.openTrainSheet('ability'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
+    R.register('trainGift', { kind: KIND.SHEET, show: () => S.openTrainSheet('gift'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
     R.register('gachaConfirm', { kind: KIND.SHEET, show: (p) => this.gacha.showConfirm(p), hide: () => this.sheet.close() });
     R.register('gachaRates', { kind: KIND.SHEET, show: () => this.gacha.showRates(), hide: () => this.sheet.close() });
     R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });

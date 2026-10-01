@@ -54,62 +54,137 @@ export class AppScreens {
     this.body.scrollTop = 0;
   }
 
-  // ---------------- 育成(TAB_ROOT):仲間の女の子を選ぶ ----------------
+  // ---------------- 育成(TAB_ROOT):上 = 今の編成 / 下 = 所持キャラクター一覧 ----------------
+  /** キャラクターカード(画像・名前・親密度 Lv・レアリティ・属性 / タイプ・STAMINA・編成中 ✓・ホーム設定中)*/
+  trainCardHTML(id, { party = false } = {}) {
+    const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
+    return `<button type="button" class="tl-card${party ? ' party' : ''}${si >= 0 ? ' in' : ''}" data-id="${id}" style="--ac:${a.color};--rc:${r.color}" aria-label="${esc(ch.name)}${si >= 0 ? `(編成中 ${'ABCD'[si]})` : ''}">
+      <span class="tl-art"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false" loading="lazy"></span>
+      <span class="tl-rank">${r.id}</span>
+      ${si >= 0 ? `<span class="tl-in" title="編成中"><i>✓</i>${'ABCD'[si]}</span>` : ''}
+      ${home ? '<span class="tl-home" title="ホーム設定中">⌂</span>' : ''}
+      <span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span>
+        <span class="tl-type">${a.icon} ${t.label}</span>${staminaHTML(ch, 'sm')}</span>
+    </button>`;
+  }
   showTraining() {
     this.frame('training', '育成');
-    const ids = this.p.ownedIds;
+    const ids = this.p.ownedIds, party = this.p.party;
     this.body.innerHTML = `
-      <p class="as-lead">${roleTag('ally')} 一緒に攻略に行くほど仲良くなって強くなる(親密度 = レベル)。STAMINA が減った子の代わりに、ほかの子も連れていこう</p>
-      <div class="tr-grid">${ids.map((id) => {
-        const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
-        return `<button type="button" class="tr-card" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
-          <span class="tr-art"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false"></span>
-          <span class="tr-rank">${r.id}</span><span class="tr-attr">${a.icon}</span>
-          <span class="tr-info"><b>${esc(ch.name)}</b><span>♡ AFFECTION Lv.${ch.level}</span>${staminaHTML(ch, 'sm')}</span>
-        </button>`;
-      }).join('')}</div>`;
-    for (const b of this.body.querySelectorAll('[data-id]')) b.addEventListener('click', () => this.app.router.go('trainChar', { id: b.dataset.id }));
+      <section class="tl-sec">
+        <header class="tl-head"><b>♡ 編成</b><small>攻略に連れていく4人</small><button type="button" class="tl-edit" data-act="party">編成を変更 ›</button></header>
+        <div class="tl-party">${party.map((id, i) => (this.p.isOwned(id) ? this.trainCardHTML(id, { party: true }) : `<div class="tl-card empty"><span>${'ABCD'[i]}</span></div>`)).join('')}</div>
+      </section>
+      <section class="tl-sec">
+        <header class="tl-head"><b>所持キャラクター</b><small>${ids.length}人 ・ タップで詳細</small></header>
+        <div class="tl-grid">${ids.map((id) => this.trainCardHTML(id)).join('')}</div>
+      </section>`;
+    for (const b of this.body.querySelectorAll('.tl-card[data-id]')) b.addEventListener('click', () => this.app.router.go('trainChar', { id: b.dataset.id }));
+    this.body.querySelector('[data-act="party"]').addEventListener('click', () => this.app.router.go('partyTab'));
   }
 
-  // ---------------- 仲間の育成画面(SUB):大きく表示 + 親密度 Lv + ステータス + STAMINA + アビリティ + プレゼント ----------------
-  showTrainChar({ id, focus } = {}, keepScroll = false) {
+  // ---------------- キャラクター詳細(SUB):画面全体がキャラクター。右側に情報パネル、アビリティ / プレゼントはボタンで開くシート ----------------
+  showTrainChar({ id, focus } = {}) {
     if (!id || !this.p.isOwned(id)) { this.app.router.back(); return; }
-    if (!keepScroll || this.trainId !== id) this.abilityOpen = null;   // 開き直した時は「変更」を閉じた状態から
+    if (this.trainId !== id) this.abilityOpen = null;   // キャラを替えた時は「変更」を閉じた状態から
     this.trainId = id;
     const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
-    const top = this.body.scrollTop;
+    const ids = this.p.ownedIds, n = ids.length;
+    const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
     this.frame('trainChar', '育成', { back: true });
     const expRatio = ch.maxLevel ? 1 : ch.expNeed ? Math.min(1, ch.expInto / ch.expNeed) : 1;
     const pd = this.p.data.characters[id];
     const nextMs = staminaNextMs(ch.stamina, pd.lastStaminaUpdate);
-    const nextTxt = nextMs == null ? '満タン' : `あと ${Math.ceil(nextMs / 60000)} 分で +5`;
+    const stamNote = ch.tired ? '疲労中 ・ 獲得 EXP ×10%(出撃はできます)' : nextMs == null ? '満タン' : `あと ${Math.ceil(nextMs / 60000)} 分で +5`;
+    const board = this.p.abilityBoard(id);
+    const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
+    const active = ch.abilities ?? [];
     const stats = STAT_KEYS.map((k) => `<div class="tc-stat" data-stat="${k}"><span>${STAT_LABELS[k]}</span><i class="tc-sbar"><i style="transform:scaleX(${ch.stats[k] / 100})"></i></i><b>${ch.stats[k]}</b></div>`).join('');
     this.body.innerHTML = `
-      <section class="tc-hero" style="--ac:${a.color};--rc:${r.color}">
-        <img src="${artUrl(ch, 'cutout')}" alt="${esc(ch.name)}" draggable="false">
-        <div class="tc-bubble" hidden></div>
-        <div class="tc-tags">${roleTag('ally')}<span class="tc-rank">${r.id}</span></div>
-        <div class="tc-aff"><small>AFFECTION</small><b>Lv.${ch.level}</b>${ch.maxLevel ? '<em>MAX</em>' : ''}</div>
-      </section>
-      <section class="tc-card">
-        <div class="tc-name"><b>${esc(ch.name)}</b><em>${a.icon} ${a.label} / ${t.label}</em></div>
-        <div class="tc-row"><span>♡ EXP</span><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `${ch.expInto} / ${ch.expNeed}`}</small></div>
-        <div class="tc-stats4">${stats}</div>
-        <div class="tc-row tc-stam${ch.tired ? ' tired' : ''}"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b> / ${ch.staminaMax}</small></div>
-        <p class="tc-stamnote">${ch.tired ? '疲労中:出撃はできます(強さもそのまま)。獲得 EXP ×10%' : '攻略に参加すると減ります。0 でも出撃できます(獲得 EXP ×10%)'} ・ ${nextTxt}</p>
-      </section>
-      ${this.abilityBoardHTML(id)}
-      <section class="tc-gifts">
-        <header><b>🎁 プレゼントを渡す</b><span>渡すと親密度 EXP がもらえる</span></header>
-        <div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id), rk = giftRank(g); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<span>${esc(giftName(g))}</span>${rk ? `<em class="tg-rank">${esc(rk.label)}</em>` : ''}<small class="tg-exp">+${giftExp(g, ch)}</small><b>×${n}</b></button>`; }).join('')}</div>
-        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません。ガチャのおまけや攻略のクリア報酬でもらえます</p>' : ''}
-      </section>
-      <button type="button" class="tc-detail r-btn ghost" data-act="detail">プロフィールを見る</button>`;
-    if (keepScroll) this.body.scrollTop = top;
-    for (const b of this.body.querySelectorAll('[data-gift]')) b.addEventListener('click', () => this.giveGift(b.dataset.gift));
-    this.body.querySelector('[data-act="detail"]').addEventListener('click', () => this.app.router.go('detail', { id }));
-    this.wireAbilityBoard(id);
-    if (focus === 'ability' && !keepScroll) this.body.querySelector('.tc-ability')?.scrollIntoView({ block: 'start' });
+      <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
+        <div class="td-bg"></div>
+        <div class="td-art"><img src="${artUrl(ch, 'cutout')}" alt="${esc(ch.name)}" draggable="false"></div>
+        <div class="td-bubble tc-bubble" hidden></div>
+        ${n > 1 ? `<button type="button" class="td-nav prev" data-nav="-1" aria-label="前のキャラクター">‹</button><button type="button" class="td-nav next" data-nav="1" aria-label="次のキャラクター">›</button>` : ''}
+        <div class="td-side">
+        <section class="td-plate">
+          <div class="td-badges"><span class="td-rank">${r.id}</span><span class="td-attr">${a.icon} ${a.label}</span><span class="td-type">${t.label}</span></div>
+          <h2 class="td-name">${esc(ch.name)}</h2>
+          <div class="td-lv"><small>♡ AFFECTION</small><b>Lv.${ch.level}</b>${ch.maxLevel ? '<em>MAX</em>' : ''}</div>
+          <div class="td-exp"><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `EXP ${ch.expInto} / ${ch.expNeed}`}</small></div>
+          ${si >= 0 || home ? `<div class="td-chips">${si >= 0 ? `<span class="td-chip in">✓ 編成中 ${'ABCD'[si]}</span>` : ''}${home ? '<span class="td-chip home">⌂ ホーム設定中</span>' : ''}</div>` : ''}
+        </section>
+        <section class="td-panel">
+          <div class="td-stats">${stats}</div>
+          <div class="td-stam${ch.tired ? ' tired' : ''}"><div class="tc-row tc-stam${ch.tired ? ' tired' : ''}"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b> / ${ch.staminaMax}</small></div><p>${stamNote}</p></div>
+          <div class="td-abil"><small>ABILITY</small><div class="td-abs">${active.length ? active.map((x) => `<span class="td-ab${x.ultimate ? ' ult' : ''}">${esc(x.name)}</span>`).join('') : '<span class="td-ab none">まだありません</span>'}${pending ? '<span class="td-ab new">NEW ♡ 選べます</span>' : ''}</div></div>
+        </section>
+        </div>
+        <nav class="td-actions">
+          <button type="button" data-act="gift"><i>🎁</i><span>プレゼント</span></button>
+          <button type="button" data-act="ability"><i>✦</i><span>アビリティ</span>${pending ? '<em class="dot" aria-label="新しいアビリティ"></em>' : ''}</button>
+          <button type="button" data-act="home" class="${home ? 'on' : ''}" ${home ? 'aria-pressed="true"' : ''}><i>⌂</i><span>${home ? 'ホーム設定中' : 'ホームに設定'}</span></button>
+        </nav>
+      </div>`;
+    const go = (d) => this.app.router.go('trainChar', { id: ids[(ids.indexOf(id) + d + n) % n] });
+    for (const b of this.body.querySelectorAll('[data-nav]')) b.addEventListener('click', () => go(Number(b.dataset.nav)));
+    // イラストを左右にスワイプしても前後のキャラへ
+    const art = this.body.querySelector('.td-art');
+    let sx = null;
+    art.addEventListener('pointerdown', (e) => { sx = e.clientX; });
+    art.addEventListener('pointerup', (e) => { if (sx == null || n < 2) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1); });
+    this.body.querySelector('[data-act="gift"]').addEventListener('click', () => this.app.router.go('trainGift'));
+    this.body.querySelector('[data-act="ability"]').addEventListener('click', () => this.app.router.go('trainAbility'));
+    this.body.querySelector('[data-act="home"]').addEventListener('click', () => this.setHomeCharacter(id));
+    if (focus === 'ability') setTimeout(() => { if (this.screen === 'trainChar' && this.trainId === id) this.app.router.go('trainAbility'); }, 0);
+  }
+
+  /**
+   * ★ ホームのキャラを変える唯一の操作(育成 → キャラクター詳細 →「ホームに設定」)。
+   *   ほかの画面(HOME / ガチャ結果 / プロフィール / シート)からは変えられない
+   */
+  setHomeCharacter(id) {
+    if (this.screen !== 'trainChar' || this.trainId !== id || !this.p.isOwned(id)) return false;
+    if (this.p.favoriteId === id) return false;
+    if (!this.app.home.setFavorite(id)) return false;
+    Haptic.light?.();
+    this.app.toast?.(`${characterById(id).name} をホームに設定しました ♡`);
+    this.showTrainChar({ id });
+    return true;
+  }
+
+  // ---------------- 育成メニュー(ボトムシート):アビリティ / プレゼント ----------------
+  openTrainSheet(kind) {
+    if (!this.trainId) return;
+    this.trainSheet = kind;
+    this.abilityOpen = null;
+    this.giftLine = null;
+    this.app.sheet.open(kind === 'ability' ? '✦ アビリティ' : '🎁 プレゼント', '');
+    this.renderTrainSheet();
+  }
+  renderTrainSheet() {
+    const body = this.app.sheet.body, id = this.trainId, kind = this.trainSheet;
+    if (!body || !id) return;
+    const top = body.querySelector('.sh-scroll')?.scrollTop ?? 0;
+    const ch = this.p.character(id);
+    const who = `<div class="ts-who"><span class="ts-face" style="background-image:url('${artUrl(ch, 'cutout')}')"></span><b>${esc(ch.name)}</b><small>♡ Lv.${ch.level}</small></div>`;
+    if (kind === 'ability') {
+      body.innerHTML = `${who}<div class="sh-scroll ts-scroll">${this.abilityBoardHTML(id)}</div>`;
+      this.wireAbilityBoard(id, body);
+    } else {
+      body.innerHTML = `${who}
+        ${this.giftLine ? `<div class="ts-react"><p>${esc(this.giftLine.line)}</p>${this.giftLine.gains ? `<small>${this.giftLine.gains}</small>` : ''}</div>` : '<p class="ts-lead">渡すと親密度 EXP がもらえる(好きなものは多め)</p>'}
+        <div class="sh-scroll ts-scroll"><div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id), rk = giftRank(g); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<span>${esc(giftName(g))}</span>${rk ? `<em class="tg-rank">${esc(rk.label)}</em>` : ''}<small class="tg-exp">+${giftExp(g, ch)}</small><b>×${n}</b></button>`; }).join('')}</div>
+        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません。ガチャのおまけや攻略のクリア報酬でもらえます</p>' : ''}</div>`;
+      for (const b of body.querySelectorAll('[data-gift]')) b.addEventListener('click', () => this.giveGift(b.dataset.gift));
+    }
+    const sc = body.querySelector('.sh-scroll'); if (sc) sc.scrollTop = top;
+  }
+  /** 育成の操作の後:後ろの詳細と開いているシートの両方を描き直す */
+  refreshTrain() {
+    if (this.screen === 'trainChar') this.showTrainChar({ id: this.trainId });
+    if (this.trainSheet && !this.app.sheet.root.hidden) this.renderTrainSheet();
   }
 
   /** アビリティ:Lv10〜90 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)*/
@@ -136,34 +211,38 @@ export class AppScreens {
       <header><b>✦ ABILITY</b><span>${I.icon} ${esc(I.name)} ×<b class="ab-items">${items}</b></span></header>
       <ul class="ab-list">${rows.map(rowHTML).join('')}</ul></section>`;
   }
-  wireAbilityBoard(id) {
-    for (const b of this.body.querySelectorAll('.ab-change')) b.addEventListener('click', () => { const lv = Number(b.dataset.lv); this.abilityOpen = this.abilityOpen === lv ? null : lv; this.showTrainChar({ id }, true); });
-    for (const b of this.body.querySelectorAll('.ab-cand')) b.addEventListener('click', () => {
+  wireAbilityBoard(id, root = this.body) {
+    for (const b of root.querySelectorAll('.ab-change')) b.addEventListener('click', () => { const lv = Number(b.dataset.lv); this.abilityOpen = this.abilityOpen === lv ? null : lv; this.renderTrainSheet(); });
+    for (const b of root.querySelectorAll('.ab-cand')) b.addEventListener('click', () => {
       const r = this.p.selectAbility(id, Number(b.dataset.lv), b.dataset.ab);
       if (!r.ok) { this.app.toast?.(r.reason === 'noItem' ? `${ABILITY_RESET_ITEM.name}が足りません` : 'このアビリティは選べません'); return; }
       this.abilityOpen = null;
       Haptic.light?.();
       this.app.toast?.(r.changed ? `アビリティを変更しました(${ABILITY_RESET_ITEM.name} 残り ${r.itemsLeft})` : 'アビリティを習得しました♡');
-      this.showTrainChar({ id }, true);
+      this.refreshTrain();
     });
   }
   giveGift(giftId) {
     const r = this.p.giveGift(this.trainId, giftId);
     if (!r) return;
     Haptic.light();
-    this.showTrainChar({ id: this.trainId }, true);
     const line = r.reaction ?? GIFT_FALLBACK_LINES[Math.floor(Math.random() * GIFT_FALLBACK_LINES.length)];
     const gains = [r.gainedExp > 0 ? `♡ 親密度EXP +${r.gainedExp}` : '', r.levelUps > 0 ? `LEVEL UP! Lv.${r.after.level}` : ''].filter(Boolean).join(' ・ ');
-    const bub = this.body.querySelector('.tc-bubble');
-    bub.innerHTML = `<p>${esc(line)}</p>${gains ? `<small>${gains}</small>` : ''}`;
-    bub.hidden = false; bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in');
-    const img = this.body.querySelector('.tc-hero img'); img.classList.remove('react'); void img.offsetWidth; img.classList.add('react');
-    clearTimeout(this.bubTimer); this.bubTimer = setTimeout(() => { bub.hidden = true; }, 3200);
+    this.giftLine = { line, gains };
+    this.refreshTrain();
+    // 後ろの詳細:キャラの吹き出し + リアクション
+    const bub = this.body.querySelector('.td-bubble');
+    if (bub) {
+      bub.innerHTML = `<p>${esc(line)}</p>${gains ? `<small>${gains}</small>` : ''}`;
+      bub.hidden = false; bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in');
+      const img = this.body.querySelector('.td-art img'); img.classList.remove('react'); void img.offsetWidth; img.classList.add('react');
+      clearTimeout(this.bubTimer); this.bubTimer = setTimeout(() => { bub.hidden = true; }, 3200);
+    }
     if (r.newAbilitySlots?.length || r.ultimate) this.showAbilityUnlock(r);
   }
   /** レベルアップで Lv10 ごとのアビリティが解放された時のお祝い(NEW ABILITY UNLOCKED ♡)*/
   showAbilityUnlock(r) {
-    const host = this.body.querySelector('.tc-hero');
+    const host = this.trainSheet && !this.app.sheet.root.hidden ? this.app.sheet.body : this.body.querySelector('.td');
     if (!host) return;
     host.querySelector('.ab-burst')?.remove();
     const el = document.createElement('div');
@@ -341,34 +420,4 @@ export class AppScreens {
       if (v && v.trim()) { this.p.data.player.name = v.trim().slice(0, 12); this.p.save(); this.showSettings(); }
     });
   }
-}
-
-/** Favorite Select Sheet:所持キャラのみ。プレビュー → 決定 */
-export class FavoriteSheet {
-  constructor(app) { this.app = app; }
-  show() {
-    const p = this.app.progress;
-    this.sel = p.favoriteId;
-    const body = this.app.sheet.open('ホームのキャラクター', `
-      <div class="fs-preview"><img alt=""><div class="fs-name"></div></div>
-      <div class="fs-list sh-scroll">${p.ownedIds.map((id) => { const c = characterById(id); const ps = `--ac:${ATTRIBUTES[c.attribute].color};--rc:${RANKS[c.rank].color}`; return `<button type="button" class="fs-item" data-id="${id}" style="${ps}"><span class="fs-ic" style="background-image:url('${artUrl(c, 'cutout')}')"></span><span>${esc(c.name)}</span></button>`; }).join('')}</div>
-      <button type="button" class="sh-primary" data-act="ok">♡ ホームに設定</button>`);
-    this.body = body;
-    for (const b of body.querySelectorAll('.fs-item')) b.addEventListener('click', () => { this.sel = b.dataset.id; this.refresh(); });
-    body.querySelector('[data-act="ok"]').addEventListener('click', () => {
-      const id = this.sel;
-      this.app.router.closeSheet();
-      if (id && id !== p.favoriteId) { this.app.home.setFavorite(id); this.app.router.go('home'); }
-    });
-    this.refresh();
-  }
-  refresh() {
-    const c = characterById(this.sel);
-    if (!c) return;
-    this.body.querySelector('.fs-preview img').src = artUrl(c, 'cutout');
-    this.body.querySelector('.fs-name').innerHTML = `<b>${esc(c.name)}</b> <span>${RANKS[c.rank].id} / ${ATTRIBUTES[c.attribute].label} / ${TYPES[c.type].label}</span>`;
-    for (const b of this.body.querySelectorAll('.fs-item')) b.classList.toggle('sel', b.dataset.id === this.sel);
-    this.body.querySelector('[data-act="ok"]').textContent = this.sel === this.app.progress.favoriteId ? '♡ 設定中' : '♡ ホームに設定';
-  }
-  hide() { this.app.sheet.close(); }
 }
