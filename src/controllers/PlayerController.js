@@ -52,10 +52,10 @@ export class PlayerController {
   }
 
   /** 画面上の点(px) → カメラから depth 離れた3D点(キャッチ地点の算出に使う) */
-  screenToWorld(x, y, depth, out = new THREE.Vector3()) {
+  screenToWorld(x, y, depth, out = new THREE.Vector3(), camera = this.cam.base) {
     const { w, h } = this.viewport;
     ndc.set((x / w) * 2 - 1, -(y / h) * 2 + 1);
-    ray.setFromCamera(ndc, this.cam.base);
+    ray.setFromCamera(ndc, camera);
     return out.copy(ray.ray.origin).addScaledVector(ray.ray.direction, depth);
   }
 
@@ -100,10 +100,10 @@ export class PlayerController {
 
   /** FlickInfo → 初速(null なら投球にならない) */
   /** ジェスチャー + POWER → 投球パラメータ(AIM の起点は構え位置の画面座標) */
-  computeThrow(flick, power, start, effects = [], route = null) {
+  computeThrow(flick, power, start, effects = [], route = null, curveSpin = null) {
     const hs = this.heldBallScreen();
     const oy = Config.aim.originY;
     this.thrower.holdScreen = oy == null ? hs : { x: hs.x, y: oy * this.viewport.h };
-    return this.thrower.compute(flick, power, start ?? this.holdAnchor(), effects, route);
+    return this.thrower.compute(flick, power, start ?? this.holdAnchor(), effects, route, curveSpin);
   }
 }
