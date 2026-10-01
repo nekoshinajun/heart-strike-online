@@ -54,7 +54,9 @@ export class App {
     R.register('home', { kind: KIND.TAB_ROOT, layer: 'home', opaque: true, show: (p, c) => this.home.show(p, c), hide: () => this.home.hide() });
     R.register('training', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: () => S.showTraining() });
     R.register('gacha', { kind: KIND.TAB_ROOT, layer: 'gacha', opaque: true, show: () => this.gacha.showTop() });
-    R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: () => S.showCollection() });
+    R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p) => S.showCollection(p) });
+    R.register('trainChar', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showTrainChar(p) });
+    R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopAsmr(), leave: () => S.stopAsmr() });
     R.register('mission', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showMission() });
     R.register('present', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showPresent() });
     R.register('settings', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showSettings() });

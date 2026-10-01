@@ -1,6 +1,7 @@
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
 import { artUrl, isPlaceholderArt } from '../data/CharacterArt.js';
 import { storage } from '../app/Platform.js';
+import { roleTag } from '../app/Roles.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -65,7 +66,7 @@ export class CharacterDetail {
     el.innerHTML = `<div class="cd-bg"></div><div class="cd-fx">${Array.from({ length: 14 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
       <div class="cd-art"><img alt=""></div>
       <div class="cd-scrim"></div>
-      <header class="cd-head"><div class="cd-title">CHARACTER DETAIL</div><div class="cd-rank"></div><div class="cd-name"></div><div class="cd-meta"></div><div class="cd-ph" hidden>仮イラスト</div></header>
+      <header class="cd-head"><div class="cd-title">PROFILE</div><div class="cd-rank"></div><div class="cd-name"></div><div class="cd-meta"></div><div class="cd-ph" hidden>仮イラスト</div></header>
       <button type="button" class="cd-nav prev" aria-label="前のキャラクター">◀</button>
       <button type="button" class="cd-nav next" aria-label="次のキャラクター">▶</button>
       <div class="cd-panel"><div class="cd-sections"></div><button type="button" class="cd-back">◀ BACK</button></div>`;
@@ -138,7 +139,7 @@ export class CharacterDetail {
     el.style.setProperty('--rc', r.color);
     el.querySelector('.cd-rank').textContent = r.id;
     el.querySelector('.cd-name').textContent = ch.name;
-    el.querySelector('.cd-meta').innerHTML = `<span class="cd-attr">${a.icon} ${a.label}</span> / <span>${t.label}</span>`;
+    el.querySelector('.cd-meta').innerHTML = `${roleTag('ally', 'sm')} <span class="cd-attr">${a.icon} ${a.label}</span> / <span>${t.label}</span>`;
     el.querySelector('.cd-ph').hidden = !isPlaceholderArt(ch, 'fullBody');
     // 全身イラスト(FullBodySprite)。DetailPosition / DetailScale / DetailRotation で配置(画像は加工しない)
     const d = ch.detail ?? { x: 0.5, y: 0.52, scale: 1, rot: 0 };

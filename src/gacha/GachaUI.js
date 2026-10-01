@@ -5,6 +5,7 @@ import { GachaService } from './GachaService.js';
 import { GachaSequencePlanner } from './GachaPlanner.js';
 import { GachaDirector } from './GachaDirector.js';
 import { Log } from '../app/Platform.js';
+import { roleTag } from '../app/Roles.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const RANK_ORDER = { R: 0, SR: 1, SSR: 2 };
@@ -47,8 +48,9 @@ export class GachaUI {
     if (!this.p.data.seen.banners[b.id]) { this.p.data.seen.banners[b.id] = Date.now(); this.p.save(); }
     const feat = [...this.service.pool(b.id)].sort((x, y) => (isPlaceholderArt(characterById(x.characterId), 'cutout') - isPlaceholderArt(characterById(y.characterId), 'cutout')) || (RANK_ORDER[y.rarity] - RANK_ORDER[x.rarity])).slice(0, 3);
     this.topEl.innerHTML = `
-      <header class="gt-head"><div class="gt-title">ガチャ</div><div class="gt-gem"><i>♦</i><b>${gem.toLocaleString()}</b></div></header>
+      <header class="gt-head"><div class="gt-title">ガチャ<small>新しい仲間との出会い</small></div><div class="gt-gem"><i>♦</i><b>${gem.toLocaleString()}</b></div></header>
       <div class="gt-banner">
+        <div class="gt-role">${roleTag('ally')}</div>
         <div class="gt-art">${feat.map((e, i) => `<img src="${artUrl(characterById(e.characterId), 'cutout')}" alt="" style="--i:${i}" draggable="false">`).join('')}</div>
         <div class="gt-heart">♥</div>
         <div class="gt-copy"><b>${esc(b.name)}</b><span>${esc(b.sub)}</span></div>
@@ -57,6 +59,7 @@ export class GachaUI {
         <button type="button" class="gt-btn" data-n="1"><b>ハートを届ける ×1</b><span>♦ ${b.cost.single.toLocaleString()}</span></button>
         <button type="button" class="gt-btn ten" data-n="10"><b>ハートを届ける ×10</b><span>♦ ${b.cost.ten.toLocaleString()}</span></button>
       </div>
+      <p class="gt-note">ガチャで出会えるのは<b>仲間の女の子</b>です。攻略対象の女の子とは「攻略」で出会えます</p>
       <button type="button" class="gt-rates">提供割合 / 詳細</button>`;
     for (const x of this.topEl.querySelectorAll('[data-n]')) x.addEventListener('click', () => this.app.router.go('gachaConfirm', { count: +x.dataset.n }));
     this.topEl.querySelector('.gt-rates').addEventListener('click', () => this.app.router.go('gachaRates'));

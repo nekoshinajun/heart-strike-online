@@ -5,6 +5,8 @@ import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { devInput, storage, Haptic } from '../app/Platform.js';
 import { artUrl } from '../data/CharacterArt.js';
+import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById } from '../data/RomanceData.js';
+import { roleTag, clearChips, asmrStatus } from '../app/Roles.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
 const LONG_PRESS_MOVE = 10;  // これ以上指が動いたら長押しをやめる(スクロールを邪魔しない)
@@ -169,33 +171,38 @@ export class MenuFlow {
     if (stageId) this.stage = STAGES.find((s) => s.id === stageId) ?? this.stage;
     this.frame('stage', '攻略', '今日、誰を口説きに行く？', { primary: '♡ 挑戦する' });
     const selected = this.stage ?? STAGES[0];
+    const heroine = heroineByStage(selected.id);
     const bossArt = (s) => BOSS_IMAGES[s.boss.image] ?? BOSS_IMAGES[s.boss.fallbackImage] ?? '';
     const portrait = (id) => {
       const ch = this.progress.character(id);
       return ch ? artUrl(ch, 'cutout') : '';
     };
-    const gifts = [
-      ['🥤','スペシャルドリンク','3'],['👜','バッグ','1'],['💎','アクセ','5'],['🍰','スイーツ','12'],['💐','花束','8']
-    ];
+    // ステージの状態:CLEAR(どれかの難易度でクリア)/ NEW(まだ一度もクリアしていない)/ LOCK(未公開の枠)
+    const status = (s) => (this.progress.isCleared(s.id) ? '<em class="st clear">CLEAR</em>' : '<em class="st new">NEW</em>');
+    // 攻略補助アイテム(持ち込み)は未実装。データ(RomanceData.CAPTURE_SUPPORT_ITEMS)が入った時だけ欄を出す
+    const support = CAPTURE_SUPPORT_ITEMS.length ? `<section class="support-panel"><header><b>攻略アイテム</b></header><div class="gift-list">${CAPTURE_SUPPORT_ITEMS.map((g) => `<button type="button" class="gift-item" data-support="${esc(g.id)}"><i>${esc(g.icon ?? '')}</i><span>${esc(g.name)}</span></button>`).join('')}</div></section>` : '';
     this.body.innerHTML = `
       <div class="capture-stage" style="--boss:url('${bossArt(selected)}')">
         <div class="capture-glow"></div>
         <section class="capture-profile">
-          <small>CAST ${String(selected.no).padStart(2,'0')}</small>
+          ${roleTag('heroine', 'sm')}
+          <small>STAGE ${String(selected.no).padStart(2, '0')}</small>
           <strong>${esc(selected.boss.name)}</strong>
-          <span>♡ LOVE <b>${this.progress.isCleared(selected.id) ? '100' : '0'}%</b></span>
-          <p>${esc(selected.concept ?? 'あなたのハート、ちゃんと届くかな？')}</p>
+          ${heroine?.cv ? `<span class="cv">CV ${esc(heroine.cv)}</span>` : ''}
+          <p>「${esc(selected.line ?? 'あなたのハート、ちゃんと届くかな？')}」</p>
+          ${clearChips(this.progress, selected.id, Config.difficultyOrder)}
+          ${heroine ? asmrStatus(this.progress, heroine) : ''}
         </section>
         <button type="button" class="capture-start" data-act="start">♡<b>挑戦する</b><small>START</small></button>
       </div>
-      <div class="cast-strip">${STAGES.map((s)=>`<button type="button" class="cast-tab${s===selected?' sel':''}" data-act="stage" data-id="${s.id}" style="background-image:url('${bossArt(s)}')"><i>${s.no}</i><span>${esc(s.boss.name)}</span>${this.progress.isCleared(s.id)?'<em>CLEAR</em>':''}</button>`).join('')}<button class="cast-tab locked" disabled><i>04</i><span>???</span>🔒</button><button class="cast-tab locked" disabled><i>05</i><span>???</span>🔒</button></div>
-      <section class="date-panel"><header><b>♡ デートメンバー</b><span>PARTY 1</span><button type="button" data-act="party">編成</button></header><div class="date-party">${this.progress.party.map((id,i)=>`<div><img src="${portrait(id)}" alt=""><small>${'ABCD'[i]}</small></div>`).join('')}</div></section>
-      <section class="gift-panel"><header><b>🎁 プレゼント</b><span>持っていくと攻略をちょっと有利に</span></header><div class="gift-list">${gifts.map(g=>`<button type="button" class="gift-item"><i>${g[0]}</i><span>${g[1]}</span><b>×${g[2]}</b></button>`).join('')}</div></section>
-      <div class="playmode-tabs capture-mode"><button type="button" data-mode="solo" class="${this.playMode==='solo'?'sel':''}">SOLO</button><button type="button" data-mode="multi" class="${this.playMode==='multi'?'sel':''}">MULTI <small>2–4</small></button></div>`;
-    for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click',()=>{this.playMode=b.dataset.mode;for(const x of this.body.querySelectorAll('[data-mode]'))x.classList.toggle('sel',x===b)});
-    for (const b of this.body.querySelectorAll('[data-act="stage"]')) b.addEventListener('click',()=>{const st=STAGES.find(s=>s.id===b.dataset.id);if(!st)return;this.stage=st;this.showStageSelect({stageId:st.id})});
-    this.body.querySelector('[data-act="start"]')?.addEventListener('click',()=>this.pickStage(this.stage));
-    this.body.querySelector('[data-act="party"]')?.addEventListener('click',()=>this.router.go('partyTab'));
+      <div class="cast-strip">${STAGES.map((s) => `<button type="button" class="cast-tab${s === selected ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="background-image:url('${bossArt(s)}')"><i>${s.no}</i><span>${esc(s.boss.name)}</span>${status(s)}</button>`).join('')}<button type="button" class="cast-tab locked" disabled><i>04</i><span>???</span><em class="st lock">LOCK</em></button><button type="button" class="cast-tab locked" disabled><i>05</i><span>???</span><em class="st lock">LOCK</em></button></div>
+      <section class="date-panel"><header><b>♡ デートメンバー</b><span>${roleTag('ally', 'sm')} から4人</span><button type="button" data-act="party">編成</button></header><div class="date-party">${this.progress.party.map((id, i) => `<div><img src="${portrait(id)}" alt=""><small>${'ABCD'[i]}</small></div>`).join('')}</div></section>
+      ${support}
+      <div class="playmode-tabs capture-mode"><button type="button" data-mode="solo" class="${this.playMode === 'solo' ? 'sel' : ''}">SOLO</button><button type="button" data-mode="multi" class="${this.playMode === 'multi' ? 'sel' : ''}">MULTI <small>2–4</small></button></div>`;
+    for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click', () => { this.playMode = b.dataset.mode; for (const x of this.body.querySelectorAll('[data-mode]')) x.classList.toggle('sel', x === b); });
+    for (const b of this.body.querySelectorAll('[data-act="stage"]')) b.addEventListener('click', () => { const st = STAGES.find((s) => s.id === b.dataset.id); if (!st) return; this.stage = st; this.showStageSelect({ stageId: st.id }); });
+    this.body.querySelector('[data-act="start"]')?.addEventListener('click', () => this.pickStage(this.stage));
+    this.body.querySelector('[data-act="party"]')?.addEventListener('click', () => this.router.go('partyTab'));
     this.primary.hidden = true;
     this.back.hidden = true;
     this.homeBtn.hidden = true;
@@ -300,8 +307,8 @@ export class MenuFlow {
     if (mode) this.partyMode = mode;
     const sortie = this.partyMode === 'sortie';
     const keepScroll = this.screen === 'party' ? this.body.scrollTop : 0;
-    if (sortie) this.frame('party', 'PARTY確認', `STAGE ${this.stage.no}:${this.stage.boss.name} ─ 4人を編成`, { primary: 'NEXT ▶', back: '◀ BACK', diff: this.diff });
-    else this.frame('party', '編成', '4人のパーティを編成(A が最初に投げます)', { back: '◀ BACK' });
+    if (sortie) this.frame('party', 'デートメンバー', `STAGE ${this.stage.no}:${this.stage.boss.name} に会いに行く4人`, { primary: 'NEXT ▶', back: '◀ BACK', diff: this.diff });
+    else this.frame('party', 'デートメンバー編成', '仲間から4人を選ぼう(A が最初に投げます)', { back: '◀ BACK' });
     this.el.dataset.mode = this.partyMode;
     const party = this.progress.party;
     const boss = this.stage.boss.attribute;
@@ -394,7 +401,7 @@ export class MenuFlow {
   showCharacterSelect() {
     const party = this.progress.party;
     if (!this.firstId || !party.includes(this.firstId)) this.firstId = party[0];
-    this.frame('chars', 'CHARACTER SELECT', '最初に投げるキャラを選んでね(A になります)', { primary: 'GAME START', back: '◀ BACK' });
+    this.frame('chars', '最初に投げる子', '最初にハートを投げる子を選んでね(A になります)', { primary: '♡ デートへ', back: '◀ BACK' });
     const stageLine = `<div class="stageline">STAGE ${String(this.stage.no).padStart(2, '0')} / ♡ ${esc(this.stage.boss.name)} / ${diffChip(this.diff)}</div>`;
     const order = this.order();
     this.body.innerHTML = `${stageLine}
@@ -432,11 +439,12 @@ export class MenuFlow {
    * @param res { stage, results:[{before, after, levelUps, gained}], stats:[[k,v]] }
    */
   showResult(res) {
-    this.frame('result', 'RESULT', `STAGE ${res.stage.no}:${res.stage.boss.name} HEART MAX!`, { primary: 'ステージ選択', back: this.g.online ? null : 'もう一度', home: 'HOME' });
+    this.frame('result', '攻略成功！', `STAGE ${res.stage.no}:${res.stage.boss.name} をメロメロにした♡`, { primary: 'ステージ選択', back: this.g.online ? null : 'もう一度', home: 'HOME' });
     const D = res.difficulty ?? difficultyData('NORMAL'), exp = res.exp ?? res.stage.exp, rec = res.record;
     this.body.innerHTML = `
       <div class="rhead">STAGE ${String(res.stage.no).padStart(2, '0')} ${diffChip(D.id, 'big')}</div>
-      <div class="clearlogo">CLEAR!</div>
+      <div class="clearlogo">LOVE MAX♡</div>
+      ${this.asmrUnlockHTML(rec)}
       <div class="expgain">EXP <b>+${exp}</b>${D.exp !== 1 ? `<small>(${res.stage.exp} × ${D.exp})</small>` : ''}</div>
       ${rec?.firstClearGem ? `<div class="fcgem">初回クリア報酬 <b>♦ +${rec.firstClearGem}</b></div>` : ''}
       ${rec ? `<div class="drec r">${D.label} CLEAR ${rec.clearCount} / BEST RALLY ${rec.bestRally} / GATE CHAIN ${rec.bestGateChain} / BEST HEART ${rec.bestHeartPerThrow.toLocaleString()}</div>` : ''}
@@ -454,7 +462,24 @@ export class MenuFlow {
       }).join('')}</div>
       <div class="rstats">${res.stats.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>`;
     this.animateExp(res.results);
+    for (const b of this.body.querySelectorAll('[data-asmr-go]')) b.addEventListener('click', () => this.router.go('heroine', { id: b.dataset.asmrGo }));
     this.focus();
+  }
+
+  /** HELL クリア等で ASMR が解放された時のご褒美(リザルトの一番上)。解放が無ければ何も出さない */
+  asmrUnlockHTML(rec) {
+    const list = rec?.asmrUnlocked ?? [];
+    if (!list.length) return '';
+    const byH = new Map();
+    for (const u of list) byH.set(u.heroineId, [...(byH.get(u.heroineId) ?? []), u.trackId]);
+    return [...byH].map(([hid, ids]) => {
+      const tracks = this.progress.asmrTracks(hid);
+      const names = ids.map((id) => { const i = tracks.findIndex((t) => t.id === id); return esc(tracks[i]?.title ?? `ASMR ${String(i + 1).padStart(2, '0')}`); });
+      const st = STAGES.find((s) => s.id === heroineById(hid)?.stageId) ?? this.stage;
+      return `<section class="asmr-unlock"><div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div>
+        <small>NEW ASMR UNLOCKED</small><b>${esc(st.boss.name)}</b><p>${names.join(' / ')}</p>
+        <button type="button" class="r-btn" data-asmr-go="${esc(hid)}">🎧 聴いてみる</button></section>`;
+    }).join('');
   }
 
   animateExp(results) {
@@ -489,10 +514,10 @@ export class MenuFlow {
 
   // ---------------- GAME OVER ----------------
   showGameOver(stage, stats) {
-    this.frame('over', 'TRY AGAIN', `STAGE ${stage.no}:${stage.boss.name}`, { primary: this.g.online ? 'ステージ選択' : 'もう一度', back: this.g.online ? null : 'ステージ選択', home: 'HOME', diff: this.g.difficulty });
+    this.frame('over', 'もう一度デート', `STAGE ${stage.no}:${stage.boss.name}`, { primary: this.g.online ? 'ステージ選択' : 'もう一度', back: this.g.online ? null : 'ステージ選択', home: 'HOME', diff: this.g.difficulty });
     this.body.innerHTML = `
       <div class="clearlogo over">TRY AGAIN</div>
-      <div class="menuhint">4人ともダウンしちゃった… EXP はクリア時にもらえます</div>
+      <div class="menuhint">みんなメロメロにされちゃった… EXP は攻略成功でもらえます</div>
       <div class="rstats">${stats.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
 `;
     this.focus();

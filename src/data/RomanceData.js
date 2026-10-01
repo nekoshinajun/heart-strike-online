@@ -63,6 +63,12 @@ export const GIFTS = [
   { id: 'flower', name: '花', icon: '💐', effect: noEffect(), reactions: [] },
 ];
 
+/**
+ * 攻略補助アイテム(攻略前に持ち込む)。まだ実装しない:空の間は攻略画面に欄を出さない
+ *   1件の形:{ id, name, icon, effect: { … 未決定 } }。持ち込み処理・効果は追加する時に決める
+ */
+export const CAPTURE_SUPPORT_ITEMS = [];
+
 export const heroineById = (id) => HEROINES.find((h) => h.id === id);
 export const heroineByStage = (stageId) => HEROINES.find((h) => h.stageId === stageId);
 export const giftById = (id) => GIFTS.find((g) => g.id === id);

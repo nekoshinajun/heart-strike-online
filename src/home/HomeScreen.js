@@ -49,7 +49,7 @@ export class HomeScreen {
         </div>
       </header>
       <button type="button" class="hm-fav">♡ 変更</button>
-      <button type="button" class="hm-pick" hidden><span class="pk-thumb"></span><span class="pk-main"><span class="pk-h">TODAY'S PICK</span><span class="pk-t"></span><span class="pk-s"></span></span><span class="pk-go">挑戦 ▶</span></button>`;
+      <button type="button" class="hm-pick" hidden><span class="pk-thumb"></span><span class="pk-main"><span class="pk-h">TODAY'S PICK <span class="role heroine sm">🎧 攻略対象</span></span><span class="pk-t"></span><span class="pk-s"></span></span><span class="pk-go">挑戦 ▶</span></button>`;
     this.img = el.querySelector('.hm-char img');
     this.charEl = el.querySelector('.hm-char');
     this.bubble = el.querySelector('.hm-bubble');
@@ -147,7 +147,11 @@ export class HomeScreen {
       card.style.setProperty('--ac', ATTRIBUTES[st.boss.attribute].color);
       card.querySelector('.pk-thumb').style.backgroundImage = `url('${this.app.bossThumb(st)}')`;
       card.querySelector('.pk-t').innerHTML = `${esc(st.boss.name)} <b style="--dc:${D.color}">${D.label}</b>`;
-      card.querySelector('.pk-s').textContent = a.pick.reason ?? `STAGE ${st.no}`;
+      // 初回クリア報酬(Config.rewards。受取済みならそう表示)
+      const gem = Config.rewards.firstClearGem?.[a.pick.difficulty] ?? 0;
+      const got = this.p.record(a.pick.stageId, a.pick.difficulty)?.firstClearRewarded;
+      const reward = gem ? (got ? '初回報酬 受取済' : `初回クリア ♦${gem}`) : '';
+      card.querySelector('.pk-s').textContent = [a.pick.reason ?? `STAGE ${st.no}`, reward].filter(Boolean).join(' ・ ');
       card.dataset.stage = a.pick.stageId; card.dataset.diff = a.pick.difficulty;
     }
     const n = a.notifications;

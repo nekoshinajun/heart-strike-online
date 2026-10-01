@@ -146,6 +146,7 @@ export const STAGES = [
     boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 18000 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
     concept: '甘え上手な猫系の女の子。きらめくプレミアムコンカフェを舞台に、ハートを届けて口説き落とす。',
+    line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
       energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.0 },
   },
