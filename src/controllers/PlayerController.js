@@ -87,7 +87,8 @@ export class PlayerController {
   fingerToWorld(x, y) {
     const { w, h } = this.viewport;
     const hold = this.heldBallScreen();
-    const cy = THREE.MathUtils.clamp(y, hold.y - Config.throw.followMaxUp * h, hold.y + Config.power.maxPullDown * h);
+    // Pokémon GO型:掴んだハートは指に素直に追従。投げる前の上下移動を旧チャージ範囲で制限しない。
+    const cy = THREE.MathUtils.clamp(y, h * 0.06, h * 0.96);
     ndc.set((x / w) * 2 - 1, -(cy / h) * 2 + 1);
     ray.setFromCamera(ndc, this.cam.base);
     const depth = -Config.ball.holdOffset.z;
