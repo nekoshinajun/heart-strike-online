@@ -96,8 +96,11 @@ export const Config = {
 
   camera: {
     fov: 70,
-    pos: { x: 0, y: 1.6, z: 8.5 },
-    lookAt: { x: 0, y: 10.65, z: -14.45 },  // ボスを画面内でさらに下へ配置
+    // 構図:足元から見上げるのではなく、目の前の女の子と向き合う目線(顔・上半身を近く大きく)
+    //   旧 pos(0, 1.6, 8.5)→ lookAt y 10.65(下から見上げる)。カメラを高く・ボスへ近づけ、注視点を顔の高さ寄りへ
+    //   FOV は同じなので、ハート玉の画面上の位置・大きさ(構え位置はカメラ基準)は変わらない
+    pos: { x: 0, y: 9, z: 4.5 },
+    lookAt: { x: 0, y: 15, z: -14.45 },
   },
 
   ball: {
@@ -110,6 +113,8 @@ export const Config = {
     // ★ ハート玉より下に必ず残す操作空間(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
     idleMinChargeSpace: 0.27,
     catchDepth: 2.1,                          // キャッチ地点のカメラからの距離
+    // ハートの見た目の回転(rad/秒)。投球前(構え / 引っ張り中)は全キャラ共通の一定速度。キャラ性能は投球後の軌道にだけ出す
+    idleSpin: { held: 1.2, grabbed: 3, flying: 3 },
   },
 
   // ---- 投球(指でボールを投げる) ----
@@ -181,13 +186,15 @@ export const Config = {
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
   },
 
-  // ---- 投球ルート(プレイヤーが自由に選ぶ操作感の違い。強さ・ダメージは同じ)----
-  //   curveMul … 投球の SPIN(カーブ)の効き / preSpinMul … PRE-SPIN の効き / driveMul … DRIVE の効き
+  // ---- 投球ルート(★ 今はプレイヤーの操作に出さない:基本操作は「狙う・引く・投げる」だけ)----
+  //   球速と直進性は下へ引く量だけで連続的に変わる(浅い = 曲がりやすい CURVE 寄り / 深い = まっすぐ DIRECT 寄り)
+  //   DIRECT / CURVE のデータは将来の拡張用に残す(選択 UI は無い)
   throwRoute: {
-    default: 'DIRECT',
+    default: 'STANDARD',
     routes: {
-      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },   // 直進性が高く、狙った所へ素直に飛ぶ
-      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },       // 変化球を扱いやすい
+      STANDARD: { label: 'STANDARD', curveMul: 1, preSpinMul: 1, driveMul: 1 },
+      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },
+      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },
     },
   },
   // ---- 下へ引く量(chargeRatio 0〜1)= 球速と直進性。ダメージには使わない ----
@@ -216,9 +223,10 @@ export const Config = {
   // ---- 投球前の球質(ハートを掴んだまま仕込む)。判定と効果の数値はここだけ ----
   //   PRE-SPIN:指で円を描く(時計回り = RIGHT / 反時計回り = LEFT)→ 投球時の SPIN に掛かる
   //   DRIVE   :上下へ素早く往復 → 終盤で下へ沈む
+  //   ★ 今はプレイヤーの操作に出さない(enabled: false)。基本操作は「狙う・引く・投げる」だけ。仕組みは将来の球種用に残す
   //   どちらも「下へ引いて POWER → 上へ弾く」通常操作とは区別する(誤認識しない条件)
   preSpin: {
-    enabled: true,
+    enabled: false,
     sampleStepPx: 6,        // 指の軌跡をこの間隔で間引いて向きの変化を測る
     minTurnDeg: 300,        // ★ 成立に必要な回転量(指の進む向きが同じ向きに回った合計)
     fullTurnDeg: 360,       // この回転量で strength = 1
@@ -232,7 +240,7 @@ export const Config = {
     baseSpin: 0.2,          // ★ ストレートに投げた時の回転の名残(SPIN 0 → 仕込んだ向きへ弱く曲がる。0 で無効)
   },
   drive: {
-    enabled: true,
+    enabled: false,
     minStrokes: 4,          // ★ 上下の往復回数(下→上→下→上 = 4ストローク)。「下へ引いて弾く」は2ストロークなので成立しない
     minAmplitudeRatio: 0.022, // 1ストロークの最低移動量(画面の高さ比)
     fullAmplitudeRatio: 0.06, // この振れ幅で strength = 1
@@ -282,11 +290,39 @@ export const Config = {
       maxHits: 3,
     },
     obstacleClearance: 1.9,      // 障害物と Heart Gate の基本ルート(guide)との最小距離(障害物の半径 + この値)。Gate を正しく狙った投球を邪魔しない
-    obstacleShapes: {            // 当たり判定は球(wall は箱)。見た目は仮素材
-      star:  { radius: 0.95, color: '#ffd23e' },
-      heart: { radius: 1.0,  color: '#ff5fa2' },
-      cloud: { radius: 1.2,  color: '#dfe6ff' },
-      wall:  { w: 3.2, h: 2.4, d: 0.5, color: '#9b7bff' },
+    // 障害物はすべて「壁」系の見た目(当てたらダメ:暗い石の壁 + 赤い警告の縁と ✕)。ゲート(ピンクの光る輪 = 狙うもの)と一目で区別する
+    //   当たり判定は従来どおり:block / pillar / panel は球(radius)、wall は箱(w × h × d)。見た目の壁はその判定の中に収まる大きさ
+    //   block … 正方形のブロック / pillar … 縦長の柱 / panel … 横長の板 / wall … 大きな壁(動く壁など)
+    obstacleShapes: {
+      block:  { radius: 0.95, color: '#ff3b3b', size: [1.34, 1.34, 0.5] },
+      pillar: { radius: 1.0,  color: '#ff3b3b', size: [1.1, 1.65, 0.55] },
+      panel:  { radius: 1.2,  color: '#ff3b3b', size: [2.1, 1.1, 0.45] },
+      wall:   { w: 3.2, h: 2.4, d: 0.5, color: '#ff3b3b' },
+    },
+    /**
+     * ★ 2ルート同時配置(DualRoutePairs):1投ごとに Heart Gate のルートを左右2本、同時にフィールドへ出す。
+     *   プレイヤーはボタンでルートを選ばない。画面を見て「左 / 右どっちを通そう?」と決め、実際のフリックで狙う
+     *   → 投げた結果、通ったゲートが自動で決まる(どちらにも入らなくても投球は続き、ボスへの HIT / MISS は通常どおり)
+     *   ゲートの効果は従来のまま(GATE PASS → GATE CHAIN。ボスに当たった時だけ chainBonus)
+     *   left / right … { pattern: RoutePattern の ID, tx?: 狙い点の左右ずらし(world)}。各ルートは pattern の Gate / Energy を置く
+     *   obstacles … 障害物を置くルート('left' | 'right' | null)。障害物は両方のルートと全ゲートから離す
+     *   minGateGap … 左右のゲート中心の最小距離(world。奥行きが近いゲート同士)。足りなければ狙い点を左右へ広げる
+     *   ※ ゲートはハート玉より上(操作領域の外)に見える組み合わせだけ。床すれすれの LOW_ROUTE は今の目線の構図では
+     *     ハート玉の下に重なるのでペアに入れない
+     */
+    dualRoutes: {
+      minGateGap: 4.2,
+      pairs: {
+        CURVE_PAIR:     { left: { pattern: 'LEFT_CURVE' },               right: { pattern: 'RIGHT_CURVE' },             obstacles: null },
+        STRAIGHT_PAIR:  { left: { pattern: 'STRAIGHT_LINE', tx: -2.2 },  right: { pattern: 'STRAIGHT_LINE', tx: 2.2 },  obstacles: null },
+        CURVE_STRAIGHT: { left: { pattern: 'LEFT_CURVE' },               right: { pattern: 'STRAIGHT_LINE', tx: 2.4 },  obstacles: null },
+        STRAIGHT_CURVE: { left: { pattern: 'STRAIGHT_LINE', tx: -2.4 },  right: { pattern: 'RIGHT_CURVE' },             obstacles: null },
+        ARC_CURVE:      { left: { pattern: 'HIGH_ARC', tx: -2.2 },       right: { pattern: 'RIGHT_CURVE' },             obstacles: 'left' },
+        CHAIN_S:        { left: { pattern: 'GATE_CHAIN' },               right: { pattern: 'S_CURVE' },                 obstacles: null },
+        BANK_PAIR:      { left: { pattern: 'BANK_STARS', tx: -1.6 },     right: { pattern: 'RIGHT_CURVE' },             obstacles: 'left' },
+        WALL_PAIR:      { left: { pattern: 'LEFT_CURVE' },               right: { pattern: 'WALL_GAP', tx: 2.4 },       obstacles: 'right' },
+        DRIFT_PAIR:     { left: { pattern: 'STAR_DRIFT', tx: -2.2 },     right: { pattern: 'RIGHT_CURVE' },             obstacles: 'left' },
+      },
     },
     shortPreview: { enabled: false, fraction: 0.16 },   // ★ 投球前の予測ライン(ハート玉の直後だけ。全軌道は見せない)
     energyColors: ['#3ee8ff', '#ff7ad9', '#b6ff5c', '#ffb13d'],
@@ -305,7 +341,7 @@ export const Config = {
         points: [
           { type: 'Energy', at: 'NEAR', to: 'FAR', count: 5 },
           { type: 'Gate', at: 'MID' },
-          { type: 'Obstacle', shape: 'star', anchor: 'world', x: 3.8, y: 9, at: 0.6 },
+          { type: 'Obstacle', shape: 'block', anchor: 'world', x: 3.8, y: 9, at: 0.6 },
         ] },
       LEFT_CURVE: { label: 'LEFT CURVE', kind: 'curve',   // 手前中央 → 左中間 → 左奥 → ボス中央
         guide: { target: 'chest', land: true, power: 0.85, spin: 1.0 },
@@ -314,7 +350,7 @@ export const Config = {
           { type: 'Energy', at: 0.4, dy: 0.3 },
           { type: 'Gate', at: 'MID' },
           { type: 'Energy', at: 0.66, to: 'FAR', count: 2 },
-          { type: 'Obstacle', shape: 'heart', anchor: 'world', x: 3.6, y: 10, at: 0.55 },
+          { type: 'Obstacle', shape: 'pillar', anchor: 'world', x: 3.6, y: 10, at: 0.55 },
         ] },
       RIGHT_CURVE: { label: 'RIGHT CURVE', kind: 'curve',
         guide: { target: 'chest', land: true, power: 0.85, spin: -1.0 },
@@ -323,7 +359,7 @@ export const Config = {
           { type: 'Energy', at: 0.4, dy: 0.3 },
           { type: 'Gate', at: 'MID' },
           { type: 'Energy', at: 0.66, to: 'FAR', count: 2 },
-          { type: 'Obstacle', shape: 'heart', anchor: 'world', x: -3.8, y: 10, at: 0.55 },
+          { type: 'Obstacle', shape: 'pillar', anchor: 'world', x: -3.8, y: 10, at: 0.55 },
         ] },
       HIGH_ARC: { label: 'HIGH ARC', kind: 'arc',   // 中間〜奥が高い(POWER を落として山なりに / 長く弾いて頭へ)
         guide: { target: 'head', power: 0.5, spin: 0 },
@@ -331,14 +367,14 @@ export const Config = {
           { type: 'Energy', at: 'NEAR' },
           { type: 'Gate', at: 0.45 },
           { type: 'Energy', at: 0.55, to: 0.9, count: 3 },
-          { type: 'Obstacle', shape: 'cloud', anchor: 'world', x: -3.8, y: 7, at: 'MID' },
+          { type: 'Obstacle', shape: 'panel', anchor: 'world', x: -3.8, y: 7, at: 'MID' },
         ] },
       LOW_ROUTE: { label: 'LOW ROUTE', kind: 'low',   // 床すれすれの低弾道(強い POWER で短く弾く)
         guide: { target: 'leftLeg', tx: -1.4, power: 1.0, spin: 0 },
         points: [
           { type: 'Energy', at: 0.2, to: 0.85, count: 4 },
           { type: 'Gate', at: 'FAR' },
-          { type: 'Obstacle', shape: 'cloud', anchor: 'world', x: 4.0, y: 4.5, at: 'MID' },
+          { type: 'Obstacle', shape: 'panel', anchor: 'world', x: 4.0, y: 4.5, at: 'MID' },
         ] },
       S_CURVE: { label: 'S CURVE', tier: 'hard', kind: 'curve',   // 右へ膨らんでから左へ切り返す
         guide: { target: 'stomach', land: true, power: 0.8, spin: -1.0 },
@@ -366,21 +402,21 @@ export const Config = {
           { type: 'Energy', at: 0.66, to: 'FAR', count: 2 },
           { type: 'Gate', at: 0.85 },
         ] },
-      STAR_DRIFT: { label: 'STAR DRIFT', tier: 'hard', kind: 'obstacle',
+      STAR_DRIFT: { label: 'WALL DRIFT', tier: 'hard', kind: 'obstacle',
         guide: { target: 'stomach', power: 0.85, spin: 0 },
         points: [
           { type: 'Energy', at: 0.2 },
-          { type: 'Obstacle', shape: 'star', at: 0.45, dy: 0.4, move: { axis: 'x', amp: 2.6, speed: 0.28 } },
-          { type: 'Obstacle', shape: 'heart', at: 0.72, dy: -0.4, move: { axis: 'y', amp: 2.0, speed: 0.22 } },
+          { type: 'Obstacle', shape: 'block', at: 0.45, dy: 0.4, move: { axis: 'x', amp: 2.6, speed: 0.28 } },
+          { type: 'Obstacle', shape: 'pillar', at: 0.72, dy: -0.4, move: { axis: 'y', amp: 2.0, speed: 0.22 } },
           { type: 'Energy', at: 0.6, to: 0.9, count: 2 },
           { type: 'Gate', at: 'FAR', dy: 0.4 },
         ] },
-      BANK_STARS: { label: 'BANK STARS', tier: 'hard', kind: 'obstacle',   // 左右の星に当てて跳ね返す(BANK SHOT)
+      BANK_STARS: { label: 'BANK WALLS', tier: 'hard', kind: 'obstacle',   // 左右の壁に当てて跳ね返す(BANK SHOT)
         guide: { target: 'chest', power: 0.85, spin: 0 },
         points: [
           { type: 'Energy', at: 'NEAR', to: 'MID', count: 3 },
-          { type: 'Obstacle', shape: 'star', anchor: 'world', x: -3.6, y: 11, at: 0.72 },
-          { type: 'Obstacle', shape: 'star', anchor: 'world', x: 4.2, y: 11, at: 0.72 },
+          { type: 'Obstacle', shape: 'block', anchor: 'world', x: -3.6, y: 11, at: 0.72 },
+          { type: 'Obstacle', shape: 'block', anchor: 'world', x: 4.2, y: 11, at: 0.72 },
           { type: 'Gate', at: 'FAR' },
         ] },
     },
@@ -395,9 +431,10 @@ export const Config = {
   //   exp … 獲得 EXP 倍率 / locked … 将来の解放条件用(今回は全部 false)
   // DifficultyData:ゲームプレイ上、難易度で変えるのは Heart Gate の大きさ(gateSize)と被ダメージ(damageTaken)だけ。
   // キャッチ判定幅・返球速度・HEART容量・Energy配置・障害物は全難易度共通。exp はクリア報酬倍率。
+  //   damageTaken … ボスの攻撃の被ダメージ倍率(DEFENCE の軽減の後に掛かる・PERFECT は常に 0)。★ NORMAL は 0.6(以前の 60%)
   difficulties: {
-    NORMAL: { id: 'NORMAL', label: 'NORMAL', ja: 'ノーマル', desc: '標準難易度', note: 'Heart Gate が大きく、被ダメージは標準', color: '#3fd98a',
-      heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.0, energyDensity: 1.0, energyJitter: 0, gateSize: 1.0,
+    NORMAL: { id: 'NORMAL', label: 'NORMAL', ja: 'ノーマル', desc: '標準難易度', note: 'Heart Gate が大きく、受けるダメージが少ない', color: '#3fd98a',
+      heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 0.6, energyDensity: 1.0, energyJitter: 0, gateSize: 1.0,
       obstacleCount: 1.0, extraMovers: 0, obstacleSpeed: 1.0, highRouteWeight: 0, exp: 1.0, locked: false },
     HARD: { id: 'HARD', label: 'HARD', ja: 'ハード', desc: '上級者向け', note: 'キャッチ判定は同じ。Gate が小さく、受けるダメージが増える', color: '#ff9b1f',
       heartCapacity: 1.0, returnSpeed: 1.0, damageTaken: 1.25, energyDensity: 1.0, energyJitter: 0, gateSize: 0.72,

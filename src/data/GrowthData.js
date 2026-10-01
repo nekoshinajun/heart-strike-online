@@ -93,10 +93,12 @@ export const ABILITIES = {
   ctl_l: { name: 'CONTROL UP+', desc: 'CONTROL +8', effects: [{ kind: 'stat', stat: 'control', add: 8 }] },
   crv_l: { name: 'CURVE UP+', desc: 'CURVE +8', effects: [{ kind: 'stat', stat: 'curve', add: 8 }] },
   all_round: { name: 'ALL ROUND', desc: '全ステータス +3', effects: ['attack', 'defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 3 })) },
-  power_heart: { name: 'POWER HEART', desc: '深く引いた(速い)球が命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { pullMin: 0.85 } }] },
+  // ★ 統一ルール:引く量(球速)では HEART(ダメージ)は変わらない。引く量を条件にするのはダメージ以外の効果だけ
+  //   power_heart / slow_curve は ID はそのまま(選択済みのセーブもそのまま有効)、効果だけ HEART 倍率 → 投球性能に変更
+  power_heart: { name: 'POWER HEART', desc: '深く引いた(速い)球は CONTROL のブレ ×0.6(狙いどおりまっすぐ飛ぶ)', effects: [{ kind: 'control', mul: 0.6, when: { pullMin: 0.85 } }] },
   pure_straight: { name: 'PURE STRAIGHT', desc: 'カーブなしで命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },
   spin_lover: { name: 'SPIN LOVER', desc: 'カーブで命中すると HEART ×1.06', effects: [{ kind: 'heart', mul: 1.06, when: { spin: true } }] },
-  slow_curve: { name: 'SOFT CURVE', desc: '浅く引いたカーブ球が命中すると HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { pullMax: 0.35, spin: true } }] },
+  slow_curve: { name: 'SOFT CURVE', desc: '浅く引いた(遅い)球のカーブ ×1.2', effects: [{ kind: 'curve', mul: 1.2, when: { pullMax: 0.35 } }] },
   calm_aim: { name: 'CALM AIM', desc: 'CONTROL のブレを 30% 軽減', effects: [{ kind: 'control', mul: 0.7 }] },
   steady_hand: { name: 'STEADY HAND', desc: 'CONTROL のブレを 50% 軽減', effects: [{ kind: 'control', mul: 0.5 }] },
   tough_heart: { name: 'TOUGH HEART', desc: '受けるダメージ ×0.92', effects: [{ kind: 'guard', mul: 0.92 }] },
@@ -107,27 +109,33 @@ export const ABILITIES = {
   energy_heart: { name: 'ENERGY HEART', desc: 'Energy を取って命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { energyMin: 1 } }] },
   special_heart: { name: 'SPECIAL HEART+', desc: 'SPECIAL の HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
   fever_heart: { name: 'FEVER HEART+', desc: 'FEVER 中の HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { fever: true } }] },
+  straight_master: { name: 'STRAIGHT MASTER', desc: 'ストレート(カーブなし)の命中 HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },
+  curve_master: { name: 'CURVE MASTER', desc: 'カーブの効き ×1.15', effects: [{ kind: 'curve', mul: 1.15 }] },
+  guard_heart: { name: 'GUARD HEART', desc: '受けるダメージ ×0.9', effects: [{ kind: 'guard', mul: 0.9 }] },
   // ---- ULTIMATE(Lv100・キャラ固有。★ 仮)----
   ult_minamo: { name: 'AQUA LINE', desc: 'カーブなしの命中 HEART ×1.2・CONTROL のブレ半減', ultimate: true, effects: [{ kind: 'heart', mul: 1.2, when: { noSpin: true } }, { kind: 'control', mul: 0.5 }] },
   ult_hinoka: { name: 'BLAZE BALANCE', desc: '全ステータス +6', ultimate: true, effects: ['attack', 'defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 6 })) },
   ult_raimu: { name: 'THUNDER CURVE', desc: 'カーブ ×1.25・カーブ命中 HEART ×1.1', ultimate: true, effects: [{ kind: 'curve', mul: 1.25 }, { kind: 'heart', mul: 1.1, when: { spin: true } }] },
   ult_shizuku: { name: 'TIDE GUARD', desc: '受けるダメージ ×0.8', ultimate: true, effects: [{ kind: 'guard', mul: 0.8 }] },
   ult_akane: { name: 'PINPOINT HEART', desc: 'CONTROL のブレ ×0.3・HEART ×1.08', ultimate: true, effects: [{ kind: 'control', mul: 0.3 }, { kind: 'heart', mul: 1.08 }] },
-  ult_kohaku: { name: 'SPARK DRIVE', desc: 'DRIVE ×1.3・DRIVE 命中 HEART ×1.1', ultimate: true, effects: [{ kind: 'drive', mul: 1.3 }, { kind: 'heart', mul: 1.1, when: { drive: true } }] },
+  ult_kohaku: { name: 'SPARK STRAIGHT', desc: 'ストレートの命中 HEART ×1.12・CONTROL のブレ ×0.6', ultimate: true, effects: [{ kind: 'heart', mul: 1.12, when: { noSpin: true } }, { kind: 'control', mul: 0.6 }] },
   ult_kagura: { name: 'FLAME ARC', desc: 'カーブ命中 HEART ×1.15', ultimate: true, effects: [{ kind: 'heart', mul: 1.15, when: { spin: true } }] },
   ult_nagi: { name: 'CALM WAVE', desc: '受けるダメージ ×0.85・CONTROL のブレ ×0.6', ultimate: true, effects: [{ kind: 'guard', mul: 0.85 }, { kind: 'control', mul: 0.6 }] },
 };
 
-/** Lv10〜90 の候補(全キャラ共通の既定)。キャラごとに変える時は CHARACTER_ABILITY_SLOTS[id][Lv] に書く */
+/**
+ * Lv10〜90 の候補(全キャラ共通の既定)。キャラごとに変える時は CHARACTER_ABILITY_SLOTS[id][Lv] に書く
+ *   PRE-SPIN / DRIVE を使うアビリティ(prespin_master / drive_master / drive_heart)は今は操作に無いので候補から外す(定義は将来用に残す)
+ */
 export const ABILITY_SLOTS = {
   10: ['atk_s', 'def_s', 'ctl_s'],
   20: ['pure_straight', 'spin_lover', 'crv_s'],
   30: ['calm_aim', 'tough_heart', 'energy_heart'],
-  40: ['power_heart', 'drive_master', 'prespin_master'],
+  40: ['power_heart', 'slow_curve', 'straight_master'],
   50: ['special_heart', 'fever_heart', 'nice_catch'],
   60: ['atk_l', 'def_l', 'crv_l'],
-  70: ['steady_hand', 'drive_heart', 'slow_curve'],
-  80: ['ctl_l', 'all_round', 'power_heart'],
+  70: ['steady_hand', 'curve_master', 'guard_heart'],
+  80: ['ctl_l', 'all_round', 'energy_heart'],
   90: ['atk_l', 'crv_l', 'tough_heart'],
 };
 export const CHARACTER_ABILITY_SLOTS = {};   // 例:{ minamo: { 40: ['power_heart', 'pure_straight', 'drive_master'] } }

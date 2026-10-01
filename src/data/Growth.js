@@ -88,10 +88,13 @@ export function abilityCondition(when, ctx = {}) {
   if (when.judge && ctx.judge !== when.judge) return false;
   return true;
 }
-/** 種類(heart / curve / drive / control / guard)の倍率の積 */
-export function abilityMul(abilities, kind, ctx = {}) {
+/**
+ * 種類(heart / curve / drive / control / guard)の倍率の積
+ *   onlyAlways … 条件なしの効果だけ / onlyWhen … 条件つきの効果だけ(CONTROL:常時はキャラの性能、条件つきは投球ごとに掛ける)
+ */
+export function abilityMul(abilities, kind, ctx = {}, { onlyAlways = false, onlyWhen = false } = {}) {
   let m = 1;
-  for (const a of abilities ?? []) for (const e of a.effects ?? []) if (e.kind === kind && abilityCondition(e.when, ctx)) m *= e.mul;
+  for (const a of abilities ?? []) for (const e of a.effects ?? []) if (e.kind === kind && (!onlyAlways || !e.when) && (!onlyWhen || e.when) && abilityCondition(e.when, ctx)) m *= e.mul;
   return m;
 }
 

@@ -78,8 +78,9 @@ export class ThrowController {
     this.gesture = null;          // ジェスチャー区間の軌跡
     this.drag = { start, current: start, samples: [start] };
     this.origin = start;          // POWER の引きの起点(球質が成立したらそこへ移す)
-    this.detector = new PreSpinDetector(g.viewport.h);
-    this.detector.reset(start);
+    // 投球前の球質(PRE-SPIN / DRIVE)は今は操作に出さない(Config で無効)。有効にした時だけ判定する
+    this.detector = Config.preSpin.enabled || Config.drive.enabled ? new PreSpinDetector(g.viewport.h) : null;
+    this.detector?.reset(start);
     this.lastFed = start;
     g.ball.grab(g.player.fingerToWorld(start.x, start.y));
     g.ui.setThrowType?.(g.turn.current.chara?.type);

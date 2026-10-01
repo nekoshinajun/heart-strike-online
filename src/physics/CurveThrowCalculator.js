@@ -146,7 +146,8 @@ export class CurveThrowCalculator {
     const aim = this.aimTarget(cx / len, cy / len, len);
     // CONTROL:狙った点から小さくずれる(キャラの性能。半径 controlError の円の中。0 なら入力どおり)
     //   ずれは初速に含まれるので、MULTI でも全員に同じ投球として届く
-    const ctl = Math.max(0, this.mods.controlError ?? 0);
+    //   アビリティの条件つき CONTROL(例:深く引いた球のブレ ×0.6)はここで投球ごとに掛ける
+    const ctl = Math.max(0, (this.mods.controlError ?? 0) * abilityMul(ab, 'control', actx, { onlyWhen: true }));
     const controlOffset = { x: 0, y: 0 };
     if (ctl > 0) {
       const r = ctl * Math.sqrt(this.rng()), t = this.rng() * Math.PI * 2;

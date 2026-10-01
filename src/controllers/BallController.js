@@ -108,6 +108,7 @@ export class BallController {
 
   hold(anchorFn) {
     this.mode = 'held';
+    this.spin.set(0, 0, 0);   // 前の投球のカーブの回転(setCurveLook)を次の構えへ持ち越さない
     this.anchorFn = anchorFn;
     this.pos.copy(anchorFn());
     this.resetTrail();
@@ -265,8 +266,12 @@ export class BallController {
     // 回転
     if (this.isHeart) {
       // ハートはこちらを向いたまま、ゆらゆら回る(カーブ時は横回転を強める)
+      //   投球前(構え・引っ張り中・手元へ戻る途中)は全キャラ同じ一定速度。キャラ性能・前の投球のカーブは見た目の回転に入れない
+      //   (以前は spin.y = 前の投球の setCurveLook が構えに残り、次のキャラの構えの回転が速くなっていた)
       this.mesh.rotation.x = Math.sin(performance.now() / 300) * 0.25;
-      this.mesh.rotation.y += (this.spin.y * 0.4 + (this.mode === 'held' ? 1.2 : 3)) * dt;
+      const R = Config.ball.idleSpin;
+      const preThrow = this.mode === 'held' || this.mode === 'grabbed' || this.mode === 'catching';
+      this.mesh.rotation.y += (preThrow ? (this.mode === 'grabbed' ? R.grabbed : R.held) : this.spin.y * 0.4 + R.flying) * dt;
       this.mesh.rotation.z = Math.sin(performance.now() / 420) * 0.15;
     } else {
       this.mesh.rotation.x += this.spin.x * dt;
