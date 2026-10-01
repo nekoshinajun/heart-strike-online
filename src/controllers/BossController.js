@@ -36,6 +36,13 @@ export class BossController {
     });
     this.colliderRoot = new THREE.Group();   // 表示と一緒に揺れる(呼吸・のけぞり)
     this.view.anchors.body.add(this.colliderRoot);
+    // 当たり判定用:Collider の「止まった姿勢」の写し(ワールドに固定)。ボスの揺れ(呼吸・揺れの時刻)は端末ごとに違うので、
+    // 判定をここで行えば同じ投球 = 同じ命中部位・位置になる(MULTI の全員で一致)。見た目と着弾マークは揺れる方(colliderRoot)
+    this.hitRoot = new THREE.Group();
+    this.hitRoot.matrixAutoUpdate = false;
+    scene.add(this.hitRoot);
+    this.hitColliders = [];
+    this.hitMat = new THREE.MeshBasicMaterial({ visible: false });
     // 返球の発射点(胸の前。レイアウトに追従)
     this.spawnAnchor = new THREE.Object3D();
     this.view.anchors.body.add(this.spawnAnchor);
@@ -51,6 +58,8 @@ export class BossController {
   buildColliders() {
     for (const c of this.colliders) { c.geometry.dispose(); this.colliderRoot.remove(c); }
     this.colliders.length = 0;
+    for (const c of this.hitColliders ?? []) this.hitRoot.remove(c);
+    this.hitColliders = [];
     for (const p of this.parts.list) p.colliders.length = 0;
     for (const [part, d] of Object.entries(this.layout)) {
       if (!this.parts.get(part)) continue;
@@ -65,10 +74,26 @@ export class BossController {
       this.colliderRoot.add(c);
       this.colliders.push(c);
       this.parts.get(part).colliders.push(c);
+      const h = new THREE.Mesh(geo, this.hitMat);   // 判定用の写し(同じ形・同じローカル位置)
+      h.position.copy(c.position); h.rotation.copy(c.rotation);
+      h.userData.part = part; h.userData.live = c;   // live:見た目側の Collider(着弾マークはこちらに付ける)
+      this.hitRoot.add(h);
+      this.hitColliders.push(h);
     }
+    this.syncHitRoot();
     const ch = this.layout.chest;
     if (ch) this.spawnAnchor.position.set(ch.x, ch.y - 0.6, 1.6);
     this.view.setPartAnchors?.(this.layout);
+  }
+
+  /** 判定用の写しを「体が止まった姿勢」(呼吸・揺れ・のけぞり無し)のワールド位置に置く */
+  syncHitRoot() {
+    const body = this.view.anchors.body, parent = body.parent ?? this.root;
+    this.root.updateMatrixWorld(true);
+    const rest = new THREE.Matrix4().compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+    this.hitRoot.matrix.copy(parent.matrixWorld).multiply(rest).multiply(this.colliderRoot.matrix);
+    this.hitRoot.matrixWorldNeedsUpdate = true;
+    this.hitRoot.updateMatrixWorld(true);
   }
 
   /** 部位の中心(ワールド) */

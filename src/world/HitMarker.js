@@ -17,9 +17,10 @@ export class HitMarker {
     const H = Config.hitMark;
     const obj = result?.object;
     if (!result?.point || !obj) return null;
-    const parent = obj.parent ?? obj;
-    parent.updateWorldMatrix(true, false);
-    const local = parent.worldToLocal(result.point.clone());
+    // 判定は止まった姿勢の写し(BossController.hitColliders)で行う → その写しの中での位置を、揺れている見た目側の同じ位置に付ける
+    obj.parent?.updateWorldMatrix(true, false);
+    const local = (obj.parent ?? obj).worldToLocal(result.point.clone());
+    const parent = obj.userData.live?.parent ?? obj.parent ?? obj;
     const group = new THREE.Group();
     group.position.copy(local);
     // 親の拡大(ボスの表示倍率)を打ち消して、見た目の大きさを Config.hitMark.size(ワールド単位)にする
@@ -33,7 +34,7 @@ export class HitMarker {
     const heart = mk(heartTexture(), H.color, H.size, 1);
     const core = mk(heartTexture(), '#ffffff', H.size * 0.55, 0.9);
     parent.add(group);
-    const m = { group, parent, sprites: [glow, heart, core], base: [glow.material.opacity, 1, 0.9], t0: performance.now(), point: result.point.clone(), part: result.part };
+    const m = { group, parent, local: local.clone(), sprites: [glow, heart, core], base: [glow.material.opacity, 1, 0.9], t0: performance.now(), point: result.point.clone(), part: result.part };
     this.marks.push(m);
     while (this.marks.length > H.max) this.remove(this.marks[0]);
     return m;

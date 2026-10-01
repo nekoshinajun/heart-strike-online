@@ -129,7 +129,7 @@ export class BallToBossState {
     const strength = special ? 1 : powerStrength(th.power);
 
     // 実際の飛行と同じ計算(練習用に軌道を残す/カメラの追従先)
-    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.colliders, 0.03, null, th.drive ?? null);
+    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.hitColliders, 0.03, null, th.drive ?? null);
     if (Config.debug.showLastTrajectory && Config.debug.showTrajectoryPreview) g.preview.showGhost(sim.points);
     else g.preview.hideGhost();
 
