@@ -21,10 +21,11 @@ import { EnergySystem } from './energy/EnergySystem.js';
 import { UIManager } from './managers/UIManager.js';
 import { TrajectoryPreview } from './world/TrajectoryPreview.js';
 import { PlayerAttackState, BallToBossState, BossHitState } from './states/AttackStates.js';
-import { NextPlayerState, BossReturnState, PlayerDefenseState, PlayerCatchState } from './states/DefenseStates.js';
+import { NextPlayerState, BossTauntState, BossReturnState, PlayerDefenseState, PlayerCatchState } from './states/DefenseStates.js';
 import { TitleState, GameClearState, GameOverState } from './states/EndStates.js';
 import { STAGES } from './data/GameData.js';
 import { battleSlot } from './audio/BgmTracks.js';
+import { heroineByStage } from './data/RomanceData.js';
 import { throwModifiers } from './data/BattleCalc.js';
 import { MenuFlow } from './screens/MenuFlow.js';
 import { SpecialCutIn } from './screens/SpecialCutIn.js';
@@ -96,6 +97,7 @@ export class GameManager {
     this.sm.register(S.BALL_TO_BOSS, new BallToBossState(this));
     this.sm.register(S.BOSS_HIT, new BossHitState(this));
     this.sm.register(S.NEXT_PLAYER, new NextPlayerState(this));
+    this.sm.register(S.BOSS_TAUNT, new BossTauntState(this));
     this.sm.register(S.BOSS_RETURN, new BossReturnState(this));
     this.sm.register(S.PLAYER_DEFENSE, new PlayerDefenseState(this));
     this.sm.register(S.PLAYER_CATCH, new PlayerCatchState(this));
@@ -280,6 +282,40 @@ export class GameManager {
     this.ui.setHeart(0, this.boss.maxHeart);
   }
 
+  /**
+   * 1投が終わった後の進行(ターン構造の中心)
+   *   PLAYER ATTACK PHASE:生存している味方が A→B→C→D の順に1投ずつ → 全員投げ終えたら BOSS_TAUNT → まとめて反撃
+   *   SOLO はここで決める / MULTI はサーバーが決めた結果(OnlineSession)に従う
+   */
+  afterThrow() {
+    const S = GameState;
+    if (this.online) {
+      const o = this.online;
+      if (o.phaseEnd) { o.phaseEnd = false; this.sm.change(S.BOSS_TAUNT); return; }
+      this.sm.change(S.NEXT_PLAYER, { to: o.nextThrowerIndex() });
+      return;
+    }
+    const n = this.turn.nextAttacker();
+    if (n >= 0) this.sm.change(S.NEXT_PLAYER, { to: n });
+    else this.sm.change(S.BOSS_TAUNT);
+  }
+
+  /** このステージの攻略対象の攻撃ボイス(データ:RomanceData の attackVoices。ファイルのあるものだけ)*/
+  attackVoices() { return (heroineByStage(this.stage?.id)?.attackVoices ?? []).filter((v) => v?.src); }
+  /**
+   * ボス攻撃フェーズのボイスを1つ選ぶ(前回と同じボイスは候補から外す)。ボイスが無ければ null
+   *   roll … MULTI:サーバーが配った乱数(全員が同じボイスを選ぶ)。SOLO は null(Math.random)
+   */
+  pickAttackVoice(roll = null) {
+    const list = this.attackVoices();
+    if (!list.length) return null;
+    const pool = list.length > 1 ? list.filter((v) => v.id !== this.lastAttackVoiceId) : list;
+    const i = Number.isFinite(roll) ? Math.abs(Math.floor(roll)) % pool.length : Math.floor(Math.random() * pool.length);
+    const v = pool[i];
+    this.lastAttackVoiceId = v.id;
+    return v;
+  }
+
   /** 手番キャラの性能を投球へ反映(タイプ補正)。攻撃・防御の数値は各ステートが turn.current.chara から読む */
   applyCharacter(p) {
     this.player.thrower.mods = throwModifiers(p.chara?.type);
@@ -305,6 +341,9 @@ export class GameManager {
     Log.info('STAGE', `start ${stage.id} ${this.difficulty}`);
     this.setDifficulty(this.difficulty);   // 調整パネルでの変更もここで反映
     this.prepareStage(stage);
+    // ボスの攻撃ボイス:前のバトルのボイスを止め、このステージのボイスを先読み(最初の反撃で待たない)
+    this.lastAttackVoiceId = null;
+    safe('AUDIO', () => { this.audio.voice.stop(); this.audio.voice.preload(this.attackVoices().map((v) => v.src)); });
     this.partyOrder = party;
     this.turn.reset(party);
     this.ui.buildPlayers(this.turn.players);
@@ -326,7 +365,7 @@ export class GameManager {
   /** ゲームを終えてメニューへ(既定:攻略タブの STAGE SELECT。'home' で HOME)*/
   backToMenu(to = 'stage') {
     this.online?.leaveGame?.();   // MULTI 終了:ルームを抜けて g.online を外す(この後の SOLO に持ち越さない)
-    safe('AUDIO', () => this.audio.stopBgm());
+    safe('AUDIO', () => { this.audio.stopBgm(); this.audio.voice.stop(); });
     this.prepareStage(this.stage ?? STAGES[0]);
     this.sm.change(GameState.TITLE);
     this.router.go(to);

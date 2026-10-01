@@ -1,8 +1,9 @@
 // WebAudio の効果音(合成)と BGM(ファイル。audio/BgmManager.js)。最初のタップで有効化。
-// 音の系統:効果音 = master(SE)/ BGM = BgmManager のバス / ボイス = 将来用(voice)。それぞれ別に音量を持つ
+// 音の系統:効果音 = master(SE)/ BGM = BgmManager のバス / ボイス = VoicePlayer(voice)。それぞれ別に音量を持つ
 import { Config } from '../core/Config.js';
 import { Haptic } from '../app/Platform.js';
 import { BgmManager } from '../audio/BgmManager.js';
+import { VoicePlayer } from '../audio/VoicePlayer.js';
 
 const SE_MASTER = 0.35;   // 効果音の基準音量(従来値。SE 音量設定 1 のとき)
 
@@ -16,15 +17,17 @@ export class AudioManager {
     this.ctx = null; this.muted = false;
     this.volumes = { se: 1, voice: 1 };   // ユーザー設定(0〜1)。BGM は this.bgm が持つ
     this.bgm = new BgmManager(this);
+    this.voice = new VoicePlayer(this);   // キャラクターボイス(ボス攻撃前のボイス等)
   }
 
-  /** 系統ごとの音量(設定画面)。se は効果音の master に掛ける(1 = 従来どおり)。voice は将来のボイス用 */
+  /** 系統ごとの音量(設定画面)。se は効果音の master に掛ける(1 = 従来どおり)。voice はキャラクターボイス */
   setVolume(kind, v) {
     const x = Math.max(0, Math.min(1, Number(v)));
     if (!Number.isFinite(x)) return;
     if (kind === 'bgm') { this.bgm.setVolume(x); return; }
     this.volumes[kind] = x;
     if (kind === 'se' && this.master) this.master.gain.value = SE_MASTER * x;
+    if (kind === 'voice') this.voice.applyVolume();
   }
 
   /** 最初のユーザー操作で呼ぶ。iOS はユーザー操作の中で resume + 無音再生しないと鳴らない */

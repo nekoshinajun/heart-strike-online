@@ -268,6 +268,9 @@ export class BossView2D {
   /** 返球前の「溜め」:体を少し沈める程度(攻撃モーションではない) */
   playCharge() { this.dipSpring.kick(-2.5); }
 
+  /** 喋る:声の立ち上がりごとに頭と体が小さく弾む(ボス攻撃前のボイス)*/
+  playSpeak(level = 0.5) { const p = Math.min(1, level); this.headSpring.kick((this.time % 2 < 1 ? 1.6 : -1.6) * p); this.dipSpring.kick(1.4 * p); }
+
   setLook(x) { this.lookTarget = x; }
   /** TotalHeart 100%:喜びのリアクション(倒れる演出はしない) */
   setHeartMax() { this.heartMax = true; this.clearT = 0; this.setExpression('love'); }

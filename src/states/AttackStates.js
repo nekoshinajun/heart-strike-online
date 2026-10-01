@@ -141,6 +141,8 @@ export class BallToBossState {
     g.space.beginThrow();    // Heart Gate の判定もここから(SPECIAL はカットイン完了後)
     g.energy.beginThrow();   // SPECIAL でも Energy を回収できる
     this.feverThrow = g.fever.consumeThrow(g.turn.index);   // FEVER 投球を1回消費(発射時に1度だけ)
+    // このフェーズの投球として数える(50% 会話の回答をフェーズの最後の人の後に投げる「おまけの1投」は数えない)
+    if (g.answerExtraThrow) g.answerExtraThrow = false; else g.turn.markThrown();
     g.ui.tutorialDone('flick');
     if (special) {
       g.ui.showJudge('SPECIAL HEART!', 'perfect', '#ff7ab8');
@@ -218,7 +220,8 @@ export class BossHitState {
       g.affection.onHeartChanged();   // LOVE 25% ごとの表情
       // HEART 50% 会話の直前:命中の瞬間にゲーム速度を一瞬落とす(HEART MAX になった時は除く)
       const pendingTalk = !g.boss.full && !g.affection.answerMode ? g.affection.pendingTalk() : null;
-      if (g.online && pendingTalk) g.online.requestTalk50(pendingTalk);
+      // MULTI:この投球でフェーズが終わる(この後ボスの反撃)時は会話を次のフェーズの命中まで持ち越す(回答の1投を投げる人がいないため)
+      if (g.online && pendingTalk && g.online.canStartTalk?.()) g.online.requestTalk50(pendingTalk);
       this.talkLead = !g.online && !!pendingTalk;
       // Heart50TriggerDelay:HEART 表示が 50% を超えてから会話(暗転)を始めるまでの実時間。ヒットストップ / スロー / FEVER に左右されない
       if (this.talkLead) { g.setTimeScale(g.cfg.talk.hitSlow); this.talkAt = performance.now() + g.cfg.talk.heart50TriggerDelay * 1000; g.heart50ReachedAt = performance.now(); }
@@ -295,13 +298,13 @@ export class BossHitState {
     }
     this.wait -= dt;
     if (this.wait > 0) return;
-    // 優先順:HEART MAX(CLEAR)→ FEVER 全員投げ終わり(FEVER_OUTRO)→ 通常(NEXT_PLAYER)。どれか1つだけに進む
-    // 優先順:回答へのリアクション → HEART MAX(LOVE MAX)→ 50% 会話 → FEVER 全員投げ終わり → 通常。どれか1つだけに進む
+    // 優先順:回答へのリアクション → HEART MAX(LOVE MAX)→ 50% 会話 → FEVER 全員投げ終わり → 通常(次の味方 / ボスの反撃)。どれか1つだけに進む
     if (this.answer) { const answer = this.answer; this.answer = null; g.sm.change(GameState.TALK_REACTION, { answer }); return; }
-    if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }
+    if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // 攻略成功:反撃には移らない
     const talk = g.affection.pendingTalk();
     if (talk && !g.online) { g.sm.change(GameState.TALK_QUESTION, { talk }); return; }
+    if (g.online && !g.online.throwResolved) return;   // MULTI:この投球の後の進行(次の人 / ボスの反撃)をサーバーから受け取るまで待つ
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
-    g.sm.change(GameState.NEXT_PLAYER);
+    g.afterThrow();   // 次の味方の投球 / 全員投げ終えたらボスの反撃
   }
 }

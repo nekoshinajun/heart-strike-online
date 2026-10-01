@@ -14,19 +14,14 @@ export const BGM_SLOTS = {
     pick: 'random',
   },
   battleHell: { tracks: [], pick: 'random' },   // HELL 専用(未設定の間は battle を使う)
-  home: { tracks: [{ src: 'assets/bgm/home_homescle_no_mahou.mp3', title: 'ホームスクルの魔法' }], pick: 'first' },
+  // 共通メニュー BGM:攻略インゲームが始まるまでの全画面(HOME / 育成 / 攻略 / ガチャ / コレクション / 各サブ画面 / ロビー / 紹介 / リザルト)で途切れず流す
+  menu: { tracks: [{ src: 'assets/bgm/home_homescle_no_mahou.mp3', title: 'ホームスクルの魔法' }], pick: 'first', resume: true },
   gacha: { tracks: [], pick: 'first' },         // 未設定
   event: { tracks: [], pick: 'first' },         // 未設定
 };
 
-/**
- * 画面(タブ)→ 場面。SUB 画面(ミッション / プレゼント / 設定 / プロフィール)はその下のタブの BGM を続ける。
- * ここに無いタブは BGM なし。バトル(game)は GameManager が開始時に battleSlot() で再生する
- */
-export const SCREEN_BGM = {
-  home: 'home',
-  // training: 'home', stage: 'home', gacha: 'gacha', collection: 'home',   ← 鳴らしたくなったら足すだけ
-};
+/** インゲーム以外のすべての画面で鳴らす場面(画面ごとに分けたくなったら、ここを画面 → 場面の対応にする)*/
+export const MENU_SLOT = 'menu';
 
 /** バトルの BGM:難易度ごとに専用があればそれ、無ければ battle */
 export function battleSlot(difficulty) {

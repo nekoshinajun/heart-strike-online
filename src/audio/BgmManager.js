@@ -29,7 +29,9 @@ export class BgmManager {
     this.loading = new Map();     // src → Promise
     this.cycle = {};
     this.token = 0;
-    this.current = null;          // { slot, src, source, gain }
+    this.current = null;          // { slot, src, source, gain, t0, offset, loopStart, loopEnd }
+    this.positions = {};          // slot → { src, pos }(resume 用)
+    this.holds = new Set();       // 一時停止の理由(ASMR 等)
   }
 
   get ctx() { return this.audio?.ctx ?? null; }
@@ -98,16 +100,23 @@ export class BgmManager {
   preload(slot) { const t = this.pickTrack(slot); if (t && this.ctx) this.load(t.src).catch(() => {}); }
 
   /** AudioContext が使えるようになった(最初のタップ)時:待っていた場面の BGM を鳴らす */
-  onUnlock() { if (this.wanted && !this.current && !this.pending) this.play(this.wanted); }
+  onUnlock() { if (this.wanted && !this.current && !this.pending && !this.holds.size) this.play(this.wanted, { resume: true }); }
 
-  play(slot, { restart = false } = {}) {
-    if (!restart && (this.current?.slot === slot || this.pending === slot)) return;     // 二重再生しない
+  /**
+   * 再生。同じ場面が鳴っている(または読み込み中)なら何もしない = 画面を切り替えても途切れない
+   *   restart … 最初から(バトル開始・再戦)
+   *   resume  … 前回止めた位置から(共通メニュー BGM:バトルから戻った時)
+   */
+  play(slot, { restart = false, resume = false } = {}) {
+    if (!restart && (this.current?.slot === slot || this.pending === slot)) { this.wanted = slot; return; }   // 二重再生しない
     this.stop(0.25);
-    this.wanted = slot;                                       // まだ音を出せない(タップ前)なら、出せるようになった時に再生
+    this.wanted = slot;                                       // まだ音を出せない(タップ前・一時停止中)なら、出せるようになった時に再生
     this.duckLevel = 1;           // 前の場面の一時的な音量下げ(会話・ガチャ演出)は持ち越さない
     this.applyGain(0);
+    if (this.holds.size) return;                              // ASMR 再生中などは鳴らさない(解除時に再開)
     const track = this.pickTrack(slot);
     if (!track || !this.ctx) return;
+    const saved = resume && !restart ? this.positions[slot] : null;
     const token = ++this.token;
     this.pending = slot;
     this.audio.resume?.();
@@ -117,18 +126,30 @@ export class BgmManager {
       if (!c || !bus) return;
       const gain = c.createGain();
       gain.gain.setValueAtTime(0, c.currentTime);
-      gain.gain.linearRampToValueAtTime(track.gain ?? 1, c.currentTime + 0.4);
+      gain.gain.linearRampToValueAtTime(track.gain ?? 1, c.currentTime + (saved ? 0.6 : 0.4));
       const source = c.createBufferSource();
       source.buffer = entry.buffer;
       source.loop = true;
       source.loopStart = entry.loopStart;
       source.loopEnd = entry.loopEnd;
       source.connect(gain).connect(bus);
-      source.start(0, entry.loopStart);
-      this.current = { slot, src: track.src, source, gain };
+      // 前回の位置(同じ曲の時だけ)から。ループ範囲の外なら先頭へ
+      const offset = saved && saved.src === track.src && saved.pos >= entry.loopStart && saved.pos < entry.loopEnd ? saved.pos : entry.loopStart;
+      source.start(0, offset);
+      this.current = { slot, src: track.src, source, gain, t0: c.currentTime, offset, loopStart: entry.loopStart, loopEnd: entry.loopEnd };
       this.pending = null;
-      Log.info('AUDIO', `bgm ${slot} ${track.src}`);
+      Log.info('AUDIO', `bgm ${slot} ${track.src} @${offset.toFixed(2)}s`);
     }).catch((e) => { if (token === this.token) this.pending = null; Log.warn('AUDIO', 'bgm load failed', e?.message ?? e); });
+  }
+
+  /** 今の再生位置(秒)。ループを考慮 */
+  position() {
+    const cur = this.current, c = this.ctx;
+    if (!cur || !c) return null;
+    const len = cur.loopEnd - cur.loopStart;
+    let pos = cur.offset + (c.currentTime - cur.t0);
+    if (pos >= cur.loopEnd && len > 0) pos = cur.loopStart + ((pos - cur.loopStart) % len);
+    return pos;
   }
 
   stop(fade = 0.4) {
@@ -136,6 +157,7 @@ export class BgmManager {
     this.token++;                 // 読み込み中の再生も取り消す
     this.pending = null;
     const cur = this.current;
+    if (cur) this.positions[cur.slot] = { src: cur.src, pos: this.position() };   // 次に resume で再開する位置
     this.current = null;
     if (!cur || !this.ctx) return;
     const t = this.ctx.currentTime;
@@ -147,6 +169,22 @@ export class BgmManager {
     } catch { /* 既に止まっている */ }
     setTimeout(() => { try { cur.source.disconnect(); cur.gain.disconnect(); } catch { /* noop */ } }, (fade + 0.2) * 1000);
   }
+
+  /**
+   * 一時停止(reason ごと。例:ASMR を再生している間)。全部解除されたら、止めた位置から再開
+   */
+  hold(reason) {
+    if (this.holds.has(reason)) return;
+    this.holds.add(reason);
+    const slot = this.current?.slot ?? this.pending ?? this.wanted;
+    this.stop(0.3);
+    this.wanted = slot;
+  }
+  release(reason) {
+    if (!this.holds.delete(reason) || this.holds.size) return;
+    if (this.wanted) this.play(this.wanted, { resume: true });
+  }
+
 }
 
 /** ループ範囲:先頭・末尾の「完全な無音」(MAX_PAD_SEC まで)を外す。曲中の音は外さない */

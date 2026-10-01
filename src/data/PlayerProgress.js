@@ -1,13 +1,14 @@
 import { CHARACTERS, DEFAULT_PARTY, LEVELING, LEGACY_CHARACTER_IDS, STAGES, characterById } from './GameData.js';
 import { Config } from '../core/Config.js';
-import { HEROINES, HEROINE_ASMR_UNLOCK, INTIMACY, heroineById, heroineByStage, giftById } from './RomanceData.js';
+import { HEROINES, REWARD_VOICE_SLOTS, rewardUnlock, INTIMACY, heroineById, heroineByStage, giftById } from './RomanceData.js';
 import { storage, Log } from '../app/Platform.js';
 
 /**
  * PlayerProgress v2(保存キー heart-strike-progress-v2)
  *   characters[id] = { owned, level, exp, obtainedAt, firstHomeSetAt, intimacy, bonus }   ← 固定 Character ID(表示名は使わない)
  *       intimacy … 親密度ポイント / bonus … プレゼント等による能力の上乗せ { atk, def }
- *   heroines[heroineId] = { asmrUnlocked: { trackId: 解放時刻 }, asmrSeen: { trackId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)
+ *   heroines[heroineId] = { voiceUnlocked: { voiceId: 解放時刻 }, voiceSeen: { voiceId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)のクリア報酬ボイス
+ *       (旧 asmrUnlocked / asmrSeen は読み込み時に voiceUnlocked / voiceSeen へ移す)
  *   items[giftId] = 所持数(プレゼント)
  *   party[4] / favoriteCharacterId
  *   records[stageId][NORMAL|HARD|HELL] = { clearCount, bestRally, bestGateChain, bestHeartPerThrow, firstClearRewarded }
@@ -31,7 +32,7 @@ export class ProgressRepository {
 
 const now = () => Date.now();
 const charEntry = (o = {}) => ({ owned: false, level: 1, exp: 0, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null, intimacy: 0, ...o, bonus: { atk: 0, def: 0, ...(o.bonus ?? {}) } });
-const heroineEntry = (o = {}) => ({ ...o, asmrUnlocked: { ...(o.asmrUnlocked ?? {}) }, asmrSeen: { ...(o.asmrSeen ?? {}) } });
+const heroineEntry = ({ asmrUnlocked, asmrSeen, ...o } = {}) => ({ ...o, voiceUnlocked: { ...(asmrUnlocked ?? {}), ...(o.voiceUnlocked ?? {}) }, voiceSeen: { ...(asmrSeen ?? {}), ...(o.voiceSeen ?? {}) } });
 const num = (v) => (Number.isFinite(v) ? v : 0);   // 未決定(null)の数値は 0 として扱う
 /** 今のコンテンツ(新 Stage / 新 Difficulty の検出用)*/
 export const contentKeys = () => STAGES.flatMap((s) => [`stage:${s.id}`, ...DIFFS.map((d) => `diff:${s.id}:${d}`)]);
@@ -50,7 +51,7 @@ function blankSave() {
     items: {},
     records: {},
     cleared: [],
-    wallet: { heartGem: 1000 },
+    wallet: { heartGem: 10000 },       // 新規セーブの初期 HEART GEM(既存セーブの所持数は変えない)
     flags: { starterGranted: false, hellConfirmed: false },
     seen: { banners: {} },
     knownContent: contentKeys(),
@@ -167,7 +168,7 @@ export class PlayerProgress {
     if (v2 && typeof v2 === 'object' && v2.version === 2) {
       const d = normalizeV2(v2);
       this.ensureOwnership(d);
-      this.data = d; this.syncAsmrUnlocks(); this.save();
+      this.data = d; this.syncVoiceUnlocks(); this.save();
       Log.info('SAVE', 'loaded v2');
       return d;
     }
@@ -179,7 +180,7 @@ export class PlayerProgress {
         this.ensureOwnership(d);
         if (!d.party.every((id) => d.characters[id]?.owned)) throw new Error('migrated party contains unowned characters');
         this.data = d;
-        this.syncAsmrUnlocks();
+        this.syncVoiceUnlocks();
         this.save();
         Log.info('SAVE', 'migrated v1 → v2');
         return d;
@@ -286,10 +287,10 @@ export class PlayerProgress {
     }
     this.data.stats.totalClears = (this.data.stats.totalClears ?? 0) + 1;
     this.data.lastPlayedAt = now();
-    const asmrUnlocked = this.syncAsmrUnlocks();   // HELL クリア等で新しく解放された ASMR(リザルトの演出用)
+    const voiceUnlocked = this.syncVoiceUnlocks();   // このクリアで新しく解放された報酬ボイス(リザルトの演出用)
     this.save();
     Object.defineProperty(r, 'firstClearGem', { value: firstClearGem, enumerable: false, configurable: true });
-    Object.defineProperty(r, 'asmrUnlocked', { value: asmrUnlocked, enumerable: false, configurable: true });
+    Object.defineProperty(r, 'voiceUnlocked', { value: voiceUnlocked, enumerable: false, configurable: true });
     return r;
   }
 
@@ -377,7 +378,7 @@ export class PlayerProgress {
     return { gift, levelUps, gainedExp: exp, gainedIntimacy: Math.floor(num(e.intimacy)), reaction, before, after: this.character(characterId) };
   }
 
-  // ---------------- ASMR(攻略対象のみ)----------------
+  // ---------------- クリア報酬ボイス(攻略対象のみ。NORMAL / HARD = ボイス、HELL = ASMR)----------------
   /** 条件 { type, ... } を満たしているか。heroine はステージ省略時の基準 */
   isConditionMet(cond, heroine) {
     if (!cond) return false;
@@ -387,34 +388,42 @@ export class PlayerProgress {
     }
     return false;   // 未知の条件は解放しない
   }
-  /** その攻略対象の ASMR 一覧(解放状態つき)*/
-  asmrTracks(heroineId) {
+  /**
+   * その攻略対象の報酬ボイス(難易度の枠ごと。未設定の枠も含む)
+   *   → [{ difficulty, type, voice(データ or null), unlock, cleared, unlocked, isNew, playable }]
+   */
+  rewardVoices(heroineId) {
     const h = heroineById(heroineId);
     if (!h) return [];
     const st = this.data.heroines[h.id] ?? heroineEntry();
-    return h.asmr.map((t) => {
-      const unlock = t.unlock ?? HEROINE_ASMR_UNLOCK;
-      const unlockedAt = st.asmrUnlocked[t.id] ?? null;
-      return { ...t, heroineId: h.id, unlock, unlocked: !!unlockedAt, unlockedAt, isNew: !!unlockedAt && !st.asmrSeen[t.id], playable: !!unlockedAt && !!t.src };
+    return REWARD_VOICE_SLOTS.map(({ difficulty, type }) => {
+      const v = h.rewardVoices?.[difficulty] ?? null;
+      const unlockedAt = v ? st.voiceUnlocked[v.id] ?? null : null;
+      return {
+        difficulty, type: v?.type ?? type, voice: v, id: v?.id ?? null, title: v?.title ?? null, src: v?.src ?? null,
+        unlock: rewardUnlock(difficulty), cleared: this.isCleared(h.stageId, difficulty),
+        unlocked: !!unlockedAt, unlockedAt, isNew: !!unlockedAt && !st.voiceSeen[v.id], playable: !!unlockedAt && !!v?.src,
+      };
     });
   }
-  /** 条件を満たした ASMR を解放済みにする(一度解放したら戻さない)→ 新しく解放した [{ heroineId, trackId }] */
-  syncAsmrUnlocks() {
+  /** 条件を満たした報酬ボイスを解放済みにする(一度解放したら戻さない)→ 新しく解放した [{ heroineId, voiceId, difficulty, type }] */
+  syncVoiceUnlocks() {
     const fresh = [];
     for (const h of HEROINES) {
       const st = (this.data.heroines[h.id] ??= heroineEntry());
-      for (const t of h.asmr) {
-        if (st.asmrUnlocked[t.id]) continue;
-        if (this.isConditionMet(t.unlock ?? HEROINE_ASMR_UNLOCK, h)) { st.asmrUnlocked[t.id] = now(); fresh.push({ heroineId: h.id, trackId: t.id }); }
+      for (const { difficulty, type } of REWARD_VOICE_SLOTS) {
+        const v = h.rewardVoices?.[difficulty];
+        if (!v?.id || st.voiceUnlocked[v.id]) continue;
+        if (this.isConditionMet(rewardUnlock(difficulty), h)) { st.voiceUnlocked[v.id] = now(); fresh.push({ heroineId: h.id, voiceId: v.id, difficulty, type: v.type ?? type }); }
       }
     }
     return fresh;
   }
-  /** 解放済み ASMR を初めて開いた(NEW 表示を消す)*/
-  markAsmrSeen(heroineId, trackId) {
+  /** 解放済みのボイスを初めて開いた(NEW 表示を消す)*/
+  markVoiceSeen(heroineId, voiceId) {
     const st = this.data.heroines[heroineId];
-    if (!st?.asmrUnlocked[trackId] || st.asmrSeen[trackId]) return false;
-    st.asmrSeen[trackId] = now();
+    if (!st?.voiceUnlocked[voiceId] || st.voiceSeen[voiceId]) return false;
+    st.voiceSeen[voiceId] = now();
     this.save();
     return true;
   }

@@ -5,20 +5,26 @@ import { DefenseCalculator, BattleTuning } from '../data/BattleCalc.js';
 
 const JUDGE_COLOR = { PERFECT: '#ffd23e', GREAT: '#3ee8ff', GOOD: '#9dff7a', MISS: '#ff3d5a' };
 
-/** NEXT_PLAYER:手番交代(リレー) */
+/**
+ * NEXT_PLAYER:手番交代(PLAYER ATTACK PHASE の中で次の味方へ / 新しいフェーズの先頭へ)。ボスの反撃はフェーズの最後に1回だけ
+ *   to    … 次に投げる手番 index(省略時は今のまま)
+ *   phase … 新しい PLAYER ATTACK PHASE(投げた人の記録をリセット。to が無ければ生存している先頭 = A 側から)
+ */
 export class NextPlayerState {
   constructor(g) { this.g = g; }
-  enter({ label = 'NEXT', direct = false } = {}) {
+  enter({ label = 'NEXT', to = null, phase = false } = {}) {
     const g = this.g;
-    this.direct = direct;   // 会話イベント後:返球・キャッチを挟まず、次の手番へ直接ボールを渡す
+    this.phase = phase;
     g.energy.endThrow();
     g.energy.clear();
     g.space.clear();
     g.ball.setSpecial(false);
-    const p = g.turn.advance();
+    let p;
+    if (phase && to == null) p = g.turn.beginAttackPhase();
+    else { if (phase) g.turn.thrown = new Set(); p = g.turn.setIndex(to ?? g.turn.index); }
     g.applyCharacter(p);   // 手番キャラの ATK/DEF/属性/タイプに切替
     g.ui.setPlayers(g.turn.players, g.turn.index);
-    g.ui.showTurn(p, label);
+    g.ui.showTurn(p, phase ? 'PLAYER ATTACK' : label);
     g.cam.setPlayerX(p.x);
     g.boss.lookAtPlayer(p.x);
     g.ball.setStyle(p.color, g.turn.tierLevel);
@@ -27,8 +33,87 @@ export class NextPlayerState {
   update(dt) {
     this.wait -= dt;
     if (this.wait > 0) return;
-    if (this.direct) { this.g.ball.hold(this.g.player.holdAnchor); this.g.sm.change(GameState.PLAYER_ATTACK); return; }
+    const g = this.g;
+    g.ball.hold(g.player.holdAnchor);
+    // FEVER ゲージ 100%:新しいフェーズの最初の投球前に FEVER 突入(フェーズ全員の投球が FEVER)
+    if (this.phase && !g.online && g.fever.pendingStart && !g.fever.active) { g.sm.change(GameState.FEVER_INTRO); return; }
+    g.sm.change(GameState.PLAYER_ATTACK);
+  }
+}
+
+/**
+ * BOSS_TAUNT:全員が投げ終えた → ボスが喋る(攻撃ボイス)→ 一瞬の間 → BOSS_RETURN(まとめて反撃)
+ *   1. カメラ・視線をボスへ寄せる / 「BOSS ATTACK」表示 / BGM を少し下げる
+ *   2. 攻略対象データの attackVoices からランダムで1つ(前回と同じものは除外。MULTI はサーバーの乱数で全員同じボイス)
+ *   3. 喋っている間はボスが声に合わせて揺れる。キャッチ判定(BOSS_RETURN)はボイスが終わるまで始めない
+ *   4. ボイス終了 → voiceGapSec の間 → 攻撃
+ *   ボイスが無い・読み込めない・タップ前で音が出せない時は、noVoicePauseSec の間だけ置いて攻撃(進行は止めない)
+ */
+export class BossTauntState {
+  constructor(g) { this.g = g; }
+  enter() {
+    const g = this.g, B = Config.battle;
+    g.energy.endThrow();
+    g.energy.clear();
+    g.space.clear();
+    g.ball.setSpecial(false);
+    g.ball.hide();
+    g.boss.lookAtPlayer(0);
+    g.cam.focusOn(g.boss.partCenter('head'), 8);
+    g.ui.showTurn({ color: '#ff3f8f', name: g.stage?.boss.name ?? '' }, 'BOSS ATTACK');
+    this.done = false;
+    this.speaking = false;
+    this.lastLevel = 0;
+    const now = performance.now();
+    this.endAt = now + (B.noVoicePauseSec ?? 0.9) * 1000;   // ボイス無しの時の間(ボイスが始まったら置き換える)
+    this.loadLimit = now + (B.voiceLoadWaitSec ?? 1.2) * 1000;
+    const voice = g.pickAttackVoice(g.online ? g.online.voiceRoll : null);
+    this.voice = voice;
+    this.waitingVoice = !!voice && !!g.audio.ctx;
+    if (!this.waitingVoice) return;
+    const token = (this.token = (this.token ?? 0) + 1);
+    g.audio.duckBgm(B.voiceBgmDuck ?? 0.45, 0.2);
+    if (voice.text) g.affection.showLine(voice.text);   // 字幕(データに書いた時だけ)
+    g.audio.voice.play(voice.src).then((dur) => {
+      if (token !== this.token || g.sm.current !== this || !this.waitingVoice) { if (token === this.token && dur) g.audio.voice.stop(); return; }
+      this.waitingVoice = false;
+      if (!dur) { this.endAt = performance.now() + (B.noVoicePauseSec ?? 0.9) * 1000; g.audio.duckBgm(1, 0.3); return; }
+      this.speaking = true;
+      this.speakEnd = performance.now() + dur * 1000;
+      this.endAt = this.speakEnd + (B.voiceGapSec ?? 0.35) * 1000;
+    });
+  }
+  update() {
+    const g = this.g, now = performance.now();
+    if (this.done) return;
+    if (this.waitingVoice) {
+      if (now < this.loadLimit) return;
+      this.waitingVoice = false;                 // 読み込みが間に合わない:ボイス無しで進める(後から鳴らさない)
+      g.audio.voice.stop();
+      g.audio.duckBgm(1, 0.3);
+      this.endAt = now + (Config.battle.noVoicePauseSec ?? 0.9) * 1000;
+      return;
+    }
+    if (this.speaking) {
+      // 声に合わせてボスが揺れる(音の立ち上がりで小さく弾む)
+      const lv = g.audio.voice.level();
+      if (lv > 0.18 && this.lastLevel <= 0.18) g.boss.view.playSpeak?.(lv);
+      this.lastLevel = lv;
+      if (now >= this.speakEnd) { this.speaking = false; g.audio.duckBgm(1, 0.4); g.boss.view.playCharge(); }
+      return;
+    }
+    if (now < this.endAt) return;
+    this.done = true;
     this.g.sm.change(GameState.BOSS_RETURN);
+  }
+  exit() {
+    // リトライ・離脱・ゲームオーバー等でこのステートを抜けたら、ボイスを残さない
+    this.token = (this.token ?? 0) + 1;
+    this.waitingVoice = false;
+    if (this.speaking || this.g.audio.voice.playing) this.g.audio.voice.stop();
+    this.speaking = false;
+    this.g.audio.duckBgm(1, 0.3);
+    if (this.voice?.text) this.g.affection.hideLine();
   }
 }
 
@@ -144,7 +229,7 @@ export class PlayerDefenseState {
     const pos = g.ball.pos.clone();
     // Defense:判定ごとのペナルティを DEF で軽減(DefenseCalculator は差し替え可能)
     // 難易度:PERFECT は常に 0。GREAT / GOOD / MISS の被ダメージだけ DifficultyData.damageTaken 倍
-    const dmg = Math.round(DefenseCalculator.penalty(r, this.plan.power, p.chara?.def ?? BattleTuning.defBase) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
+    const damageFor = (pl) => Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara?.def ?? BattleTuning.defBase) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
 
     if (r !== Judge.MISS) g.ui.tutorialDone('catch');
     if (r === Judge.PERFECT) {
@@ -169,21 +254,26 @@ export class PlayerDefenseState {
       g.turn.resetRally();
     }
 
-    if (dmg > 0) {
-      g.turn.damageCurrent(dmg);
-      g.ui.hitPlayer(g.turn.index);
-      g.ui.setPlayers(g.turn.players, g.turn.index);
-      const s = g.player.toScreen(pos);
-      g.ui.damageNumber(s.x, s.y + 40, `-${dmg}`, { color: '#ff5a6e', label: p.id });
-    }
+    // ボスの反撃は全員へ:SOLO は1回の判定を生存している全員に適用(ダメージは各自の DEF で個別)/ MULTI は自分のキャラだけ
+    const targets = g.online ? [p] : g.turn.players.filter((pl) => pl.hp > 0);
+    const s0 = g.player.toScreen(pos);
+    const downs = [];
+    targets.forEach((pl, k) => {
+      const dmg = damageFor(pl);
+      if (dmg <= 0) return;
+      g.turn.damage(pl, dmg);
+      const i = g.turn.players.indexOf(pl);
+      g.ui.hitPlayer(i);
+      g.ui.damageNumber(s0.x + (k - (targets.length - 1) / 2) * 46, s0.y + 40 + (k % 2) * 26, `-${dmg}`, { color: '#ff5a6e', label: pl.id });
+      if (pl.hp <= 0) downs.push(pl);
+    });
+    g.ui.setPlayers(g.turn.players, g.turn.index);
 
     if (!g.online && g.turn.allDown) { g.ball.hide(); g.sm.change(GameState.GAME_OVER); return; }
-    if (p.hp <= 0) {
-      g.ui.showJudge(`${p.id} DOWN`, 'miss', '#ff3d5a');
+    if (downs.length) {
+      g.ui.showJudge(`${downs.map((d) => d.id).join('・')} DOWN`, 'miss', '#ff3d5a');
       // Online DOWN is finalized by the server from this player's CATCH result.
-      g.ball.hide();
-      g.sm.change(GameState.PLAYER_CATCH, { down: true });
-      return;
+      if (g.online) { g.ball.hide(); g.sm.change(GameState.PLAYER_CATCH, { down: true }); return; }
     }
     g.sm.change(GameState.PLAYER_CATCH, { judge: r });
   }
@@ -209,10 +299,9 @@ export class PlayerCatchState {
     this.wait -= dt;
     if (this.wait > 0) return;
     const g = this.g;
-    if (this.down) { if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId:g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait=0.05; return; } g.sm.change(GameState.NEXT_PLAYER, { direct: true, label: 'NEXT' }); return; }
-    // マルチは全員のキャッチ完了を待ってから、サーバーが次の投球者へ進める。
-    if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId:g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait=0.05; return; }
-    // FEVER ゲージ 100%:キャッチした人(この後投げる人)から FEVER 開始
-    g.sm.change(g.fever.pendingStart && !g.fever.active ? GameState.FEVER_INTRO : GameState.PLAYER_ATTACK);
+    // マルチは全員のキャッチ完了を待ってから、サーバーが次のフェーズの先頭の投球者を決める
+    if (g.online) { if (g.online.catchRoundDone) g.online.finishCatchRound({ nextPlayerId: g.online.room?.players?.[g.online.room.currentIndex]?.id }); else this.wait = 0.05; return; }
+    // 次の PLAYER ATTACK PHASE(生存している A 側から。FEVER ゲージ 100% ならこのフェーズが FEVER)
+    g.sm.change(GameState.NEXT_PLAYER, { phase: true });
   }
 }
