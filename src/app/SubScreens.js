@@ -74,6 +74,7 @@ export class AppScreens {
   // ---------------- 仲間の育成画面(SUB):大きく表示 + 親密度 Lv + ステータス + STAMINA + アビリティ + プレゼント ----------------
   showTrainChar({ id, focus } = {}, keepScroll = false) {
     if (!id || !this.p.isOwned(id)) { this.app.router.back(); return; }
+    if (!keepScroll || this.trainId !== id) this.abilityOpen = null;   // 開き直した時は「変更」を閉じた状態から
     this.trainId = id;
     const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
     const top = this.body.scrollTop;
