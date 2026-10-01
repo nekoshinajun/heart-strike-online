@@ -227,8 +227,8 @@ export class UIManager {
     p.dataset.type = type;
     p.style.setProperty('--pc', playerColor);
     const text = {
-      flick: ['FLICK!', 'ハートの周りを回す=カーブ → 下へ引く=球速 → 上へ弾いて投げる'],
-      grab: ['THROW!', '時計回り=右・反時計回り=左カーブ／下へ引いて上へ弾く'],
+      flick: ['FLICK!', 'ハートを持って、投げたい方へフリック'],
+      grab: ['THROW!', 'くるくる回すとカーブ(時計回り=右 / 反時計回り=左)'],
       catch: ['CATCH!', 'リングが重なる瞬間にタップ'],
     }[type];
     this.el.promptMain.textContent = text[0];
@@ -250,11 +250,11 @@ export class UIManager {
     const el = this.el.throwInfo;
     if (!el) return;
     const f = (v, d = 2) => Number(v).toFixed(d);
-    const ps = th?.effects?.find((e) => e.type === 'preSpin'), dr = th?.effects?.find((e) => e.type === 'drive');
+    const gz = th?.gesture;
     this.lastThrowHTML = th
-      ? `SPEED <b>${Math.round(th.power * 100)}%</b>(引き ${f(th.pull ?? 0)}) 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>`
-        + `PRE-SPIN <b>${ps ? (ps.dir > 0 ? 'RIGHT' : 'LEFT') : 'NONE'}</b> ${f(ps?.strength ?? 0)} ・ DRIVE <b>${dr ? 'ON' : 'OFF'}</b> ${f(dr?.strength ?? 0)}<br>`
-        + `Throw SPIN ${f(th.throwSpin ?? th.spin)} → Final curve <b>${{ left: '← 左', right: '右 →', straight: 'ストレート' }[th.curveDir] ?? ''}</b> ${f(th.spin)} 強さ ${f(th.curveStrength, 1)}`
+      ? `強さ <b>${Math.round((th.strength ?? 0) * 100)}%</b> 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}° 飛行 ${f(th.flightTime ?? 0, 2)}s<br>`
+        + `向き 画面 ${f(th.angleDeg, 0)}° → 3D ${f(th.yawDeg ?? 0, 0)}° ・ 速さ ${f(gz?.speed ?? 0)}h/s<br>`
+        + `回転 ${f(th.turnDeg ?? 0, 0)}° → カーブ入力 ${f(th.throwSpin ?? 0)} → 最終 <b>${{ left: '← 左', right: '右 →', straight: 'ストレート' }[th.curveDir] ?? ''}</b> ${f(th.spin)} 強さ ${f(th.curveStrength, 1)}`
       : '投げていません(上へ弾いて離すと投球)';
     el.innerHTML = this.lastThrowHTML;
   }
@@ -268,31 +268,6 @@ export class UIManager {
       : `Hit <b>MISS</b>(${result?.type ?? '-'})`;
     el.innerHTML = `${this.lastThrowHTML ?? ''}<br>${hit} ・ Gate <b>${gateRoute ? gateRoute.toUpperCase() : 'NONE'}</b>`;
   }
-
-  /** ハートに仕込んだ球質の表示(投げるまで残る)。null で消す */
-  setBallEffects(effects) {
-    const el = $('ballFx');
-    if (!el) return;
-    const ps = effects?.preSpin, dr = effects?.drive;
-    el.dataset.spin = ps ? (ps.dir > 0 ? 'right' : 'left') : '';
-    el.dataset.drive = dr ? 'on' : '';
-    el.hidden = !ps && !dr;
-  }
-  /** 成立した瞬間の短い表示(RIGHT SPIN / LEFT SPIN / DRIVE)*/
-  flashBallEffect(label) {
-    const b = $('ballFx')?.querySelector('.bf-pop');
-    if (!b) return;
-    b.textContent = label;
-    b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
-  }
-  /** 球質の表示をハートの位置へ(毎フレーム)*/
-  placeBallEffects(x, y, r) {
-    const el = $('ballFx');
-    if (!el || el.hidden) return;
-    el.style.transform = `translate(${x}px, ${y}px)`;
-    el.style.setProperty('--r', `${Math.max(14, r)}px`);
-  }
-
 
   /** 投球前のハート直下に現在キャラの投球タイプを表示 */
   setThrowType(type) {
@@ -331,7 +306,7 @@ export class UIManager {
     const tx = -Math.sin(a1) * dir, ty = Math.cos(a1) * dir, nx = Math.cos(a1), ny = Math.sin(a1), h = 7;
     el.querySelector('.cr-head').setAttribute('d', a > 0.001 ? `M${(x1 + tx * h).toFixed(1)},${(y1 + ty * h).toFixed(1)} L${(x1 + nx * h * 0.8).toFixed(1)},${(y1 + ny * h * 0.8).toFixed(1)} L${(x1 - nx * h * 0.8).toFixed(1)},${(y1 - ny * h * 0.8).toFixed(1)} Z` : '');
     el.dataset.dir = a > 0.001 ? (dir > 0 ? 'right' : 'left') : 'straight';
-    el.querySelector('.cr-label').textContent = a > 0.001 ? `${dir > 0 ? 'RIGHT' : 'LEFT'} CURVE ${'▮'.repeat(Math.max(1, Math.ceil(a * 3)))}` : 'STRAIGHT';
+    el.querySelector('.cr-label').textContent = a > 0.001 ? `${dir > 0 ? 'RIGHT' : 'LEFT'} CURVE ${'▮'.repeat(Math.max(1, Math.min(3, Math.round(a * 3))))}` : 'STRAIGHT';
     if (reset) { el.classList.remove('reset'); void el.offsetWidth; el.classList.add('reset'); }
   }
 

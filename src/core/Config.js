@@ -119,124 +119,69 @@ export const Config = {
     skin: 'heart',        // 'heart'(ハート玉)| 'sphere'(旧ボール)
     radius: 0.3,
     holdOffset: { x: 0, y: -1.3, z: -3.2 },  // z = 構え位置の奥行き(カメラからの距離)。y は旧仕様(未使用)
-    // ★ HeartBallIdlePositionY:投球前のハート玉の画面上の高さ(画面高さ比。0=上端 / 1=下端)
-    //   端末ごとの px 固定ではなく割合で指定。下に POWER CHARGE 用の空間を空けるため旧 0.78 → 0.60
+    // ★ 投球前のハートの位置:画面の中央・高さ 75%(画面高さ比。0=上端 / 1=下端)
     idlePositionY: 0.75,
-    // ★ ハート玉より下に必ず残す操作空間(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
-    idleMinChargeSpace: 0.08,
+    // ★ ハートより下に必ず残す余白(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
+    idleMinBottomSpace: 0.08,
     catchDepth: 2.1,                          // キャッチ地点のカメラからの距離
     // ハートの見た目の回転(rad/秒)。投球前(構え / 引っ張り中)は全キャラ共通の一定速度。キャラ性能は投球後の軌道にだけ出す
     idleSpin: { held: 1.2, grabbed: 3, flying: 3 },
   },
 
-  // ---- 投球(指でボールを投げる) ----
-  // 速度は「画面高さ/秒」で正規化するので端末サイズに依存しない。
+  // ---- 投球(Pokémon GO 型:ハートを触る → 指についてくる → フリックして離す)----
+  //   入力の解析は src/throw/GestureAnalyzer.js、2D → 3D は src/physics/CurveThrowCalculator.js(compute)
   throw: {
     grabRadiusScale: 1.9,  // ボール見かけ半径×この値 以内のタッチで掴める
     grabRadiusMin: 46,     // px
-    followLerp: 22,        // 指への追従の速さ
-    followMaxUp: 0.2,      // 掴んだボールが持ち上がれる上限(画面高さ比)
-    sampleWindowMs: 80,    // 離す直前この時間の移動から速度を算出
-    flickMaxMs: 380,       // フリック区間として遡る最大時間(それ以前の位置調整は無視)
-    minUpSpeed: 0.55,      // 画面高さ/秒。これ未満の上方向速度は投球キャンセル
-    baseSpeed: 5.7,        // 初速 = baseSpeed + speedGain(★ThrowPower) × 上方向速度
-    speedGain: 4.2,
-    maxSpeed: 40,
-    shortFlick: 0.12,      // 距離(画面高さ比)がこれ未満だと初速を減衰
-    shortFlickMin: 0.6,
-    upRatio: 1.6,          // 前方速度に対する上向き成分
-    lateralGain: 0.45,     // ★ フリック角度 → 横方向速度
-    maxLateral: 1.1,
-    gravity: 14,           // ★
-    strongSpeed: 21,       // これ以上は「強投」演出
-    fixedStep: 1 / 240,    // 物理の固定ステップ(同じフリック=同じ軌道)
+    sampleWindowMs: 80,    // (InputManager の FlickInfo 用。投球の向き・速さは throwInput.releaseWindowMs)
+    gravity: 14,           // ★ 投球の重力(弾道の高さと飛ぶ時間は throwInput の発射角・速さとセット)
+    fixedStep: 1 / 240,    // 物理の固定ステップ(同じ入力 = 同じ軌道)
     maxFlightTime: 3.5,
     floorBounce: 0.42,
   },
-
-  // ---- 投球 = POWER / AIM / SPIN の3要素 ----
-  // POWER:ボールを下へ引いた距離 → 初速の大きさ(高さは決めない)
-  // AIM  :引いた後の上方向ジェスチャー(向き=左右、長さ=高さ)→ 狙う地点。初速はその地点を通る放物線を解いて決める
-  // SPIN :ジェスチャー中の曲がり・切り返し(curve)
+  // 表示用の強さの尺度と HEART(ダメージ)。球速では HEART を変えない
   power: {
-    chargeThreshold: 18,   // ★ PowerChargeThreshold(px):これ以上下へ動いたら POWER_CHARGE
-    // ★ MaxChargeDistance:ここまで下へ引くと Charge 100%。画面高さ比で指定(端末解像度に依存しない)
-    //   v16:旧 150px(= 高さ880pxの画面で 0.17)→ 約1.5倍の 0.256
-    maxChargeDistanceRatio: 0.384,
-    maxChargeDistance: 225,// ratio を null にした時だけ使う固定 px
-    lockThreshold: 10,     // 最下点からこれ以上上へ動いたら Power を固定して THROW_GESTURE へ
-    // ★ MinThrowPower:引かずに投げた時の Power。finalPower = Lerp(MinThrowPower, 1, chargeRatio)
-    minThrowPower: 0.10,
-    // 初速 = minSpeed + (maxSpeed - minSpeed) × finalPower
-    //   v25: Power 10% から開始。100% は従来の最強と同じ
-    minSpeed: 10.8,        // ★ Power 0% の初速(実際の最低は MinThrowPower の値)(旧 28)
-    maxSpeed: 26.5,          // ★ Power 100% の初速
-    // HEART(ダメージ)は球速・引っ張り量で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
-    //   旧仕様の POWER 倍率(0.8〜1.5)の中間あたりにして、ステージの HEART 量とのバランスを大きく崩さない(★ 仮)
+    minThrowPower: 0.10,   // 表示上の POWER の下限(弱い投げ = この値。強さは 0〜1 を minThrowPower〜1 に並べる)
+    // HEART(ダメージ)は球速で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
     //   旧 ATK 倍率(ATK÷50:平均 ×2.0 前後)を新しい ATTACK 倍率(50 = ×1.0)へ置き換えた分もここで引き継ぐ(1.15 × 2.0)
     heartFlat: 2.3,
-    maxPullDown: 0.14,     // 引いた時にボールが下がれる量(画面高さ比・見た目)(旧 0.1)
-  },
-  aim: {
-    base: 0.08,            // ★ 狙いの届く距離 = 画面高さ × (base + gain × ジェスチャー長/画面高さ)
-    gain: 1.6,             // ★ 長く弾くほど上(頭)を狙う
-    minGesture: 0.04,      // これ未満のジェスチャー(画面高さ比)は投球にしない
-    // 狙いの起点(画面高さ比)。ハート玉の待機位置を上げても同じジェスチャー = 同じ狙いになるよう旧位置に固定。null ならハート玉の位置
-    originY: 0.784,
+    // ガチャのハート投げ(GachaThrowInput)だけが使う「下へ引いて弾く」入力の数値
+    chargeThreshold: 18, lockThreshold: 10, maxChargeDistanceRatio: 0.384,
   },
 
-  // ---- カーブ(指の軌跡の曲がり → Spin → 飛行中の横力) ----
+  // ---- カーブ(spin -1〜1 → 飛行中の横の力)。spin はジェスチャーの回転量から(throwInput)----
   curve: {
-    enableCurveBall: true, // ★
-    spinGain: 2.4,         // 軌跡の横の膨らみ(弦長比) → spin の大きさ
-    turnGain: 1.2,         // 切り返し角(π=1) → spin の大きさ
-    minTurnDeg: 12,        // 切り返しがこれ未満ならストレート(向きが決まらない)
-    deadZone: 0.08,        // これ未満の spin はストレート扱い
     maxSpin: 1.0,
-    shift: 2.9,            // ★ CurveStrength:spin=1 のとき、狙い点から曲がる向きへずれる量(units)。ボス拡大に合わせ ×1.2(旧 2.4)
-    bulge: 1.2,            // ★ spin=1 のとき、逆側へ膨らむ量(units)(旧 1.0)
+    shift: 2.9,            // ★ spin=1・CURVE 50 のとき、まっすぐの到達点から曲がる向きへずれる量(units)
+    bulge: 1.2,            // ★ spin=1 のとき、逆側へ膨らむ量(units)
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
   },
 
-  // ---- 投球前のカーブ入力:固定したハートの周りを指で回す(src/throw/RotationCurve.js)----
-  //   ハートは動かない。ハートの周り(ringRadius の内側)を回す → カーブ / 下へ外へ引く → 球速 / 上へ外へ弾いて離す → 投球(狙い)
-  //   時計回り = 右カーブ・反時計回り = 左カーブ。回した角度で弱 → 強(1周しなくてよい)。CURVE / CONTROL ステータスとの連動はそのまま
+  // ---- 投球の入力(GestureAnalyzer)と 2D → 3D(CurveThrowCalculator.compute)----
+  //   方向 = 離す直前 releaseWindowMs の向き / 強さ = その速さ / カーブ = 掴んでから離すまでの軌跡全体の回転
+  //   事前にハートを回す(1回転 = 360°)のも、→ ↑ ← と弧を描いて投げる(180°)のも同じ回転として数える
   throwInput: {
-    curveMode: 'rotate',     // 'rotate'(円運動)| 'flick'(旧:弾いた軌跡の形でカーブ)
-    rotate: {
-      minRadius: 0.35,       // ★ ハート中心からこの距離(ハートの画面半径に対する比)未満の点は角度を取らない(中心のぶれで回転しない)
-      ringRadius: 1.9,       // ★ この内側で回す = カーブ。外へ出たら引く(下)/ 弾く(上)
-      deadDeg: 10,           // ★ これ未満の回転はストレート
-      fullDeg: 1080,         // ★ 3回転(360°×3)で最大カーブ
-      exponent: 0.8,         // ★ 回転量 → カーブ量の伸び方(1 = 比例。小さいほど少しの回転でもよく曲がる)
-      maxDeg: 1080,          // 累積の上限(fullDeg 以上にしないと最大のカーブに届かない)
-      maxStepDeg: 120,       // 1サンプルでこれ以上の角度差は数えない(中心をまたいだ時の飛び)
-      noiseDeg: 0.4,         // これ未満の角度差は回転として扱わない(指の震え)
-      straightRatio: 0.08,   // 引き始め / 弾き始めの直前の「まっすぐな動き」の判定(直線からのずれ ÷ 区間の長さ)。円弧はこれより大きい
-      straightMinLen: 1.0,   // この長さ(ハート半径比)以上のまっすぐな動きの間に増えた回転は取り消す
-      decaySec: 2.0,         // ★ 回転を止めてからこの秒数でストレートへ戻る(その間に回せばリセット)
-      maxSpin: 1.0,          // カーブ入力 1 のときの SPIN(Config.curve.maxSpin と同じ尺度)
-      heartRollMul: 1.0,     // ハートの見た目の回転(指の回転角 × この値)
-    },
-  },
-
-  // ---- 投球ルート(★ 今はプレイヤーの操作に出さない:基本操作は「狙う・引く・投げる」だけ)----
-  //   球速と直進性は下へ引く量だけで連続的に変わる(浅い = 曲がりやすい CURVE 寄り / 深い = まっすぐ DIRECT 寄り)
-  //   DIRECT / CURVE のデータは将来の拡張用に残す(選択 UI は無い)
-  throwRoute: {
-    default: 'STANDARD',
-    routes: {
-      STANDARD: { label: 'STANDARD', curveMul: 1, preSpinMul: 1, driveMul: 1 },
-      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },
-      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },
-    },
-  },
-  // ---- 下へ引く量(chargeRatio 0〜1)= 球速と直進性。ダメージには使わない ----
-  //   浅く引く → 遅い・曲がりやすい・PRE-SPIN / DRIVE が強く出る / 深く引く → 速い・まっすぐ・球質の効きが少し弱い(0 にはしない)
-  pull: {
-    curveAtMin: 1.25, curveAtMax: 0.55,       // ★ カーブの効き(Curve Resistance)
-    preSpinAtMin: 1.3, preSpinAtMax: 0.55,    // ★ PRE-SPIN の効き
-    driveAtMin: 1.2, driveAtMax: 0.8,         // ★ DRIVE の効き
+    releaseWindowMs: 90,   // ★ リリース方向・速さを測る区間(離す直前)
+    strokeTolDeg: 35,      // 最後の弾き(まっすぐな区間)とみなす向きのずれ
+    stepPx: 7,             // 向きの変化を測る区間の長さ(指の震えを数えない)
+    maxStepDeg: 110,       // 1区間でこれ以上向きが変わったら折り返し(回転に数えない)
+    deadDeg: 30,           // ★ これ未満の回転はストレート(ほぼ直線のフリック)
+    fullTurnDeg: 1080,     // ★ 3回転で最大カーブ(1回転 ≈ 33% / 2回転 ≈ 67%)。それ以上は最大で止める
+    maxSpin: 1.0,          // カーブ入力 1 のときの spin
+    // 投げたと判定する条件
+    minReleaseSpeed: 0.45, // ★ 画面高さ/秒。これ未満(止めて離した)は投げずに構えへ戻る
+    minUpward: 0.3,        // 上向きの成分(リリース方向の -y)がこれ未満(横・下へ払った)は投げない
+    // 速さ → 強さ 0〜1(画面高さ/秒)
+    weakSpeed: 0.8,        // ★ これ以下 = 強さ 0(手前に落ちる)
+    strongSpeed: 3.4,      // ★ これ以上 = 強さ 1(奥まで届く)
+    // 強さ → 水平の初速(units/秒)。発射角は一定 → 速いほど遠く・高く届く。飛ぶ時間 ≈ 1.0〜1.6 秒(目で追える)
+    minVelocity: 5.5,      // ★
+    maxVelocity: 16.5,     // ★
+    launchDeg: 55,         // ★ 発射角(水平から)
+    // 向き:画面のリリース方向の傾き → 水平の向き
+    yawGain: 0.45,         // ★ 45° 斜めに弾く → 約20° 斜めへ
+    maxYawDeg: 32,
+    heartRollMul: 1.0,     // 掴んでいる間のハートの見た目の回転(軌跡の回転角 × この値)
   },
 
   // ---- バトル開始演出(OPENING):インゲームに入り バトル BGM が流れる中でボス紹介 → BATTLE START → A の投球 ----
@@ -254,36 +199,6 @@ export const Config = {
     bossZoom: 4,         // ボスへ寄せる量
   },
 
-  // ---- 投球前の球質(ハートを掴んだまま仕込む)。判定と効果の数値はここだけ ----
-  //   PRE-SPIN:指で円を描く(時計回り = RIGHT / 反時計回り = LEFT)→ 投球時の SPIN に掛かる
-  //   DRIVE   :上下へ素早く往復 → 終盤で下へ沈む
-  //   ★ 今はプレイヤーの操作に出さない(enabled: false)。基本操作は「狙う・引く・投げる」だけ。仕組みは将来の球種用に残す
-  //   どちらも「下へ引いて POWER → 上へ弾く」通常操作とは区別する(誤認識しない条件)
-  preSpin: {
-    enabled: false,
-    sampleStepPx: 6,        // 指の軌跡をこの間隔で間引いて向きの変化を測る
-    minTurnDeg: 300,        // ★ 成立に必要な回転量(指の進む向きが同じ向きに回った合計)
-    fullTurnDeg: 360,       // この回転量で strength = 1
-    maxStepTurnDeg: 75,     // 1区間でこれ以上向きが変わったら「折り返し」(引いて弾く等)→ 回転の計測をやり直す
-    consistency: 0.85,      // 回転の向きの一貫性(同じ向きの回転量 / 全回転量)
-    minPathRatio: 0.12,     // 最低移動量(画面の高さ比)。小さな指のブレは回転とみなさない
-    minDurationMs: 160,     // 入力時間の下限(一瞬のブレを除く)
-    maxDurationMs: 1600,    // この時間内に回し切る(ゆっくりした位置調整は除く)
-    sameDirMul: 1.5,        // ★ 同じ向きのカーブ:SPIN × 1.5(strength 1 の時)
-    oppositeDirMul: 0.7,    // ★ 逆向きのカーブ:SPIN × 0.7(曲がる向きは投球の SPIN のまま)
-    baseSpin: 0.2,          // ★ ストレートに投げた時の回転の名残(SPIN 0 → 仕込んだ向きへ弱く曲がる。0 で無効)
-  },
-  drive: {
-    enabled: false,
-    minStrokes: 4,          // ★ 上下の往復回数(下→上→下→上 = 4ストローク)。「下へ引いて弾く」は2ストロークなので成立しない
-    minAmplitudeRatio: 0.022, // 1ストロークの最低移動量(画面の高さ比)
-    fullAmplitudeRatio: 0.06, // この振れ幅で strength = 1
-    maxDurationMs: 900,     // ★ この時間内に往復し切る(短時間の往復だけを DRIVE とする)
-    maxHorizontalRatio: 0.7, // 1ストロークの横移動 / 縦移動 の上限(縦の往復だけ)
-    minStrength: 0.5,
-    sink: 4.0,              // ★ strength 1 でボスの位置までに下へ沈む量(units。頭 → 胸 くらい)
-    startFrac: 0.45,        // 飛行のこの割合までは通常の軌道(そこから沈み始め、終盤ほど強く)
-  },
   // 命中した位置のマーク(実際に Collider に当たった座標)
   hitMark: { life: 1.0, popScale: 1.25, popSec: 0.12, fadeFrom: 0.75, size: 1.1, color: '#ff7ab8', max: 6 },
 

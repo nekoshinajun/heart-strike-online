@@ -116,14 +116,14 @@ export class BallController {
     this.setVisible(true);
   }
 
-  /** 指で掴んでいる:毎フレーム target へ追従(少し遅れてついてくる) */
+  /** 指で掴んでいる:毎フレーム target(指の位置)へ置く */
   grab(target) {
     this.mode = 'grabbed';
     this.grabTarget = target.clone();
     this.spin.set(0, 0, 0);
   }
-  setGrabTarget(v) { this.grabTarget.copy(v); }
-  /** 円運動のカーブ入力:ハートを指の回転に合わせて回す(rad。+ = 時計回り)。0 でまっすぐ(ニュートラル)へ戻る */
+  setGrabTarget(v) { this.grabTarget.copy(v); if (this.mode === 'grabbed') this.pos.copy(v); }
+  /** カーブ入力:ハートを軌跡の回転量に合わせて回す(rad。+ = 時計回り)。0 でまっすぐ(ニュートラル)へ戻る */
   setCurveRoll(rad) { this.curveRollTarget = rad; }
 
   /**
@@ -208,8 +208,7 @@ export class BallController {
         break;
       }
       case 'grabbed': {
-        const k = 1 - Math.exp(-Config.throw.followLerp * dt);
-        this.pos.lerp(this.grabTarget, k);
+        this.pos.copy(this.grabTarget);   // 指の位置 = ハートの位置(遅れて追いかけない)
         break;
       }
       case 'flying': {
@@ -272,7 +271,7 @@ export class BallController {
       // 円運動のカーブ入力中:ハートはこちらを向いたまま、指の回転に合わせて画面の中で回る(どちら向きのカーブか見える)。値が 0 に戻るとまっすぐへ戻る
       const roll = this.mode === 'grabbed' ? this.curveRollTarget ?? 0 : 0;
       this.curveRoll = (this.curveRoll ?? 0) + (roll - (this.curveRoll ?? 0)) * (1 - Math.exp(-14 * dt));
-      const rolling = this.mode === 'grabbed' && Config.throwInput?.curveMode === 'rotate';
+      const rolling = this.mode === 'grabbed';   // 掴んでいる間は回転量の分だけ回す(カーブ入力の表示)
       if (rolling) this.mesh.rotation.y += (0 - this.mesh.rotation.y) * (1 - Math.exp(-10 * dt));
       else this.mesh.rotation.y += (preThrow ? (this.mode === 'grabbed' ? R.grabbed : R.held) : this.spin.y * 0.4 + R.flying) * dt;
       this.mesh.rotation.z = Math.sin(performance.now() / 420) * 0.15 * (rolling ? 0.3 : 1) - (rolling ? this.curveRoll : 0);

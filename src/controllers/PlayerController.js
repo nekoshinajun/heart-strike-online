@@ -36,7 +36,7 @@ export class PlayerController {
   idleScreenY() {
     const h = this.viewport.h, B = Config.ball;
     if (this.idleCacheH !== h) { this.idleCacheH = h; this.idleSafe = this.safeBottom(); }
-    const maxY = h - this.idleSafe - h * B.idleMinChargeSpace;   // 下に操作空間を確保
+    const maxY = h - this.idleSafe - h * B.idleMinBottomSpace;   // 下に操作空間を確保
     return Math.min(h * B.idlePositionY, maxY);
   }
 
@@ -81,14 +81,12 @@ export class PlayerController {
   }
 
   /**
-   * 指の画面位置 → 構え位置と同じ奥行きの3D点(ボールが指に追従する先)。
-   * 上方向には followMaxUp までしか持ち上がらない(投げる前に奥へ行きすぎない)。
+   * 指の画面位置 → 構え位置と同じ奥行きの3D点。掴んだハートはここへ置く(画面上でハート = 指の位置)
+   * 離した時もこの点から発射する(画面の端すぎる位置だけ少し内側へ)
    */
   fingerToWorld(x, y) {
     const { w, h } = this.viewport;
-    const hold = this.heldBallScreen();
-    // Pokémon GO型:掴んだハートは指に素直に追従。投げる前の上下移動を旧チャージ範囲で制限しない。
-    const cy = THREE.MathUtils.clamp(y, h * 0.06, h * 0.96);
+    const cy = THREE.MathUtils.clamp(y, h * 0.06, h * 0.98);
     ndc.set((x / w) * 2 - 1, -(cy / h) * 2 + 1);
     ray.setFromCamera(ndc, this.cam.base);
     const depth = -Config.ball.holdOffset.z;
@@ -99,13 +97,8 @@ export class PlayerController {
     return ray.ray.intersectPlane(plane, out) ?? this.holdAnchor();
   }
 
-  /** FlickInfo → 初速(null なら投球にならない) */
-  /** ジェスチャー + POWER → 投球パラメータ(AIM の起点は構え位置の画面座標) */
-  computeThrow(flick, power, start, effects = [], route = null, curveSpin = null) {
-    const hs = this.heldBallScreen();
-    // Pokémon GO型では狙いの原点も実際のハート位置にする。
-    // 旧固定 originY を使うと斜めフリックの左右成分が弱くなり、右上を狙いにくかった。
-    this.thrower.holdScreen = hs;
-    return this.thrower.compute(flick, power, start ?? this.holdAnchor(), effects, route, curveSpin);
+  /** ジェスチャーの解析結果 + 発射位置 → 投球パラメータ(null なら投球にならない)*/
+  computeThrow(gesture, start) {
+    return this.thrower.compute(gesture, start ?? this.holdAnchor());
   }
 }

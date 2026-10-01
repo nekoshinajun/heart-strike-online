@@ -111,7 +111,6 @@ export class EnergySystem {
     const E = Config.energy;
     g.cam.settle();   // 構え位置を確定(Orb の軌道と実際の投球を一致させる)
     const start = g.player.holdAnchor();
-    g.player.thrower.holdScreen = g.player.heldBallScreen();
     const right = new THREE.Vector3(), up = new THREE.Vector3();
     let pi = 0;
     items.forEach((item, ri) => {

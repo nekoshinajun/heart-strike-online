@@ -6,7 +6,7 @@ import { heartMultiplier } from '../data/BattleCalc.js';
 import { abilityMul } from '../data/Growth.js';
 import { powerStrength } from '../controllers/ThrowController.js';
 
-/** PendingSpecialThrowData:指を離した瞬間の投球情報を複製して保存(POWER / AIM / SPIN / 初速 / カーブ) */
+/** PendingSpecialThrowData:指を離した瞬間の投球情報を複製して保存(発射位置 / 初速 / カーブ) */
 function freezeThrow(th) {
   return {
     ...th,
@@ -45,13 +45,11 @@ export class PlayerAttackState {
 
   update() {
     const g = this.g;
-    { const b = g.player.toScreen(g.ball.pos); g.ui.placeBallEffects(b.x, b.y, g.player.heldBallScreen().r); }   // 仕込んだ球質の表示はハートに付いていく
     if (!g.thrower.grabbing) {
       const s = g.player.heldBallScreen();
       g.ui.placeHint(s.x, s.y);
       return;
     }
-    g.thrower.tick?.();   // 円運動のカーブ:回転を止めて2秒でストレートへ
     g.thrower.updatePreview();
   }
 
@@ -127,7 +125,7 @@ export class BallToBossState {
     this.pendingSpecialThrow = null;
     g.specialSequencePlaying = false;
     g.setTimeScale(1);
-    // POWER の強さ(MinThrowPower = 0 / 100% = 1)で軌跡・発光を変える
+    // フリックの強さ(0〜1)で軌跡・発光を変える(演出だけ。HEART は変わらない)
     const strength = special ? 1 : powerStrength(th.power);
 
     // 実際の飛行と同じ計算(練習用に軌道を残す/カメラの追従先)
@@ -164,11 +162,6 @@ export class BallToBossState {
       const dir = th.spin > 0 ? '→' : '←';
       if (!special) g.ui.showJudge(`CURVE ${dir}`, 'tier', '#7dffb0');
       g.ball.setCurveLook(th.spin);
-    }
-    if (!special && th.power >= 0.99) {
-      // MAX POWER:軽い発射エフェクト
-      g.effects.burst(g.ball.pos, '#ffffff', 14, 6, 0.35);
-      g.effects.shockwave(g.ball.pos, '#ffd23e', 1.6, g.cam.camera);
     }
     if (th.strong && !special) {
       g.cam.kickFov(5 + strength * 5);

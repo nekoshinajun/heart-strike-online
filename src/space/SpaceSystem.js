@@ -272,7 +272,6 @@ export class SpaceSystem {
     const g = this.g;
     g.cam.settle();
     const start = g.player.holdAnchor();
-    g.player.thrower.holdScreen = g.player.heldBallScreen();
     const target = g.boss.restPartCenter(gd.target, new THREE.Vector3());   // 揺れていない姿勢の部位(端末・タイミングで変わらない)
     target.x += gd.tx ?? 0; target.y += gd.ty ?? 0;
     target.z = Config.boss.z + 0.5;

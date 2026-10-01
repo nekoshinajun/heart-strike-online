@@ -1,9 +1,13 @@
 import { Config } from '../core/Config.js';
-import { maxChargeDistancePx, powerFromCharge, powerStrength, ThrowPhase } from '../controllers/ThrowController.js';
+// ガチャ専用の「下へ引いて弾く」入力(本編の投球は ThrowController / GestureAnalyzer。ここは演出用)
+const ThrowPhase = Object.freeze({ IDLE: 'IDLE', BALL_TOUCH: 'BALL_TOUCH', POWER_CHARGE: 'POWER_CHARGE', THROW_GESTURE: 'THROW_GESTURE', RELEASE: 'RELEASE' });
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+const maxChargeDistancePx = (viewH) => viewH * Config.power.maxChargeDistanceRatio;
+const powerFromCharge = (r) => { const m = Config.power.minThrowPower; return m + (1 - m) * clamp01(r); };
+const powerStrength = (power) => { const m = Config.power.minThrowPower; return clamp01((power - m) / Math.max(1e-6, 1 - m)); };
 
 /**
- * GachaThrowInput:本編の投球操作(ThrowController)と同じフェーズ・同じ POWER 計算を使い、
- * 出力だけを「演出パラメータ」に差し替えるラッパー(本編の ThrowController は改造しない)。
+ * GachaThrowInput:ガチャ演出のハート投げ(本編の投球とは別。出力は演出パラメータだけ)。
  *   IDLE → BALL_TOUCH → POWER_CHARGE(下へ引く)→ THROW_GESTURE(上へ)→ RELEASE
  * ガチャに失敗は無い:上方向の成分があれば必ず投げる。引いて離すだけ / 下・横へ弾くだけ なら投げない(Heart が元へ戻る)。
  * 返す値 { power, strength, aimX, aimY, spin } は見た目(Trail の長さ・最初の傾き・Gate 1 までの曲がり)にだけ使う。抽選には一切使わない。
