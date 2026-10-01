@@ -661,6 +661,8 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .tg-item span { font-size: 10px; font-weight: 800; }
 .tg-item b { position: absolute; right: 6px; top: 4px; font-size: 10px; color: var(--hs-pink-deep); }
 .tg-item:disabled { opacity: .45; }
+.tg-item img { width: 28px; height: 28px; object-fit: contain; }
+.tg-rank { position: absolute; left: 6px; top: 4px; padding: 0 5px; border-radius: 5px; background: var(--gk, var(--hs-pink)); color: #fff; font-style: normal; font-size: 9px; font-weight: 800; }
 .tc-detail { display: block; margin: 14px auto 0; }
 /* ---- コレクション:仲間 / 攻略対象 ---- */
 .col-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 10px; padding: 5px; border-radius: 18px; border: 1px solid var(--hs-line-soft); background: rgba(255,255,255,.7); }
@@ -954,7 +956,11 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .gt-btn b { font-size: 14px; font-weight: 800; color: var(--hs-ink); }
 .gt-btn span { font-size: 13px; font-weight: 800; color: var(--hs-pink-deep); }
 .gt-btn.ten { border-color: rgba(255,255,255,.75); background: var(--hs-cta); box-shadow: 0 9px 22px rgba(255,79,154,.3); }
-.gt-btn.ten b, .gt-btn.ten span { color: #fff; }
+.gt-btn.ten b, .gt-btn.ten span, .gt-btn.ten small { color: #fff; }
+.gt-btn small { font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+.gc-get { text-align: center; font-weight: 800; font-size: 14px; }
+.gc-get span { margin: 0 4px; color: var(--hs-pink); }
+.gr h4.gr-present { color: var(--hs-ink); }
 .gt-rates { flex: none; align-self: center; min-height: 40px; padding: 0 16px; border: 0; background: none; color: var(--hs-ink-soft); font-weight: 800; font-size: 12px; text-decoration: underline; }
 .gc-rows { display: flex; flex-direction: column; gap: 6px; }
 .gc-rows div { display: flex; justify-content: space-between; font-weight: 800; padding: 8px 12px; border-radius: 12px; background: var(--hs-pink-pale); }
@@ -1009,26 +1015,42 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @keyframes newpop { 40% { transform: scale(1.35); } }
 .ga-tapnext { position: absolute; left: 50%; bottom: calc(var(--sab) + 6px); transform: translateX(-50%); font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); letter-spacing: .2em; animation: hellpulse 1.2s ease-in-out infinite; }
 /* 獲得結果 */
-.ga-result { background: var(--hs-bg); }
-.gz-fig { position: absolute; left: 0; right: 0; top: calc(var(--sat) + 8px); bottom: 26%; display: block; }
-.ga-result[data-kind="ten"] .gz-fig { bottom: auto; height: 46%; }
+/* 縦に積む:キャラ(残りの高さ全部)→ 10連のアイコン → 名前・プレゼント・ボタン。どの画面の高さでも重ならない */
+#gachaLayer > .ga-result { display: flex; flex-direction: column; gap: 10px; padding: calc(var(--sat) + 8px) calc(var(--sar) + 12px) calc(var(--sab) + 14px) calc(var(--sal) + 12px); background: var(--hs-bg); }
+.gz-fig { position: relative; flex: 1 1 auto; min-height: 120px; display: block; }
 .gz-fig img { position: absolute; left: 50%; bottom: 0; height: 100%; max-width: 100%; transform: translateX(-50%); aspect-ratio: 2/3; object-fit: contain; object-position: bottom; }
+.gz-sky { display: none; }
 .gz-halo { position: absolute; inset: 0; }
 .gz-fig[data-rarity="SSR"] .gz-halo { background: radial-gradient(circle at 50% 42%, rgba(255,160,215,.5), rgba(200,170,255,.25) 45%, rgba(255,255,255,0) 70%); }
 .gz-fig[data-rarity="SR"] .gz-halo { background: radial-gradient(circle at 50% 42%, rgba(255,210,62,.35), rgba(255,255,255,0) 60%); }
-.gz-grid { position: absolute; left: calc(var(--sal) + 12px); right: calc(var(--sar) + 12px); top: calc(46% + var(--sat) + 12px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.gz-grid { flex: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: min(100%, 330px); margin: 0 auto; }
 .gz-ic { position: relative; aspect-ratio: 1; min-height: 44px; padding: 0; border-radius: 50%; border: 3px solid #fff; background: var(--hs-pink-pale); box-shadow: var(--hs-shadow); }
 .gz-ic[data-rarity="SR"] { border-color: #ffd23e; }
 .gz-ic[data-rarity="SSR"] { border-color: transparent; background-image: linear-gradient(var(--hs-pink-pale), var(--hs-pink-pale)), conic-gradient(#ff5f8f, #ffb347, #ffe66b, #7dffb0, #5fd6ff, #8f8bff, #e07bff, #ff5f8f); background-origin: border-box; background-clip: padding-box, border-box; }
 .gz-ic.sel { outline: 3px solid var(--hs-pink); outline-offset: 2px; }
 .gz-face { position: absolute; inset: 3px; border-radius: 50%; background-color: #f6dbe8; display: grid; place-items: center; font: 800 18px var(--round); color: #fff; }
 .gz-nb { position: absolute; left: -6px; top: -6px; font-style: normal; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 6px; background: var(--hs-pink); color: #fff; animation: newpop .8s ease-out 2; }
-.gz-bottom { position: absolute; left: calc(var(--sal) + 16px); right: calc(var(--sar) + 16px); bottom: calc(var(--sab) + 14px); display: flex; flex-direction: column; gap: 8px; }
+.gz-bottom { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
 .gz-info { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .gz-info b { font: 800 24px var(--round); color: var(--hs-ink); }
 .gz-info span { font-size: 12px; font-weight: 800; color: var(--hs-ink-soft); }
 .gz-rank { font-family: var(--display); font-size: 18px; }
 .gz-new { font-style: normal; font-weight: 800; color: var(--hs-pink); }
+/* セットでもらったプレゼント(BONUS PRESENT)*/
+.gp { display: inline-flex; align-items: center; gap: 6px; }
+.gp i { font-style: normal; font-size: 24px; }
+.gp img { width: 28px; height: 28px; object-fit: contain; }
+.gp b { font-size: 15px; }
+.gp em { font-style: normal; padding: 0 6px; border-radius: 6px; background: var(--gk, var(--hs-pink)); color: #fff; font-size: 10px; font-weight: 800; }
+.gz-present { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; padding: 8px 12px; border-radius: 16px; border: 1.5px dashed var(--hs-pink); background: rgba(255,255,255,.92); box-shadow: var(--hs-shadow); }
+.gz-present > small { font: 800 10px var(--round); letter-spacing: .14em; color: var(--hs-pink-deep); }
+.gz-psum { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; font-size: 12px; font-weight: 800; color: var(--hs-ink-soft); }
+.gz-psum em { font-style: normal; color: var(--hs-pink-deep); }
+.gz-pb { position: absolute; right: -6px; bottom: -6px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--hs-pink-soft); font-style: normal; font-size: 13px; }
+.gi-present { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 3px 12px; border-radius: 999px; border: 1.5px dashed var(--hs-pink); background: #fff; }
+.gi-present small { font: 800 9px var(--round); letter-spacing: .12em; color: var(--hs-pink-deep); }
+.gi-present i { font-style: normal; font-size: 18px; }
+.gi-present b { font-size: 13px; }
 .gz-primary { min-height: 54px; border: 1px solid rgba(255,255,255,.75); border-radius: 27px; background: var(--hs-cta); color: #fff; font: 800 18px var(--round); box-shadow: 0 8px 20px rgba(255,79,154,.32); }
 .gz-primary:disabled, .gz-s:disabled { opacity: .45; }
 .gz-sec { display: flex; gap: 8px; }

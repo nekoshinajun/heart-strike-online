@@ -48,20 +48,42 @@ export const INTIMACY = {
 };
 
 /**
- * プレゼント(味方の女の子に渡すアイテム)
- *   effect   … 渡した時に上がる量。未決定は null(上がらない)
- *                exp … EXP / intimacy … 親密度ポイント / atk・def … 能力の上乗せ
- *   reactions … 受け取った時のセリフ(未決定は空配列)。キャラ別にしたい時は byCharacter: { minamo: [...] }
+ * プレゼントのランク(名称・並び・色は未決定。決まったらここに足すだけ)
+ *   1件の形:{ id: 'r1', label: '…', order: 1, color: '#…' }
+ *   空の間は「ランクなし」として扱い、画面にもランクを出さない
  */
-const noEffect = () => ({ exp: null, intimacy: null, atk: null, def: null });
-export const GIFTS = [
-  { id: 'drink', name: 'スペシャルドリンク', icon: '🥤', effect: noEffect(), reactions: [] },
-  { id: 'bag', name: 'バッグ', icon: '👜', effect: noEffect(), reactions: [] },
-  { id: 'accessory', name: 'アクセサリー', icon: '💎', effect: noEffect(), reactions: [] },
-  { id: 'cake', name: 'ケーキ', icon: '🎂', effect: noEffect(), reactions: [] },
-  { id: 'sweets', name: 'スイーツ', icon: '🍰', effect: noEffect(), reactions: [] },
-  { id: 'flower', name: '花', icon: '💐', effect: noEffect(), reactions: [] },
+export const GIFT_RANKS = [];
+
+/** プレゼントの種類(6種)。同じ種類でランク違いを作る時は GIFTS に別 ID で足し、type を同じにする */
+export const GIFT_TYPES = [
+  { id: 'drink', name: 'スペシャルドリンク', icon: '🥤' },
+  { id: 'bag', name: 'バッグ', icon: '👜' },
+  { id: 'accessory', name: 'アクセサリー', icon: '💎' },
+  { id: 'cake', name: 'ケーキ', icon: '🎂' },
+  { id: 'sweets', name: 'スイーツ', icon: '🍰' },
+  { id: 'flower', name: '花', icon: '💐' },
 ];
+
+/**
+ * プレゼント(味方の女の子に渡すアイテム。ガチャで毎回1個もらえる)
+ *   id        … プレゼント ID(保存データの所持数のキー)
+ *   type      … 種類(GIFT_TYPES の id)。名前・アイコンは省略時に種類から引く
+ *   rank      … ランク(GIFT_RANKS の id)。未決定は null
+ *   effect    … 渡した時の効果。未決定は null(上がらない)
+ *                 intimacy … 親密度ポイント / atk・def … 能力の上乗せ / exp … EXP(任意)
+ *   reactions … 受け取った時のセリフ { default: [...], byCharacter: { minamo: [...] } }。未登録は空
+ *   icon / image … 表示(image は画像 URL。null の間は icon の絵文字)
+ *   drop      … ガチャでの排出設定 { enabled, weight }。weight が未決定(null)の間は他と同じ重み
+ */
+const noEffect = () => ({ intimacy: null, atk: null, def: null, exp: null });
+const noReactions = () => ({ default: [], byCharacter: {} });
+const gift = (type) => ({ id: type, type, rank: null, effect: noEffect(), reactions: noReactions(), icon: null, image: null, drop: { enabled: true, weight: null } });
+export const GIFTS = GIFT_TYPES.map((t) => gift(t.id));
+
+export const giftType = (g) => GIFT_TYPES.find((t) => t.id === g?.type) ?? null;
+export const giftName = (g) => g?.name ?? giftType(g)?.name ?? g?.id ?? '';
+export const giftIcon = (g) => g?.icon ?? giftType(g)?.icon ?? '🎁';
+export const giftRank = (g) => (g?.rank ? GIFT_RANKS.find((r) => r.id === g.rank) ?? null : null);
 
 /**
  * 攻略補助アイテム(攻略前に持ち込む)。まだ実装しない:空の間は攻略画面に欄を出さない

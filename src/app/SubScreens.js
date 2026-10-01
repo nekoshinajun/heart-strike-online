@@ -1,6 +1,6 @@
 import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById } from '../data/GameData.js';
-import { HEROINES, GIFTS, INTIMACY, heroineById } from '../data/RomanceData.js';
+import { HEROINES, GIFTS, INTIMACY, heroineById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
@@ -100,8 +100,8 @@ export class AppScreens {
       </section>
       <section class="tc-gifts">
         <header><b>🎁 プレゼントを渡す</b><span>仲良くなると、もっと頼りになる</span></header>
-        <div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}><i>${g.icon}</i><span>${esc(g.name)}</span><b>×${n}</b></button>`; }).join('')}</div>
-        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません</p>' : ''}
+        <div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id), rk = giftRank(g); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<span>${esc(giftName(g))}</span>${rk ? `<em class="tg-rank">${esc(rk.label)}</em>` : ''}<b>×${n}</b></button>`; }).join('')}</div>
+        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません。ガチャを引くと毎回1個もらえます</p>' : ''}
       </section>
       <button type="button" class="tc-detail r-btn ghost" data-act="detail">プロフィールを見る</button>`;
     if (keepScroll) this.body.scrollTop = top;

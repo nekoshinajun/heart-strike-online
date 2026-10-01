@@ -68,12 +68,17 @@ export const APP_CONFIG = {
         cost: { single: 150, ten: 1500 },                // 仮
         rates: { R: 0.79, SR: 0.18, SSR: 0.03 },          // 仮
         // Pool は最新 CharacterData に実在する ID のみ(起動時に存在しない ID は除外して Debug 警告)
+        // 攻略対象(RomanceData.HEROINES)は CharacterData に無いので入らない。プレイアブル化した味方版を足す時だけ、その ID をここへ
         pool: [
           { characterId: 'minamo', weight: 1, pickup: false }, { characterId: 'raimu', weight: 1, pickup: false }, { characterId: 'kagura', weight: 1, pickup: false },
           { characterId: 'hinoka', weight: 1, pickup: false }, { characterId: 'shizuku', weight: 1, pickup: false }, { characterId: 'kohaku', weight: 1, pickup: false },
           { characterId: 'akane', weight: 1, pickup: false }, { characterId: 'nagi', weight: 1, pickup: false },
         ],
         guarantee: { tenPullMinRarity: 'SR' },            // 仮
+        // プレゼント抽選(キャラとは独立して、1回ごとに必ず1個)。排出率は未決定
+        //   rankRates … ランク別の排出率 { [GIFT_RANKS の id]: 割合 }。null の間はランクを見ない
+        //   pool      … 対象のプレゼント ID。null の間は GIFTS のうち drop.enabled のもの全部
+        presents: { rankRates: null, pool: null },
         pity: null,                                        // 天井(未決定)
         presentationId: 'default',                         // 演出テーマ(抽選には使わない)
         startAt: null, endAt: null,

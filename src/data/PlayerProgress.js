@@ -366,7 +366,8 @@ export class PlayerProgress {
     const exp = Math.floor(num(e.exp));
     const levelUps = exp > 0 ? this.addExp(characterId, exp).levelUps : 0;
     this.save();
-    const lines = gift.reactions?.byCharacter?.[characterId] ?? (Array.isArray(gift.reactions) ? gift.reactions : []);
+    const R = gift.reactions ?? {};
+    const lines = R.byCharacter?.[characterId]?.length ? R.byCharacter[characterId] : (Array.isArray(R) ? R : R.default ?? []);
     const reaction = lines.length ? lines[Math.floor(Math.random() * lines.length)] : null;
     return { gift, levelUps, gainedExp: exp, gainedIntimacy: Math.floor(num(e.intimacy)), reaction, before, after: this.character(characterId) };
   }

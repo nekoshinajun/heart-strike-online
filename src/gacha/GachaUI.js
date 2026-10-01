@@ -6,6 +6,15 @@ import { GachaSequencePlanner } from './GachaPlanner.js';
 import { GachaDirector } from './GachaDirector.js';
 import { Log } from '../app/Platform.js';
 import { roleTag } from '../app/Roles.js';
+import { GIFTS, giftById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
+
+/** プレゼント1個の表示(アイコン / 画像・名前・ランク)*/
+export function presentHTML(present, cls = '') {
+  const g = giftById(present?.giftId);
+  if (!g) return '';
+  const rk = giftRank(g);
+  return `<span class="gp ${cls}"${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<b>${esc(giftName(g))}</b>${rk ? `<em>${esc(rk.label)}</em>` : ''}</span>`;
+}
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const RANK_ORDER = { R: 0, SR: 1, SSR: 2 };
@@ -56,10 +65,10 @@ export class GachaUI {
         <div class="gt-copy"><b>${esc(b.name)}</b><span>${esc(b.sub)}</span></div>
       </div>
       <div class="gt-actions">
-        <button type="button" class="gt-btn" data-n="1"><b>ハートを届ける ×1</b><span>♦ ${b.cost.single.toLocaleString()}</span></button>
-        <button type="button" class="gt-btn ten" data-n="10"><b>ハートを届ける ×10</b><span>♦ ${b.cost.ten.toLocaleString()}</span></button>
+        <button type="button" class="gt-btn" data-n="1"><b>ハートを届ける ×1</b><small>仲間 1人 ＋ プレゼント 1個</small><span>♦ ${b.cost.single.toLocaleString()}</span></button>
+        <button type="button" class="gt-btn ten" data-n="10"><b>ハートを届ける ×10</b><small>仲間 10人 ＋ プレゼント 10個</small><span>♦ ${b.cost.ten.toLocaleString()}</span></button>
       </div>
-      <p class="gt-note">ガチャで出会えるのは<b>仲間の女の子</b>です。攻略対象の女の子とは「攻略」で出会えます</p>
+      <p class="gt-note">毎回<b>仲間の女の子</b>と<b>プレゼント</b>をセットでもらえます。プレゼントは「育成」で仲間に渡せます。攻略対象の女の子とは「攻略」で出会えます</p>
       <button type="button" class="gt-rates">提供割合 / 詳細</button>`;
     for (const x of this.topEl.querySelectorAll('[data-n]')) x.addEventListener('click', () => this.app.router.go('gachaConfirm', { count: +x.dataset.n }));
     this.topEl.querySelector('.gt-rates').addEventListener('click', () => this.app.router.go('gachaRates'));
@@ -70,6 +79,7 @@ export class GachaUI {
   showConfirm({ count = 1 }) {
     const b = this.banner, cost = this.service.cost(b, count), gem = this.p.gem, ok = gem >= cost;
     const body = this.app.sheet.open(`ハートを届ける ×${count}`, `
+      <div class="gc-get">${roleTag('ally')} ×${count} <span>＋</span> 🎁 プレゼント ×${count}</div>
       <div class="gc-rows"><div><span>必要</span><b>♦ ${cost.toLocaleString()}</b></div><div><span>所持</span><b>♦ ${gem.toLocaleString()}</b></div><div><span>届けた後</span><b class="${ok ? '' : 'ng'}">♦ ${(gem - cost).toLocaleString()}</b></div></div>
       ${ok ? '' : '<p class="gc-ng">HEART GEM が足りません</p>'}
       <button type="button" class="sh-primary" data-act="go" ${ok ? '' : 'disabled'}>ハートを届ける</button>`);
@@ -84,6 +94,8 @@ export class GachaUI {
       <div class="gr sh-scroll">
         <p class="gr-note">投げ方(POWER・AIM・SPIN・タイミング)によって抽選結果は変化しません。</p>
         ${byR.map(({ r, list }) => `<h4 style="color:${RANKS[r].color}">${r} ${(b.rates[r] * 100).toFixed(1)}%</h4><ul>${list.map((e) => { const c = characterById(e.characterId); const own = this.p.isOwned(c.id); return `<li><span>${esc(c.name)}</span><em>${ATTRIBUTES[c.attribute].label}</em><i class="${own ? 'own' : 'new'}">${own ? '所持' : 'NEW'}</i></li>`; }).join('')}</ul>`).join('')}
+        <h4 class="gr-present">🎁 プレゼント(毎回1個・キャラとは別の抽選)</h4><ul>${GIFTS.filter((g) => g.drop?.enabled !== false && (!b.presents?.pool || b.presents.pool.includes(g.id))).map((g) => `<li><span>${giftIcon(g)} ${esc(giftName(g))}</span>${giftRank(g) ? `<em>${esc(giftRank(g).label)}</em>` : ''}</li>`).join('')}</ul>
+        <p class="gr-note small">※ プレゼントの排出率・ランクは準備中です。</p>
         <p class="gr-note small">※ 価格・提供割合・10連保証(SR 以上1体)は Prototype の仮値です。天井は未定です。</p>
       </div>`);
   }
@@ -146,20 +158,24 @@ export class GachaUI {
     const primary = it.isNew ? { act: 'home', label: 'ホームに設定' } : { act: 'again', label: `もう一度 ♦${cost.toLocaleString()}`, disabled: !canAgain };
     const secondary = [
       ...(it.isNew ? [{ act: 'again', label: 'もう一度', disabled: !canAgain }] : []),
-      { act: 'detail', label: 'キャラクターを見る' },
+      { act: 'detail', label: 'プロフィール' },
       ...(!it.isNew && !isFav ? [{ act: 'home', label: 'ホームに設定' }] : []),
       { act: 'toHome', label: 'ホームへ' },
     ].slice(0, 3);
     const btn = (b, cls) => `<button type="button" class="${cls}" data-act="${b.act}" ${b.disabled ? 'disabled' : ''}>${esc(b.label)}</button>`;
     const info = `<div class="gz-info"><span class="gz-rank" style="color:${RANKS[ch.rank].color}">${ch.rank}</span><b>${esc(ch.name)}</b><span>${ATTRIBUTES[ch.attribute].label} / ${TYPES[ch.type].label}</span>${it.isNew ? '<em class="gz-new">NEW!</em>' : ''}</div>`;
+    // プレゼント(キャラと同じ1回分)。10連は全10個のまとめも出す
+    const presents = tx.items.map((x) => x.present).filter(Boolean);
+    const sum = new Map(); for (const p of presents) sum.set(p.giftId, (sum.get(p.giftId) ?? 0) + 1);
+    const bonus = it.present ? `<div class="gz-present"><small>＋ BONUS PRESENT</small>${presentHTML(it.present)}${ten ? `<div class="gz-psum">${[...sum].map(([id, n]) => `<span>${giftIcon(giftById(id))}×${n}</span>`).join('')}<em>計 ${presents.length}個</em></div>` : ''}</div>` : '';
     this.resEl.dataset.kind = ten ? 'ten' : 'single';
     this.resEl.dataset.rarity = ch.rank;
     this.resEl.style.setProperty('--ac', ATTRIBUTES[ch.attribute].color);
     this.resEl.innerHTML = `
       <div class="gz-sky"></div>
       <div class="gz-fig" data-rarity="${ch.rank}"><div class="gz-halo"></div><img src="${artUrl(ch, 'cutout')}" alt="${esc(ch.name)}" draggable="false"></div>
-      ${ten ? `<div class="gz-grid">${tx.items.map((x) => { const c = characterById(x.characterId); const ps = portraitStyle(c); return `<button type="button" class="gz-ic${x.drawIndex === this.sel ? ' sel' : ''}" data-i="${x.drawIndex}" data-rarity="${x.rarity}" aria-label="${esc(c.name)}"><span class="gz-face"${ps ? ` style="${ps}"` : ''}>${ps ? '' : esc(c.name[0])}</span>${x.isNew ? '<i class="gz-nb">NEW</i>' : ''}</button>`; }).join('')}</div>` : ''}
-      <div class="gz-bottom">${info}${btn(primary, 'gz-primary')}<div class="gz-sec">${secondary.map((b) => btn(b, 'gz-s')).join('')}</div></div>`;
+      ${ten ? `<div class="gz-grid">${tx.items.map((x) => { const c = characterById(x.characterId); const ps = portraitStyle(c); return `<button type="button" class="gz-ic${x.drawIndex === this.sel ? ' sel' : ''}" data-i="${x.drawIndex}" data-rarity="${x.rarity}" aria-label="${esc(c.name)}"><span class="gz-face"${ps ? ` style="${ps}"` : ''}>${ps ? '' : esc(c.name[0])}</span>${x.isNew ? '<i class="gz-nb">NEW</i>' : ''}${x.present ? `<i class="gz-pb">${giftIcon(giftById(x.present.giftId))}</i>` : ''}</button>`; }).join('')}</div>` : ''}
+      <div class="gz-bottom">${info}${bonus}${btn(primary, 'gz-primary')}<div class="gz-sec">${secondary.map((b) => btn(b, 'gz-s')).join('')}</div></div>`;
     for (const b of this.resEl.querySelectorAll('[data-act]')) b.addEventListener('click', () => this.act(b.dataset.act));
     for (const b of this.resEl.querySelectorAll('[data-i]')) this.bindIcon(b);
   }
