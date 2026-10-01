@@ -70,11 +70,11 @@ export class FeverSystem {
 
   // ---------------- 開始 / 投球 / 終了 ----------------
   /** FEVER 開始(FEVER_INTRO で呼ぶ) */
-  start(turnIndex) {
+  start(turnIndex, count = this.throwsTotal) {
     this.pendingStart = false;
     this.active = true;
     this.level = 1;
-    this.throwsRemaining = this.throwsTotal;
+    this.throwsRemaining = Math.max(1, Math.min(this.throwsTotal, count));   // フェーズの生存者の人数分(最大 throwsPerActivation)
     this.startPlayer = turnIndex;
     this.thrown = [];
     this.finishing = false;

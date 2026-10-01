@@ -70,7 +70,10 @@ export class TalkQuestionState {
     A.hideTalk();
     A.beginAnswer();                               // 次の1投 = 回答(暗いまま・ボスは明るい)
     g.cam.focusOn(g.boss.partCenter('head'), 14); // v25: 回答投球中も近距離を維持
-    g.sm.change(GameState.NEXT_PLAYER, { direct: true, label: 'ANSWER' });
+    // 回答の1投:このフェーズでまだ投げていない次の味方。いなければ(フェーズの最後の人の命中で会話)先頭の味方が「おまけの1投」で答える
+    const next = g.online ? g.online.nextThrowerIndex?.() ?? g.turn.index : g.turn.nextAttacker();
+    if (!g.online && next < 0) g.answerExtraThrow = true;
+    g.sm.change(GameState.NEXT_PLAYER, { to: next >= 0 ? next : g.turn.aliveIndexes[0], label: 'ANSWER' });
   }
   exit() { this.done = false; }
 }
@@ -119,6 +122,6 @@ export class TalkReactionState {
     g.fever.pause(false);         // FEVER を再開(残り投球数・レベルはそのまま)
     if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
-    g.sm.change(GameState.NEXT_PLAYER);
+    g.afterThrow();
   }
 }

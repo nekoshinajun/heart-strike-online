@@ -9,7 +9,7 @@ export class FeverIntroState {
   constructor(g) { this.g = g; }
   enter() {
     const g = this.g;
-    g.fever.start(g.turn.index);           // 現在の手番(この後投げる人)から4投
+    g.fever.start(g.turn.index, g.turn.aliveIndexes.length);   // このフェーズの全員(生存者の人数分)の投球が FEVER
     g.setTimeScale(Config.fever.slowMotionScale);
     g.audio.loveMax();
     g.cam.kickFov(6);
@@ -29,7 +29,7 @@ export class FeverIntroState {
 
 /**
  * FEVER_OUTRO:4人分の FEVER 投球の後(0.3〜0.6秒)。
- *   ハートがボスへ吸い込まれる → 「FEVER FINISH!」→ 通常へ(ゲージ 0)→ NEXT_PLAYER(通常ラリー再開)
+ *   ハートがボスへ吸い込まれる → 「FEVER FINISH!」→ 通常へ(ゲージ 0)→ ボスの反撃(フェーズの最後)
  */
 export class FeverOutroState {
   constructor(g) { this.g = g; }
@@ -45,6 +45,6 @@ export class FeverOutroState {
     if (this.done || g.sm.current !== this) return;
     this.done = true;
     g.fever.finish();
-    g.sm.change(GameState.NEXT_PLAYER);
+    g.afterThrow();
   }
 }

@@ -12,7 +12,7 @@ import { HomeScreen } from '../home/HomeScreen.js';
 import { AppScreens, FavoriteSheet } from './SubScreens.js';
 import { GachaUI } from '../gacha/GachaUI.js';
 import { Log, safe, nullObject, Haptic } from './Platform.js';
-import { SCREEN_BGM } from '../audio/BgmTracks.js';
+import { MENU_SLOT } from '../audio/BgmTracks.js';
 
 /**
  * HEART STRIKE のアプリ本体(ゲームの「外側」)。
@@ -57,7 +57,7 @@ export class App {
     R.register('gacha', { kind: KIND.TAB_ROOT, layer: 'gacha', opaque: true, show: () => this.gacha.showTop() });
     R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p) => S.showCollection(p) });
     R.register('trainChar', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showTrainChar(p) });
-    R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopAsmr(), leave: () => S.stopAsmr() });
+    R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopVoice(), leave: () => S.stopVoice() });
     R.register('mission', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showMission() });
     R.register('present', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showPresent() });
     R.register('settings', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showSettings() });
@@ -82,6 +82,7 @@ export class App {
     R.register('diff', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('diff', c)) M.showDifficultySelect(p); } });
     R.register('party', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'sortie')) M.showPartyEdit({ mode: 'sortie' }); } });
     R.register('chars', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('chars', c)) M.showCharacterSelect(); } });
+    R.register('intro', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showIntro(p) });   // 攻略対象紹介(GAME START の直前)
     R.register('game', { kind: KIND.FLOW, layer: null, resetTo: 'stage', show: () => M.hide() });
     R.register('result', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showResult(p.res ?? g.lastResult) });
     R.register('over', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showGameOver(p.stage ?? g.stage, p.stats ?? []) });
@@ -105,9 +106,10 @@ export class App {
   // ---------------- 画面遷移の共通処理 ----------------
   onRoute(id, def, ctx) {
     if (!def || ctx.sheet || ctx.sheetClosed) { this.refreshNotifications(); return; }
-    // BGM:タブごとの場面(SCREEN_BGM。SUB 画面は下のタブの BGM を続ける)。バトル(game)は開始時に GameManager が鳴らす
-    //   リザルト / ゲームオーバー / 途中で抜けた時 / MULTI 終了は game 以外へ移るので、ここで切り替わる(または止まる)
-    if (id !== 'game') safe('AUDIO', () => { const slot = SCREEN_BGM[this.router.stack[0]?.id]; if (slot) this.audio.startBgm?.(slot); else this.audio.stopBgm?.(); });
+    // BGM:インゲーム(game)以外はすべて共通メニュー BGM。同じ曲が鳴っていれば何もしない(画面を切り替えても途切れない)
+    //   バトル(game)は開始時に GameManager がバトル BGM を最初から鳴らす。リザルト / ゲームオーバー / 途中退出 / MULTI 終了で
+    //   game 以外へ移った時は、メニュー BGM を前回止めた位置から再開する
+    if (id !== 'game') safe('AUDIO', () => { this.audio.voice?.stop(); this.audio.startBgm?.(MENU_SLOT, { resume: true }); });   // ゲームを離れたらボイスも残さない
     // 行き先の画面を開いたら、その Guidance は解決済み
     const top = this.router.top;
     if (!ctx.restore) safe('HOME', () => this.home.agenda.resolveFor(id, top?.params ?? {}));

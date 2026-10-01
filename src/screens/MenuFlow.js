@@ -6,7 +6,7 @@ import { Config, difficultyData } from '../core/Config.js';
 import { devInput, storage, Haptic } from '../app/Platform.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById } from '../data/RomanceData.js';
-import { roleTag, clearChips, asmrStatus } from '../app/Roles.js';
+import { roleTag, clearChips, voiceStatus, rewardLabel } from '../app/Roles.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
 const LONG_PRESS_MOVE = 10;  // これ以上指が動いたら長押しをやめる(スクロールを邪魔しない)
@@ -145,7 +145,8 @@ export class MenuFlow {
       case 'stage': return this.pickStage(this.stage);
       case 'diff': return this.confirmDiff();
       case 'party': return this.partyMode === 'sortie' ? this.router.go('chars') : null;
-      case 'chars': return this.startGame();
+      case 'chars': return this.router.go('intro');
+      case 'intro': return this.introMulti ? null : this.startGame();
       case 'result': return this.g.backToMenu();          // ステージ選択
       case 'over': return this.g.online ? this.g.backToMenu() : this.g.retryStage(); // Online は再戦しない
     }
@@ -154,6 +155,7 @@ export class MenuFlow {
   onBack() {
     switch (this.screen) {
       case 'diff': case 'party': case 'chars': return this.router.back();
+      case 'intro': return this.introMulti ? null : this.router.back();
       case 'result': return this.g.retryStage();          // もう一度
       case 'over': return this.g.backToMenu();            // ステージ選択
     }
@@ -191,7 +193,7 @@ export class MenuFlow {
           ${heroine?.cv ? `<span class="cv">CV ${esc(heroine.cv)}</span>` : ''}
           <p>「${esc(selected.line ?? 'あなたのハート、ちゃんと届くかな？')}」</p>
           ${clearChips(this.progress, selected.id, Config.difficultyOrder)}
-          ${heroine ? asmrStatus(this.progress, heroine) : ''}
+          ${heroine ? voiceStatus(this.progress, heroine) : ''}
         </section>
         <button type="button" class="capture-start" data-act="start">♡<b>挑戦する</b><small>START</small></button>
       </div>
@@ -421,6 +423,38 @@ export class MenuFlow {
     this.focus();
   }
 
+  // ---------------- 攻略対象紹介(GAME START の直前。SOLO / MULTI 共通)----------------
+  /**
+   * これから攻略する女の子を大きく見せる。説明文・セリフは攻略対象データ(未設定ならステージのデータ。どちらも無ければ出さない)
+   * @param multi MULTI:全員同じタイミングで自動開始(ボタンの代わりにカウントダウン)。startAt = 開始時刻(performance.now)
+   */
+  showIntro({ multi = false, startAt = 0 } = {}) {
+    const st = this.stage, h = heroineByStage(st.id), D = difficultyData(this.g.difficulty);
+    this.introMulti = multi;
+    this.frame('intro', '', '', { primary: multi ? null : '攻略開始♡', back: multi ? null : '◀ BACK' });
+    const profile = h?.profile ?? st.concept ?? null;
+    const line = h?.line ?? st.line ?? null;
+    this.body.innerHTML = `
+      <div class="intro-stage" style="--boss:url('${BOSS_IMAGES[st.boss.image] ?? BOSS_IMAGES[st.boss.fallbackImage] ?? ''}')">
+        <div class="intro-fx" aria-hidden="true">${'<i>♡</i>'.repeat(10)}</div>
+        <section class="intro-card">
+          <div class="intro-tags">${roleTag('heroine', 'sm')}${diffChip(D.id)}</div>
+          <small>STAGE ${String(st.no).padStart(2, '0')} ・ ${esc(st.name)}</small>
+          <strong>${esc(st.boss.name)}</strong>
+          ${profile ? `<p class="intro-profile">${esc(profile)}</p>` : ''}
+          ${line ? `<p class="intro-line">「${esc(line)}」</p>` : ''}
+          <p class="intro-lead">これから、この子を口説きにいきます♡</p>
+        </section>
+      </div>
+      ${multi ? '<div class="intro-wait">みんなで攻略開始♡ <b class="intro-count"></b></div>' : ''}`;
+    clearInterval(this.introTimer);
+    if (multi) {
+      const tick = () => { const left = Math.max(0, Math.ceil((startAt - performance.now()) / 1000)); const c = this.body.querySelector('.intro-count'); if (c) c.textContent = left ? String(left) : 'START!'; if (!left || this.screen !== 'intro') clearInterval(this.introTimer); };
+      tick(); this.introTimer = setInterval(tick, 200);
+    }
+    this.focus();
+  }
+
   /** 先頭キャラ → 残り3人はパーティ順(A→B→C→D) */
   order() {
     const party = this.progress.party;
@@ -444,7 +478,7 @@ export class MenuFlow {
     this.body.innerHTML = `
       <div class="rhead">STAGE ${String(res.stage.no).padStart(2, '0')} ${diffChip(D.id, 'big')}</div>
       <div class="clearlogo">LOVE MAX♡</div>
-      ${this.asmrUnlockHTML(rec)}
+      ${this.voiceUnlockHTML(rec)}
       <div class="expgain">EXP <b>+${exp}</b>${D.exp !== 1 ? `<small>(${res.stage.exp} × ${D.exp})</small>` : ''}</div>
       ${rec?.firstClearGem ? `<div class="fcgem">初回クリア報酬 <b>♦ +${rec.firstClearGem}</b></div>` : ''}
       ${rec ? `<div class="drec r">${D.label} CLEAR ${rec.clearCount} / BEST RALLY ${rec.bestRally} / GATE CHAIN ${rec.bestGateChain} / BEST HEART ${rec.bestHeartPerThrow.toLocaleString()}</div>` : ''}
@@ -466,18 +500,19 @@ export class MenuFlow {
     this.focus();
   }
 
-  /** HELL クリア等で ASMR が解放された時のご褒美(リザルトの一番上)。解放が無ければ何も出さない */
-  asmrUnlockHTML(rec) {
-    const list = rec?.asmrUnlocked ?? [];
+  /** クリア報酬ボイスが解放された時のご褒美(リザルトの一番上)。解放が無ければ何も出さない。HELL の ASMR は「ASMR」と分かる表示 */
+  voiceUnlockHTML(rec) {
+    const list = rec?.voiceUnlocked ?? [];
     if (!list.length) return '';
     const byH = new Map();
-    for (const u of list) byH.set(u.heroineId, [...(byH.get(u.heroineId) ?? []), u.trackId]);
-    return [...byH].map(([hid, ids]) => {
-      const tracks = this.progress.asmrTracks(hid);
-      const names = ids.map((id) => { const i = tracks.findIndex((t) => t.id === id); return esc(tracks[i]?.title ?? `ASMR ${String(i + 1).padStart(2, '0')}`); });
+    for (const u of list) byH.set(u.heroineId, [...(byH.get(u.heroineId) ?? []), u]);
+    return [...byH].map(([hid, us]) => {
+      const slots = this.progress.rewardVoices(hid);
+      const names = us.map((u) => { const v = slots.find((x) => x.id === u.voiceId); return esc(v?.title ? `${rewardLabel(v)} ${v.title}` : rewardLabel(v ?? u)); });
+      const asmr = us.some((u) => u.type === 'asmr');
       const st = STAGES.find((s) => s.id === heroineById(hid)?.stageId) ?? this.stage;
       return `<section class="asmr-unlock"><div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div>
-        <small>NEW ASMR UNLOCKED</small><b>${esc(st.boss.name)}</b><p>${names.join(' / ')}</p>
+        <small>${asmr ? 'NEW ASMR UNLOCKED' : 'NEW VOICE UNLOCKED'}</small><b>${esc(st.boss.name)}</b><p>${names.join(' / ')}</p>
         <button type="button" class="r-btn" data-asmr-go="${esc(hid)}">🎧 聴いてみる</button></section>`;
     }).join('');
   }

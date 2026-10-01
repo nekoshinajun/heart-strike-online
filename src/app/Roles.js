@@ -1,11 +1,10 @@
-import { HEROINE_ASMR_UNLOCK } from '../data/RomanceData.js';
 import { stageById } from '../data/GameData.js';
 import { difficultyData } from '../core/Config.js';
 
 /**
  * 「仲間」と「攻略対象」を画面のどこでも同じ見た目で見分けるための小さな部品。
  *   仲間(味方の女の子)… ピンク「♡ 仲間」:育成・親密度・デートメンバー(戦闘)で使う側。ASMR は無い
- *   攻略対象            … ラベンダー「🎧 攻略対象」:コンカフェで口説く側。仲間にはならない。HELL クリアで ASMR 解放
+ *   攻略対象            … ラベンダー「🎧 攻略対象」:コンカフェで口説く側。仲間にはならない。クリアでボイス解放(HELL は ASMR)
  */
 export const roleTag = (role, cls = '') => role === 'heroine'
   ? `<span class="role heroine ${cls}">🎧 攻略対象</span>`
@@ -24,7 +23,6 @@ export function unlockText(cond, heroine) {
   }
   return '解放条件は準備中';
 }
-export const defaultUnlockText = (heroine) => unlockText(HEROINE_ASMR_UNLOCK, heroine);
 
 /** 攻略対象の難易度ごとのクリア状況(NORMAL / HARD / HELL の小さなバッジ)*/
 export function clearChips(progress, stageId, order) {
@@ -34,11 +32,17 @@ export function clearChips(progress, stageId, order) {
   }).join('')}</span>`;
 }
 
-/** ASMR の状態を1行で(攻略対象のみ)*/
-export function asmrStatus(progress, heroine) {
-  const tracks = progress.asmrTracks(heroine.id);
-  if (!tracks.length) return `<span class="asmr-st soon">🎧 ASMR 準備中 ・ ${esc(defaultUnlockText(heroine))}</span>`;
-  const n = tracks.filter((t) => t.unlocked).length;
-  if (!n) return `<span class="asmr-st lock">🔒 ASMR ・ ${esc(defaultUnlockText(heroine))}</span>`;
-  return `<span class="asmr-st open">🎧 ASMR ${n} / ${tracks.length} 解放${tracks.some((t) => t.isNew) ? ' <b>NEW</b>' : ''}</span>`;
+/** 報酬ボイスの枠の名前(NORMAL VOICE / HARD VOICE / HELL ASMR)。type が asmr の枠だけ「ASMR」*/
+export const rewardLabel = (slot) => `${slot.difficulty} ${slot.type === 'asmr' ? 'ASMR' : 'VOICE'}`;
+/** 未解放の枠の説明(「HARD攻略で解放」/ HELL は「HELL攻略でASMR解放」)*/
+export const rewardLockText = (slot) => `${difficultyData(slot.difficulty).label}攻略で${slot.type === 'asmr' ? 'ASMR' : ''}解放`;
+
+/** クリア報酬ボイスの状態を1行で(攻略対象のみ)*/
+export function voiceStatus(progress, heroine) {
+  const slots = progress.rewardVoices(heroine.id);
+  const set = slots.filter((s) => s.voice);
+  if (!set.length) return `<span class="asmr-st soon">🎧 ボイス準備中 ・ クリアで解放</span>`;
+  const n = set.filter((s) => s.unlocked).length;
+  if (!n) return `<span class="asmr-st lock">🔒 ボイス ・ ${esc(rewardLockText(set[0]))}</span>`;
+  return `<span class="asmr-st open">🎧 ボイス ${n} / ${slots.length} 解放${set.some((s) => s.isNew) ? ' <b>NEW</b>' : ''}</span>`;
 }

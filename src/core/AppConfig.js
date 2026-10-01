@@ -11,6 +11,7 @@ export const APP_CONFIG = {
     bootScreen: params.get('boot') || 'home',
     reducedMotion: 'auto',     // 'auto'(OS 設定に従う)| 'on' | 'off'
     lowPower: false,           // 低負荷モード(将来用:Particle を減らす)
+    introMultiMs: 3000,        // MULTI:攻略対象紹介を見せる時間(全員同じ。この後に同時に GAME START)
   },
 
   // ---- キャラクター所持(Ownership)----

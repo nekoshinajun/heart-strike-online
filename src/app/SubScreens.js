@@ -5,7 +5,7 @@ import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
 import { Haptic } from './Platform.js';
-import { roleTag, unlockText, clearChips, asmrStatus, defaultUnlockText } from './Roles.js';
+import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from './Roles.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -16,7 +16,7 @@ const fmtTime = (sec) => (Number.isFinite(sec) ? `${Math.floor(sec / 60)}:${Stri
 /**
  * 明るい HEART STRIKE テーマの汎用画面(レイヤー 'app')
  *   TAB_ROOT:育成(仲間の一覧)・コレクション(仲間 / 攻略対象)
- *   SUB     :仲間の育成画面(trainChar)・攻略対象の画面(heroine:ASMR)・MISSION・PRESENT・SETTINGS
+ *   SUB     :仲間の育成画面(trainChar)・攻略対象の画面(heroine:クリア報酬ボイス)・MISSION・PRESENT・SETTINGS
  * どれもデータが空でも破綻しない(空状態の表示あり)。
  */
 export const TRAINING_FEATURES = [
@@ -54,7 +54,7 @@ export class AppScreens {
 
   // ---------------- 育成(TAB_ROOT):仲間の女の子を選ぶ ----------------
   intimacyHTML(ch) {
-    return ch.intimacyLevel == null ? `♡ 親密度 <b>${ch.intimacy}</b>` : `♡ 親密度 Lv.<b>${ch.intimacyLevel}</b>`;
+    return ch.intimacyLevel == null ? `♡ 親密度EXP <b>${ch.intimacy}</b>` : `♡ 親密度 Lv.<b>${ch.intimacyLevel}</b>`;
   }
   showTraining() {
     this.frame('training', '育成');
@@ -114,7 +114,7 @@ export class AppScreens {
     Haptic.light();
     this.showTrainChar({ id: this.trainId }, true);
     const line = r.reaction ?? GIFT_FALLBACK_LINES[Math.floor(Math.random() * GIFT_FALLBACK_LINES.length)];
-    const gains = [r.gainedIntimacy > 0 ? `♡ 親密度 +${r.gainedIntimacy}` : '', r.gainedExp > 0 ? `EXP +${r.gainedExp}` : '', r.levelUps > 0 ? 'LEVEL UP!' : ''].filter(Boolean).join(' ・ ');
+    const gains = [r.gainedIntimacy > 0 ? `♡ 親密度EXP +${r.gainedIntimacy}` : '', r.gainedExp > 0 ? `EXP +${r.gainedExp}` : '', r.levelUps > 0 ? 'LEVEL UP!' : ''].filter(Boolean).join(' ・ ');
     const bub = this.body.querySelector('.tc-bubble');
     bub.innerHTML = `<p>${esc(line)}</p>${gains ? `<small>${gains}</small>` : ''}`;
     bub.hidden = false; bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in');
@@ -142,12 +142,12 @@ export class AppScreens {
       for (const b of this.body.querySelectorAll('button[data-id]')) b.addEventListener('click', () => this.app.router.go('detail', { id: b.dataset.id }));
     } else {
       this.body.innerHTML = `${tabs}
-        <p class="as-lead">${roleTag('heroine')} コンカフェで口説く女の子。仲間にはなりません。HELL をクリアすると ASMR が聴けます</p>
+        <p class="as-lead">${roleTag('heroine')} コンカフェで口説く女の子。仲間にはなりません。クリアするとボイス、HELL クリアで ASMR が聴けます</p>
         <div class="hc-list">${HEROINES.map((h) => {
           const st = stageById(h.stageId);
           return `<button type="button" class="hc-card" data-heroine="${h.id}">
             <span class="hc-art" style="background-image:url('${this.app.bossThumb(st)}')"></span>
-            <span class="hc-main"><small>STAGE ${st.no}</small><b>${esc(st.boss.name)}</b>${clearChips(this.p, st.id, Config.difficultyOrder)}${asmrStatus(this.p, h)}</span>
+            <span class="hc-main"><small>STAGE ${st.no}</small><b>${esc(st.boss.name)}</b>${clearChips(this.p, st.id, Config.difficultyOrder)}${voiceStatus(this.p, h)}</span>
           </button>`;
         }).join('')}</div>`;
       for (const b of this.body.querySelectorAll('[data-heroine]')) b.addEventListener('click', () => this.app.router.go('heroine', { id: b.dataset.heroine }));
@@ -155,22 +155,23 @@ export class AppScreens {
     for (const b of this.body.querySelectorAll('.col-tabs [data-tab]')) b.addEventListener('click', () => this.showCollection({ tab: b.dataset.tab }));
   }
 
-  // ---------------- 攻略対象の画面(SUB):プロフィール + クリア状況 + ASMR ----------------
+  // ---------------- 攻略対象の画面(SUB):プロフィール + クリア状況 + クリア報酬ボイス ----------------
   showHeroine({ id } = {}) {
     const h = heroineById(id);
     if (!h) { this.app.router.back(); return; }
-    this.stopAsmr();
+    this.stopVoice();
     this.heroineId = id;
     const st = stageById(h.stageId);
-    const tracks = this.p.asmrTracks(id);
+    const slots = this.p.rewardVoices(id);
     this.frame('heroine', '攻略対象', { back: true });
-    const trackRow = (t, i) => {
-      const title = t.title ?? `ASMR ${String(i + 1).padStart(2, '0')}`;
-      const state = !t.unlocked ? `🔒 ${esc(unlockText(t.unlock, h))}` : !t.src ? '音声準備中' : fmtTime(t.durationSec);
-      return `<li class="am-row${t.unlocked ? '' : ' locked'}${t.playable ? ' playable' : ''}" data-track="${t.id}">
-        <button type="button" class="am-play" ${t.playable ? '' : 'disabled'} aria-label="${t.playable ? '再生' : '再生できません'}">${t.unlocked ? '▶' : '🔒'}</button>
-        <div class="am-main"><b>${esc(title)}${t.isNew ? ' <em>NEW</em>' : ''}</b><span class="am-state">${state}</span>
-          <div class="am-seek" hidden><input type="range" min="0" max="1000" value="0" aria-label="再生位置"><small><span class="am-cur">0:00</span> / <span class="am-dur">${fmtTime(t.durationSec)}</span></small></div></div>
+    // 難易度ごとの枠:NORMAL VOICE / HARD VOICE / HELL ASMR(ASMR の枠だけ特別な見た目)
+    const row = (v) => {
+      const D = Config.difficulties?.[v.difficulty];
+      const state = !v.unlocked ? `🔒 ${esc(rewardLockText(v))}` : !v.src ? '音声準備中' : v.durationSec ? fmtTime(v.durationSec) : 'タップで再生';
+      return `<li class="am-row${v.unlocked ? '' : ' locked'}${v.playable ? ' playable' : ''}${v.type === 'asmr' ? ' asmr' : ''}" data-track="${v.difficulty}" style="--dc:${D?.color ?? 'var(--heroine)'}">
+        <button type="button" class="am-play" ${v.playable ? '' : 'disabled'} aria-label="${v.playable ? '再生' : '再生できません'}">${v.unlocked ? '▶' : '🔒'}</button>
+        <div class="am-main"><b><i class="am-kind">${esc(rewardLabel(v))}</i>${v.title ? esc(v.title) : ''}${v.isNew ? ' <em>NEW</em>' : ''}</b><span class="am-state">${state}</span>
+          <div class="am-seek" hidden><input type="range" min="0" max="1000" value="0" aria-label="再生位置"><small><span class="am-cur">0:00</span> / <span class="am-dur">${fmtTime(v.durationSec)}</span></small></div></div>
       </li>`;
     };
     this.body.innerHTML = `
@@ -185,38 +186,43 @@ export class AppScreens {
         <button type="button" class="r-btn hr-go" data-act="stage">♡ この子を攻略する</button>
       </section>
       <section class="hr-asmr">
-        <header><b>🎧 ASMR</b><span>${esc(defaultUnlockText(h))}</span></header>
-        ${tracks.length ? `<ul class="am-list">${tracks.map(trackRow).join('')}</ul>` : `<p class="am-empty">ASMR は準備中です。<br>${esc(defaultUnlockText(h))}すると、ここで聴けるようになります</p>`}
+        <header><b>🎧 VOICE</b><span>クリアした難易度のボイスが聴けます ・ HELL は ASMR</span></header>
+        <ul class="am-list">${slots.map(row).join('')}</ul>
       </section>`;
     this.body.querySelector('[data-act="stage"]').addEventListener('click', () => this.app.deepLink({ screen: 'stage', stageId: st.id }));
-    for (const row of this.body.querySelectorAll('.am-row.playable')) row.querySelector('.am-play').addEventListener('click', () => this.toggleAsmr(row.dataset.track));
-    for (const t of tracks) if (t.unlocked) this.p.markAsmrSeen(id, t.id);   // 開いたら NEW は既読
+    for (const r of this.body.querySelectorAll('.am-row.playable')) r.querySelector('.am-play').addEventListener('click', () => this.toggleVoice(r.dataset.track));
+    for (const v of slots) if (v.unlocked) this.p.markVoiceSeen(id, v.id);   // 開いたら NEW は既読
   }
-  /** ASMR の再生 / 一時停止(1曲ずつ)。シークバーと再生時間 */
-  toggleAsmr(trackId) {
-    const t = this.p.asmrTracks(this.heroineId).find((x) => x.id === trackId);
-    if (!t?.playable) return;
-    const row = this.body.querySelector(`.am-row[data-track="${trackId}"]`);
-    if (this.asmr?.trackId === trackId) {
-      if (this.asmr.audio.paused) this.asmr.audio.play().catch(() => {}); else this.asmr.audio.pause();
+  /** 報酬ボイスの再生 / 一時停止(1つずつ)。シークバーと再生時間 */
+  toggleVoice(difficulty) {
+    const v = this.p.rewardVoices(this.heroineId).find((x) => x.difficulty === difficulty);
+    if (!v?.playable) return;   // 未解放は再生しない
+    const row = this.body.querySelector(`.am-row[data-track="${difficulty}"]`);
+    if (this.voice?.difficulty === difficulty) {
+      if (this.voice.audio.paused) this.voice.audio.play().catch(() => {}); else this.voice.audio.pause();
       return;
     }
-    this.stopAsmr();
-    const audio = new Audio(t.src);
+    this.stopVoice();
+    const audio = new Audio(v.src);
     audio.preload = 'auto';
+    audio.volume = Math.max(0, Math.min(1, this.app.audio?.volumes?.voice ?? 1));   // ボイス音量(iPhone Safari では無視され、端末の音量になる)
     const seek = row.querySelector('.am-seek'), range = seek.querySelector('input'), cur = seek.querySelector('.am-cur'), dur = seek.querySelector('.am-dur'), btn = row.querySelector('.am-play');
     seek.hidden = false; row.classList.add('on');
     const sync = () => { const d = audio.duration; if (Number.isFinite(d) && d > 0) { range.value = String(Math.round((audio.currentTime / d) * 1000)); dur.textContent = fmtTime(d); } cur.textContent = fmtTime(audio.currentTime); btn.textContent = audio.paused ? '▶' : '⏸'; };
     for (const ev of ['timeupdate', 'loadedmetadata', 'play', 'pause', 'ended']) audio.addEventListener(ev, sync);
+    // ボイス / ASMR を聴いている間は共通 BGM を一時停止(止めた位置から再開)
+    audio.addEventListener('play', () => this.app.audio?.bgm?.hold?.('rewardVoice'));
+    for (const ev of ['pause', 'ended', 'error']) audio.addEventListener(ev, () => this.app.audio?.bgm?.release?.('rewardVoice'));
     range.addEventListener('input', () => { const d = audio.duration; if (Number.isFinite(d)) audio.currentTime = (Number(range.value) / 1000) * d; });
-    this.asmr = { trackId, audio, row };
+    this.voice = { difficulty, audio, row };
     audio.play().catch(() => {});
   }
-  stopAsmr() {
-    if (!this.asmr) return;
-    this.asmr.audio.pause(); this.asmr.audio.src = '';
-    this.asmr.row?.classList.remove('on');
-    this.asmr = null;
+  stopVoice() {
+    if (!this.voice) return;
+    this.voice.audio.pause(); this.voice.audio.src = '';
+    this.app.audio?.bgm?.release?.('rewardVoice');
+    this.voice.row?.classList.remove('on');
+    this.voice = null;
   }
 
   // ---------------- ミッション(SUB)----------------
@@ -260,7 +266,7 @@ export class AppScreens {
     this.body.innerHTML = `
       <ul class="as-list">
         <li class="as-row"><div class="r-main"><b>プレイヤー名</b><span>${esc(this.p.data.player.name)}</span></div><button type="button" class="r-btn ghost" data-act="name">変更</button></li>
-        <li class="as-row snd-row"><div class="r-main"><b>BGM</b><span>ホームとバトルで流れる音楽</span>
+        <li class="as-row snd-row"><div class="r-main"><b>BGM</b><span>メニューとバトルで流れる音楽</span>
           <div class="snd-ctl"><input type="range" min="0" max="100" step="1" value="${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}" data-vol="bgm" aria-label="BGM 音量"${st.audio?.bgmMuted ? ' disabled' : ''}><output>${st.audio?.bgmMuted ? 'ミュート' : `${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}%`}</output></div></div>
           <button type="button" class="r-tgl${st.audio?.bgmMuted ? '' : ' on'}" data-mute="bgm" aria-pressed="${!st.audio?.bgmMuted}">${st.audio?.bgmMuted ? 'OFF' : 'ON'}</button></li>
         ${row('haptic', '振動(対応端末のみ)', st.haptic)}

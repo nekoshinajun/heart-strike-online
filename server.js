@@ -13,16 +13,29 @@ const code=()=>String(Math.floor(100000+Math.random()*900000));
 const id=()=>crypto.randomBytes(9).toString('base64url');
 const FIELD_PATTERNS=["STRAIGHT_LINE","LEFT_CURVE","RIGHT_CURVE","HIGH_ARC","LOW_ROUTE","S_CURVE","GATE_CHAIN","BANK_STARS"];
 const makeField=()=>({pattern:FIELD_PATTERNS[crypto.randomInt(0,FIELD_PATTERNS.length)],seed:crypto.randomInt(1,2147483647),catchPos:{x:0.15+Math.random()*0.70,y:0.20+Math.random()*0.60}});
-const nextPlayable=(r,from)=>{for(let i=1;i<=r.players.length;i++){const n=(from+i)%r.players.length;if(r.players[n].alive!==false&&r.players[n].connected!==false)return n}return from};
-const nextPlayableAfterId=(r,playerId)=>{const i=r.players.findIndex(p=>p.id===playerId);return nextPlayable(r,i>=0?i:Math.max(0,r.currentIndex-1));};
 const aliveConnected=r=>r.players.filter(p=>p.alive!==false&&p.connected!==false);
+// 1ターン = PLAYER ATTACK PHASE(生存・接続中の全員が席順に1投ずつ)→ ボスがまとめて反撃(全員同時キャッチ)
+const playable=p=>p&&p.alive!==false&&p.connected!==false;
+const nextUnthrown=r=>{const done=new Set(r.phaseThrown||[]);for(let i=0;i<r.players.length;i++){const p=r.players[i];if(playable(p)&&!done.has(p.id))return i}return -1};
+/** フェーズの最後:キャッチラウンドを開く(catchExpected = 生存・接続中の全員)*/
+function openCatchRound(r){r.phase='WAIT_CATCH';r.voiceRoll=crypto.randomInt(0,2147483647);/* ボスの攻撃ボイスの抽選用(全員が同じボイスを選ぶ)*/r.catchSeq=(r.catchSeq||0)+1;r.catchExpected=aliveConnected(r).map(x=>x.id);r.catchResults={};r.phaseThrown=[];}
+/** 投げる番の人がいなくなった(切断 / DOWN):次の未投球者へ。いなければボスの反撃(BOSS_TURN)*/
+function advanceThrower(r,extra={}){
+  const n=nextUnthrown(r);
+  if(n>=0){r.currentIndex=n;r.phase='WAIT_THROW';return {nextPlayerId:r.players[n].id}}
+  if(!aliveConnected(r).length)return {gameOver:true};
+  openCatchRound(r);
+  send(r,'BOSS_TURN',{voiceRoll:r.voiceRoll,field:r.field,catchPos:r.field?.catchPos,fieldPattern:r.field?.pattern,fieldSeed:r.field?.seed,catchSeq:r.catchSeq,eventId:id(),serverTime:now(),...extra});
+  return {bossTurn:true};
+}
 function finishCatchRound(r){
   r.catchExpected=(r.catchExpected||[]).filter(pid=>{const p=r.players.find(x=>x.id===pid);return p&&p.alive!==false&&p.connected!==false});
   const pending=r.catchExpected.filter(pid=>!r.catchResults?.[pid]);
   if(pending.length)return false;
   if(!aliveConnected(r).length){r.status='GAME_OVER';r.phase='GAME_OVER';send(r,'GAME_OVER',{results:r.catchResults||{},eventId:id(),serverTime:now()});return true;}
-  const cur=r.players[r.currentIndex];
-  if(!cur||cur.alive===false||cur.connected===false)r.currentIndex=nextPlayableAfterId(r,r.lastThrowPlayerId);
+  r.phaseThrown=[];
+  const first=nextUnthrown(r);
+  if(first>=0)r.currentIndex=first;
   r.phase='WAIT_THROW';r.field=makeField();send(r,'CATCH_ROUND',{results:r.catchResults||{},nextPlayerId:r.players[r.currentIndex]?.id,nextField:r.field,eventId:id(),serverTime:now()});return true;
 }
 function pub(r){return {code:r.code,status:r.status,hostId:r.hostId,currentIndex:r.currentIndex,seq:r.seq,field:r.field||null,visibility:r.visibility||'private',stageId:r.stageId||null,difficulty:r.difficulty||'NORMAL',players:r.players.map(p=>({id:p.id,name:p.name,characterId:p.characterId,ready:p.ready,connected:p.connected,slot:p.slot,alive:p.alive!==false,hp:Number.isFinite(p.hp)?p.hp:100,maxHp:100}))};}
@@ -54,14 +67,27 @@ const server=http.createServer(async(req,res)=>{try{
    }
    if(b.action==='READY'){p.ready=!!b.ready;send(r,'PLAYER_READY');return json(res,200,{ok:true});}
    if(b.action==='CHARACTER'){if(r.status!=='LOBBY')return json(res,409,{error:'IN_GAME'});p.characterId=b.characterId;send(r,'PLAYER_CHARACTER');return json(res,200,{ok:true});}
-   if(b.action==='START'){if(p.id!==r.hostId)return json(res,403,{error:'HOST_ONLY'});if(r.players.length<2||!r.players.every(x=>x.ready))return json(res,409,{error:'NEED_2_TO_4_READY'});r.status='PLAYING';r.currentIndex=0;r.phase='WAIT_THROW';r.field=makeField();r.talk50Triggered=false;r.lastThrowPlayerId=null;send(r,'GAME_START',{turnPlayerId:r.players[0].id,field:r.field});return json(res,200,{ok:true});}
-   if(b.action==='THROW'){if(r.status!=='PLAYING'||r.phase!=='WAIT_THROW'||r.players[r.currentIndex]?.id!==p.id)return json(res,409,{error:'NOT_YOUR_TURN'});const turnPlayerId=p.id;r.lastThrowPlayerId=turnPlayerId;r.currentIndex=nextPlayable(r,r.currentIndex);r.phase='WAIT_CATCH';r.catchSeq++;r.catchExpected=r.players.filter(x=>x.alive!==false&&x.connected!==false).map(x=>x.id);r.catchResults={};send(r,'THROW',{fromPlayerId:turnPlayerId,nextPlayerId:r.players[r.currentIndex].id,throwData:b.throwData,special:!!b.special,field:r.field,catchPos:r.field?.catchPos,fieldPattern:r.field?.pattern,fieldSeed:r.field?.seed,catchSeq:r.catchSeq,eventId:id(),serverTime:now()});return json(res,200,{ok:true});}
+   if(b.action==='START'){if(p.id!==r.hostId)return json(res,403,{error:'HOST_ONLY'});if(r.players.length<2||!r.players.every(x=>x.ready))return json(res,409,{error:'NEED_2_TO_4_READY'});r.status='PLAYING';r.currentIndex=0;r.phase='WAIT_THROW';r.phaseThrown=[];r.field=makeField();r.talk50Triggered=false;r.lastThrowPlayerId=null;send(r,'GAME_START',{turnPlayerId:r.players[0].id,field:r.field});return json(res,200,{ok:true});}
+   if(b.action==='THROW'){if(r.status!=='PLAYING'||r.phase!=='WAIT_THROW'||r.players[r.currentIndex]?.id!==p.id)return json(res,409,{error:'NOT_YOUR_TURN'});const turnPlayerId=p.id;r.lastThrowPlayerId=turnPlayerId;(r.phaseThrown||(r.phaseThrown=[])).push(turnPlayerId);
+     const n=nextUnthrown(r);let phaseEnd=false;
+     if(n>=0){r.currentIndex=n;r.field=makeField();}            // フェーズの途中:次の人の 3D ルート
+     else{phaseEnd=true;openCatchRound(r);}                        // 全員投げ終えた:ボスの反撃(この field の catchPos へ)
+     send(r,'THROW',{fromPlayerId:turnPlayerId,nextPlayerId:phaseEnd?null:r.players[r.currentIndex].id,phaseEnd,voiceRoll:phaseEnd?r.voiceRoll:null,throwData:b.throwData,special:!!b.special,field:r.field,catchPos:r.field?.catchPos,fieldPattern:r.field?.pattern,fieldSeed:r.field?.seed,catchSeq:r.catchSeq,eventId:id(),serverTime:now()});return json(res,200,{ok:true});}
    if(b.action==='TALK50'){if(r.status!=='PLAYING'||r.talk50Triggered||r.lastThrowPlayerId!==p.id)return json(res,409,{error:'TALK50_NOT_ALLOWED'});r.talk50Triggered=true;send(r,'TALK50',{talkId:String(b.talkId||'interest50'),fromPlayerId:p.id,eventId:id(),serverTime:now()});return json(res,200,{ok:true});}
    if(b.action==='CATCH'){if(r.status!=='PLAYING'||r.phase!=='WAIT_CATCH'||!r.catchExpected?.includes(p.id))return json(res,409,{error:'NOT_CATCH_PLAYER'});if(r.catchResults?.[p.id])return json(res,200,{ok:true,grade:r.catchResults[p.id].grade,hp:p.hp});const d=Number(b.deltaMs);const order=['PERFECT','GREAT','GOOD','MISS'];const grade=order.includes(b.grade)?b.grade:'MISS';const proposed=Number(b.damage);const damage=grade==='PERFECT'?0:Math.max(0,Math.min(100,Number.isFinite(proposed)?Math.round(proposed):0));p.hp=Math.max(0,(Number.isFinite(p.hp)?p.hp:100)-damage);if(p.hp<=0)p.alive=false;r.catchResults[p.id]={grade,deltaMs:Number.isFinite(d)?d:null,damage,hp:p.hp,down:p.alive===false};send(r,'CATCH_PLAYER',{playerId:p.id,grade,deltaMs:Number.isFinite(d)?d:null,damage,hp:p.hp,down:p.alive===false});finishCatchRound(r);return json(res,200,{ok:true,grade,damage,hp:p.hp});}
-   if(b.action==='PLAYER_DOWN'){p.alive=false;if(r.players[r.currentIndex]?.id===p.id){for(let i=1;i<=r.players.length;i++){const n=(r.currentIndex+i)%r.players.length;if(r.players[n].alive!==false&&r.players[n].connected!==false){r.currentIndex=n;break;}}}if(r.phase!=='WAIT_CATCH')r.phase='WAIT_THROW';send(r,'PLAYER_DOWN',{playerId:p.id,nextPlayerId:r.players[r.currentIndex]?.id});return json(res,200,{ok:true});}
+   if(b.action==='PLAYER_DOWN'){p.alive=false;
+     if(r.phase==='WAIT_CATCH'){send(r,'PLAYER_DOWN',{playerId:p.id});finishCatchRound(r);return json(res,200,{ok:true});}
+     const wasCurrent=r.players[r.currentIndex]?.id===p.id;let adv={};
+     if(wasCurrent)adv=advanceThrower(r);
+     if(adv.gameOver){r.status='GAME_OVER';r.phase='GAME_OVER';send(r,'GAME_OVER',{eventId:id(),serverTime:now()});return json(res,200,{ok:true});}
+     send(r,'PLAYER_DOWN',{playerId:p.id,nextPlayerId:adv.bossTurn?null:r.players[r.currentIndex]?.id,bossTurn:!!adv.bossTurn});return json(res,200,{ok:true});}
    return json(res,400,{error:'BAD_ACTION'});
  }
- if(u.pathname==='/api/events'){const r=roomOf(u.searchParams.get('code')),p=player(r,u.searchParams.get('token'));if(!r||!p){res.writeHead(403);return res.end();}p.connected=true;res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache','connection':'keep-alive','x-accel-buffering':'no'});res.write(`event: message\ndata: ${JSON.stringify({type:'STATE_SYNC',seq:r.seq,room:pub(r)})}\n\n`);if(!clients.has(p.id))clients.set(p.id,new Set());clients.get(p.id).add(res);req.on('close',()=>{clients.get(p.id)?.delete(res);p.connected=false;r.touched=now();const anyConnected=r.players.some(x=>(clients.get(x.id)?.size||0)>0);if(!anyConnected){rooms.delete(r.code);for(const x of r.players)clients.delete(x.id);return;}if(r.status==='PLAYING'){p.alive=false;p.hp=0;const wasCurrent=r.players[r.currentIndex]?.id===p.id;if(wasCurrent)r.currentIndex=nextPlayableAfterId(r,r.lastThrowPlayerId);send(r,'PLAYER_DOWN',{playerId:p.id,nextPlayerId:r.players[r.currentIndex]?.id,disconnected:true,wasCurrent});if(r.phase==='WAIT_CATCH')finishCatchRound(r);else if(!aliveConnected(r).length){r.status='GAME_OVER';r.phase='GAME_OVER';send(r,'GAME_OVER',{eventId:id(),serverTime:now()});}else r.phase='WAIT_THROW';}else send(r,'PLAYER_CONNECTION',{playerId:p.id,connected:false});});return;}
+ if(u.pathname==='/api/events'){const r=roomOf(u.searchParams.get('code')),p=player(r,u.searchParams.get('token'));if(!r||!p){res.writeHead(403);return res.end();}p.connected=true;res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache','connection':'keep-alive','x-accel-buffering':'no'});res.write(`event: message\ndata: ${JSON.stringify({type:'STATE_SYNC',seq:r.seq,room:pub(r)})}\n\n`);if(!clients.has(p.id))clients.set(p.id,new Set());clients.get(p.id).add(res);req.on('close',()=>{clients.get(p.id)?.delete(res);p.connected=false;r.touched=now();const anyConnected=r.players.some(x=>(clients.get(x.id)?.size||0)>0);if(!anyConnected){rooms.delete(r.code);for(const x of r.players)clients.delete(x.id);return;}if(r.status==='PLAYING'){p.alive=false;p.hp=0;
+   if(r.phase==='WAIT_CATCH'){send(r,'PLAYER_DOWN',{playerId:p.id,disconnected:true});finishCatchRound(r);}
+   else{const wasCurrent=r.players[r.currentIndex]?.id===p.id;const adv=wasCurrent?advanceThrower(r):(aliveConnected(r).length?{}:{gameOver:true});
+     if(adv.gameOver){r.status='GAME_OVER';r.phase='GAME_OVER';send(r,'GAME_OVER',{eventId:id(),serverTime:now()});}
+     else send(r,'PLAYER_DOWN',{playerId:p.id,nextPlayerId:adv.bossTurn?null:r.players[r.currentIndex]?.id,disconnected:true,wasCurrent,bossTurn:!!adv.bossTurn});}}else send(r,'PLAYER_CONNECTION',{playerId:p.id,connected:false});});return;}
  let fp=u.pathname==='/'?'/online.html':u.pathname;fp=path.normalize(fp).replace(/^\.\.(\/|\\)/,'');const full=path.join(ROOT,fp);if(!full.startsWith(ROOT)||!fs.existsSync(full)||fs.statSync(full).isDirectory()){res.writeHead(404);return res.end('not found');}const ext=path.extname(full);const ct={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.webp':'image/webp','.png':'image/png','.json':'application/json','.mp3':'audio/mpeg'}[ext]||'application/octet-stream';res.writeHead(200,{'content-type':ct,'cache-control':'no-store, no-cache, must-revalidate','pragma':'no-cache','expires':'0'});fs.createReadStream(full).pipe(res);
 }catch(e){json(res,500,{error:String(e.message||e)})}});
 server.listen(PORT,'0.0.0.0',()=>console.log(`HEART STRIKE Online http://0.0.0.0:${PORT}`));

@@ -1,8 +1,10 @@
 import { Config, rallyTier } from '../core/Config.js';
 
 /**
- * 手番・プレイヤーHP・ラリーを管理。A→B→C→D→A のリレー順。
- * オンライン化時はここがサーバー権威の手番情報に置き換わる想定。
+ * 手番・プレイヤーHP・ラリーを管理。
+ * 1ターン = PLAYER ATTACK PHASE(生存している味方が A→B→C→D の順に1投ずつ)→ BOSS ATTACK PHASE(ボスがまとめて反撃・全員同時キャッチ)
+ *   thrown … このフェーズで投げ終えた手番 index
+ * オンライン(MULTI)は手番の進行をサーバーが決める(OnlineSession が index を合わせる)。
  */
 export class TurnManager {
   constructor(bus) {
@@ -29,6 +31,31 @@ export class TurnManager {
     this.index = 0;
     this.rally = 0;
     this.maxRally = 0;
+    this.thrown = new Set();
+  }
+
+  /** 生存している味方の index(A→D の順)*/
+  get aliveIndexes() { return this.players.map((p, i) => (p.hp > 0 ? i : -1)).filter((i) => i >= 0); }
+
+  /** 新しい PLAYER ATTACK PHASE:生存している先頭(A 側)から */
+  beginAttackPhase() {
+    this.thrown = new Set();
+    this.index = this.aliveIndexes[0] ?? 0;
+    this.bus.emit('turn', this.current);
+    return this.current;
+  }
+  /** この手番の投球を数える(ボールを発射した時に1度だけ)*/
+  markThrown(i = this.index) { this.thrown.add(i); }
+  /** このフェーズでまだ投げていない次の生存者(A→D の順。いなければ -1 = ボスの反撃へ)*/
+  nextAttacker() {
+    for (const i of this.aliveIndexes) if (!this.thrown.has(i)) return i;
+    return -1;
+  }
+  /** 指定の手番へ(フェーズ内の交代)*/
+  setIndex(i) {
+    if (i >= 0 && i < this.players.length) this.index = i;
+    this.bus.emit('turn', this.current);
+    return this.current;
   }
 
   get current() { return this.players[this.index]; }
@@ -46,8 +73,8 @@ export class TurnManager {
     return this.current;
   }
 
-  damageCurrent(amount) {
-    const p = this.current;
+  damageCurrent(amount) { return this.damage(this.current, amount); }
+  damage(p, amount) {
     p.hp = Math.max(0, p.hp - amount);
     this.bus.emit('playerHp', p);
     return p.hp;

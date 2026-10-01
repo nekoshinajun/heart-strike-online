@@ -27,7 +27,12 @@ export const Config = {
     defBase: 100,           // ★ DEF がこの値で等倍。高いほどキャッチ時のペナルティが減る
     defMin: 0.4, defMax: 1.6,
     attributeMul: { advantage: 1.3, neutral: 1.0, disadvantage: 0.7 },
-    bossAttackMul: 2.0,      // v25: ボス返球の基礎ダメージ倍率。難易度 damageTaken とは別に掛ける  // ★ 属性倍率
+    bossAttackMul: 3.0,      // ★ ボス返球の基礎ダメージ倍率(v25 の 2.0 × 1.5)。難易度 damageTaken とは別に掛ける。PERFECT は常に 0
+    // ボス攻撃フェーズの前のボイス(BOSS_TAUNT)。ボイスの中身は RomanceData の attackVoices
+    voiceGapSec: 0.35,       // ボイスが終わってから攻撃までの間(秒)
+    noVoicePauseSec: 0.9,    // ボイスが無い / 鳴らせない時の間(秒)
+    voiceLoadWaitSec: 1.2,   // ボイスの読み込みを待つ上限(秒)。間に合わなければボイス無しで進める
+    voiceBgmDuck: 0.45,      // ボイス中の BGM の音量(1 = 下げない)
     heartCapacityScale: 1.0, // ★ 全ステージの Heart Capacity に掛ける(バランス調整用)
   },
 
