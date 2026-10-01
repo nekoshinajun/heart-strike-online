@@ -260,12 +260,19 @@ export class AppScreens {
     this.body.innerHTML = `
       <ul class="as-list">
         <li class="as-row"><div class="r-main"><b>プレイヤー名</b><span>${esc(this.p.data.player.name)}</span></div><button type="button" class="r-btn ghost" data-act="name">変更</button></li>
-        ${row('bgm', 'BGM', st.bgm)}
+        <li class="as-row snd-row"><div class="r-main"><b>BGM</b><span>バトル中に流れる音楽</span>
+          <div class="snd-ctl"><input type="range" min="0" max="100" step="1" value="${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}" data-vol="bgm" aria-label="BGM 音量"${st.audio?.bgmMuted ? ' disabled' : ''}><output>${st.audio?.bgmMuted ? 'ミュート' : `${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}%`}</output></div></div>
+          <button type="button" class="r-tgl${st.audio?.bgmMuted ? '' : ' on'}" data-mute="bgm" aria-pressed="${!st.audio?.bgmMuted}">${st.audio?.bgmMuted ? 'OFF' : 'ON'}</button></li>
         ${row('haptic', '振動(対応端末のみ)', st.haptic)}
         <li class="as-row"><div class="r-main"><b>ガチャ演出</b><span>FULL:すべて / FAST:短く(山場は残す)/ SKIP:初めての SSR だけ</span></div><button type="button" class="r-btn ghost" data-act="speed">${st.gachaPlaybackMode}</button></li>
       </ul>
       <div class="as-ver">${Config.app.title} ${Config.app.version}</div>`;
     for (const b of this.body.querySelectorAll('[data-tgl]')) b.addEventListener('click', () => { st[b.dataset.tgl] = !st[b.dataset.tgl]; this.p.save(); this.app.applySettings(); this.showSettings(); });
+    // BGM 音量:動かしている間は即反映、離したら保存 / ミュート ON・OFF(旧設定 bgm とも同期)
+    const vol = this.body.querySelector('[data-vol="bgm"]');
+    vol?.addEventListener('input', () => { st.audio.bgmVolume = Number(vol.value) / 100; vol.nextElementSibling.textContent = `${vol.value}%`; this.app.applySettings(); });
+    vol?.addEventListener('change', () => this.p.save());
+    this.body.querySelector('[data-mute="bgm"]')?.addEventListener('click', () => { st.audio.bgmMuted = !st.audio.bgmMuted; st.bgm = !st.audio.bgmMuted; this.p.save(); this.app.applySettings(); this.showSettings(); });
     this.body.querySelector('[data-act="speed"]').addEventListener('click', () => {
       const order = ['FULL', 'FAST', 'SKIP_TO_NEW'];
       st.gachaPlaybackMode = order[(order.indexOf(st.gachaPlaybackMode) + 1) % order.length];

@@ -592,6 +592,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .r-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff9cc8, #ff5fa2 60%, #c08bff); transform-origin: left; }
 .r-tgl { min-width: 64px; min-height: 40px; border-radius: 20px; border: 1px solid var(--hs-line); background: #fff; font-weight: 800; color: var(--hs-ink-soft); }
 .r-tgl.on { background: var(--hs-pink); border-color: var(--hs-pink); color: #fff; }
+.snd-ctl { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-top: 4px; }
+.snd-ctl input { width: 100%; min-height: 32px; accent-color: var(--hs-pink); touch-action: pan-x; }
+.snd-ctl input:disabled { opacity: .4; }
+.snd-ctl output { min-width: 52px; text-align: right; font-size: 12px; font-weight: 800; color: var(--hs-ink); font-variant-numeric: tabular-nums; }
 .as-empty { margin: 40px 16px; text-align: center; font-weight: 800; color: var(--hs-ink-soft); line-height: 1.8; }
 .as-note { font-size: 10px; color: var(--hs-ink-soft); text-align: center; }
 .as-ver { margin-top: 24px; text-align: center; font-size: 11px; color: var(--hs-ink-soft); }

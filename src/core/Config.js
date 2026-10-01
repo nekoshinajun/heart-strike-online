@@ -344,8 +344,8 @@ export const Config = {
 
   // ---- サウンド ----
   audio: {
-    bgm: true,               // ★ 仮 BGM(WebAudio 合成)
-    bgmVolume: 0.5,          // ★ BGM 音量
+    bgm: true,               // ★ BGM を鳴らすか(開発用の一括スイッチ。ユーザーの ON/OFF は設定画面 = セーブの settings.audio)
+    bgmVolume: 0.4,          // ★ BGM の最大音量(設定画面の音量 100% のとき)。実際の音量 = 設定値 × これ。ボイス・SE より小さく
     bgmFade: 0.5,            // BGM の音量変化のフェード(秒)
     talkBgmLevel: 0.3,       // ★ HEART 50% 会話中の BGM(通常 = 1。25〜40% 推奨)
     dokunVolume: 0.9,    // ★ 心音「ドクン……」の音量

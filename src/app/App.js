@@ -104,6 +104,8 @@ export class App {
   // ---------------- 画面遷移の共通処理 ----------------
   onRoute(id, def, ctx) {
     if (!def || ctx.sheet || ctx.sheetClosed) { this.refreshNotifications(); return; }
+    // バトル BGM はバトル中(game)だけ。リザルト / ゲームオーバー / 途中で抜けた時 / MULTI 終了で止める
+    if (id !== 'game') safe('AUDIO', () => this.audio.stopBgm?.());
     // 行き先の画面を開いたら、その Guidance は解決済み
     const top = this.router.top;
     if (!ctx.restore) safe('HOME', () => this.home.agenda.resolveFor(id, top?.params ?? {}));
@@ -145,7 +147,13 @@ export class App {
   applySettings() {
     const s = this.progress.data.settings;
     Haptic.enabled = s.haptic && Config.gacha.haptic;
-    Config.audio.bgm = !!s.bgm;
+    const a = s.audio ?? {};
+    safe('AUDIO', () => {
+      this.audio.setVolume?.('bgm', a.bgmVolume ?? 0.5);
+      this.audio.bgm?.setMuted?.(!!a.bgmMuted);
+      this.audio.setVolume?.('se', a.seVolume ?? 1);
+      this.audio.setVolume?.('voice', a.voiceVolume ?? 1);
+    });
   }
 
   bossThumb(stage) { return BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? ''; }

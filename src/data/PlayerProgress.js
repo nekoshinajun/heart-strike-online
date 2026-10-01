@@ -60,7 +60,8 @@ function blankSave() {
     missions: { claimed: {} },
     presents: [],
     gacha: { transactions: [], pending: null, seq: 0, pulls: 0, seenSequenceCount: 0 },
-    settings: { gachaPlaybackMode: 'FULL', haptic: true, bgm: true, favoriteSwipe: false },
+    // audio:音量(0〜1)とミュート。bgm は旧設定(互換用。bgmMuted と同期)
+    settings: { gachaPlaybackMode: 'FULL', haptic: true, bgm: true, favoriteSwipe: false, audio: { bgmVolume: 0.5, bgmMuted: false, seVolume: 1, voiceVolume: 1 } },
     home: { lastLines: [], visits: 0, lastVisitAt: null },
     stats: { totalClears: 0 },
     lastPlayedAt: null,
@@ -119,8 +120,12 @@ export function migrateV1(d1) {
 /** v2 の欠けを埋める(何度呼んでも同じ結果 = idempotent) */
 export function normalizeV2(d) {
   const b = blankSave();
+  const oldAudio = d.settings && typeof d.settings.audio === 'object' && d.settings.audio ? d.settings.audio : null;
   for (const k of Object.keys(b)) if (d[k] == null) d[k] = b[k];
   for (const k of ['wallet', 'flags', 'seen', 'missions', 'gacha', 'home', 'stats', 'player', 'navPulse', 'guidance', 'settings']) d[k] = { ...b[k], ...(d[k] ?? {}) };
+  // 音量設定:無ければ既定値。旧設定で BGM OFF だった人はミュートで引き継ぐ
+  d.settings.audio = { ...b.settings.audio, ...(oldAudio ?? {}) };
+  if (!oldAudio && d.settings.bgm === false) d.settings.audio.bgmMuted = true;
   d.seen.banners ??= {};
   d.missions.claimed ??= {};
   d.gacha.transactions ??= [];
