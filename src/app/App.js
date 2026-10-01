@@ -1,5 +1,5 @@
 import { Config } from '../core/Config.js';
-import { STAGES, stageById, characterById } from '../data/GameData.js';
+import { STAGES, characterById } from '../data/GameData.js';
 import { artUrl } from '../data/CharacterArt.js';
 import '../data/CharacterVoice.js';
 import { PlayerProgress } from '../data/PlayerProgress.js';
@@ -80,7 +80,6 @@ export class App {
     const same = (id, c) => c.restore && M.screen === id && !M.el.hidden;
     R.register('stage', { kind: KIND.TAB_ROOT, layer: 'menu', opaque: true, show: (p, c) => { if (!same('stage', c)) M.showStageSelect(p); } });
     R.register('partyTab', { kind: KIND.SUB, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'standalone')) M.showPartyEdit({ mode: 'standalone' }); } });
-    R.register('diff', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('diff', c)) M.showDifficultySelect(p); } });
     R.register('party', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'sortie')) M.showPartyEdit({ mode: 'sortie' }); } });
     R.register('chars', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('chars', c)) M.showCharacterSelect(); } });
     R.register('game', { kind: KIND.FLOW, layer: null, battle: true, resetTo: 'stage', show: () => M.hide() });   // battle:インゲーム(下部メニュー非表示・バトル BGM)
@@ -110,8 +109,8 @@ export class App {
     //   バトル(game)は開始時に GameManager がバトル BGM を最初から鳴らす。リザルト / ゲームオーバー / 途中退出 / MULTI 終了で
     //   game 以外へ移った時は、メニュー BGM を前回止めた位置から再開する
     if (!this.router.inBattle) safe('AUDIO', () => { this.audio.voice?.stop(); this.audio.startBgm?.(MENU_SLOT, { resume: true }); });   // ゲームを離れたらボイスも残さない
-    // MULTI のロビー(難易度選択の上に重なる)を開いたまま下部メニューで別の画面へ移った時は、ルームを抜けて閉じる
-    if (!this.router.inBattle && id !== 'diff') safe('ONLINE', () => { const o = window.__online; if (o && !this.game?.online && o.root?.style.display !== 'none') o.closeLobby(); });
+    // MULTI のロビー(攻略画面の上に重なる)を開いたまま下部メニューで別の画面へ移った時は、ルームを抜けて閉じる
+    if (!this.router.inBattle && id !== 'stage') safe('ONLINE', () => { const o = window.__online; if (o && !this.game?.online && o.root?.style.display !== 'none') o.closeLobby(); });
     // 行き先の画面を開いたら、その Guidance は解決済み
     const top = this.router.top;
     if (!ctx.restore) safe('HOME', () => this.home.agenda.resolveFor(id, top?.params ?? {}));
@@ -128,15 +127,12 @@ export class App {
     }));
   }
 
-  /** Deep Link:{ screen:'stage', stageId, difficulty } → Stage Select(選択状態でスクロール)→ Difficulty(推奨を選択状態にするだけ。決定はプレイヤー)*/
+  /** Deep Link:{ screen:'stage', stageId, difficulty } → 攻略画面(ステージと推奨難易度を選択状態にするだけ。決定はプレイヤー)*/
   deepLink(d) {
     if (!d) return;
     if (d.screen === 'stage') {
       if (!this.game) { this.router.go('stage'); return; }
       this.router.go('stage', { stageId: d.stageId, difficulty: d.difficulty });
-      const st = stageById(d.stageId);
-      clearTimeout(this.deepTimer);
-      this.deepTimer = setTimeout(() => { if (this.router.currentId === 'stage' && st) this.game.menu.pickStage(st, { recommend: d.difficulty }); }, 420);
       return;
     }
     if (d.screen === 'gachaResult') { if (!this.gacha.restore()) this.router.go('gacha'); return; }
