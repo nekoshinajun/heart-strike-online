@@ -260,7 +260,7 @@ export class AppScreens {
     this.body.innerHTML = `
       <ul class="as-list">
         <li class="as-row"><div class="r-main"><b>プレイヤー名</b><span>${esc(this.p.data.player.name)}</span></div><button type="button" class="r-btn ghost" data-act="name">変更</button></li>
-        <li class="as-row snd-row"><div class="r-main"><b>BGM</b><span>バトル中に流れる音楽</span>
+        <li class="as-row snd-row"><div class="r-main"><b>BGM</b><span>ホームとバトルで流れる音楽</span>
           <div class="snd-ctl"><input type="range" min="0" max="100" step="1" value="${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}" data-vol="bgm" aria-label="BGM 音量"${st.audio?.bgmMuted ? ' disabled' : ''}><output>${st.audio?.bgmMuted ? 'ミュート' : `${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}%`}</output></div></div>
           <button type="button" class="r-tgl${st.audio?.bgmMuted ? '' : ' on'}" data-mute="bgm" aria-pressed="${!st.audio?.bgmMuted}">${st.audio?.bgmMuted ? 'OFF' : 'ON'}</button></li>
         ${row('haptic', '振動(対応端末のみ)', st.haptic)}

@@ -16,7 +16,8 @@ import { Log } from '../app/Platform.js';
  * AudioContext は AudioManager と共有(ユーザー操作の中で unlock 済みのもの)。
  */
 const SILENCE = 1e-5;          // これ以下は「完全な無音」(復号器の詰め物)
-const MAX_PAD_SEC = 0.2;       // 先頭・末尾で無音として外すのはこの長さまで(曲の中の休符は外さない)
+const MAX_PAD_SEC = 0.2;
+const CACHE_MAX = 2;           // デコード済みで持っておく曲数(1曲 約 50MB 前後)       // 先頭・末尾で無音として外すのはこの長さまで(曲の中の休符は外さない)
 
 export class BgmManager {
   constructor(audio) {
@@ -24,7 +25,7 @@ export class BgmManager {
     this.volume = 0.5;            // ユーザー設定 0〜1
     this.muted = false;
     this.duckLevel = 1;
-    this.cache = new Map();       // src → { buffer, loopStart, loopEnd }(直近の曲だけ持つ)
+    this.cache = new Map();       // src → { buffer, loopStart, loopEnd }(直近 CACHE_MAX 曲)
     this.loading = new Map();     // src → Promise
     this.cycle = {};
     this.token = 0;
@@ -82,8 +83,9 @@ export class BgmManager {
       .then((ab) => new Promise((res, rej) => { const q = c.decodeAudioData(ab, res, rej); if (q?.then) q.then(res, rej); }))
       .then((buffer) => {
         const entry = { buffer, ...loopRange(buffer) };
-        for (const k of [...this.cache.keys()]) if (k !== src && k !== this.current?.src) this.cache.delete(k);   // メモリ節約:直近の曲だけ
         this.cache.set(src, entry);
+        // メモリ節約:直近 CACHE_MAX 曲だけ持つ(HOME ⇄ バトルの往復で読み直さない)。再生中の曲は消さない
+        for (const k of [...this.cache.keys()]) { if (this.cache.size <= CACHE_MAX) break; if (k !== src && k !== this.current?.src) this.cache.delete(k); }
         this.loading.delete(src);
         return entry;
       })
@@ -95,9 +97,13 @@ export class BgmManager {
   /** 先読み(バトル開始前のタップ等)。失敗しても何もしない */
   preload(slot) { const t = this.pickTrack(slot); if (t && this.ctx) this.load(t.src).catch(() => {}); }
 
+  /** AudioContext が使えるようになった(最初のタップ)時:待っていた場面の BGM を鳴らす */
+  onUnlock() { if (this.wanted && !this.current && !this.pending) this.play(this.wanted); }
+
   play(slot, { restart = false } = {}) {
-    if (!restart && this.current?.slot === slot) return;     // 二重再生しない
+    if (!restart && (this.current?.slot === slot || this.pending === slot)) return;     // 二重再生しない
     this.stop(0.25);
+    this.wanted = slot;                                       // まだ音を出せない(タップ前)なら、出せるようになった時に再生
     this.duckLevel = 1;           // 前の場面の一時的な音量下げ(会話・ガチャ演出)は持ち越さない
     this.applyGain(0);
     const track = this.pickTrack(slot);
@@ -126,6 +132,7 @@ export class BgmManager {
   }
 
   stop(fade = 0.4) {
+    this.wanted = null;
     this.token++;                 // 読み込み中の再生も取り消す
     this.pending = null;
     const cur = this.current;

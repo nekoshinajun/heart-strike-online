@@ -46,6 +46,7 @@ export class AudioManager {
       } catch { /* noop */ }
     }
     this.resume();
+    this.bgm.onUnlock();
   }
 
   /** 一時停止(iOS のアプリ切替・着信など)からの復帰 */

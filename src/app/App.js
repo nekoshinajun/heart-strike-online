@@ -12,6 +12,7 @@ import { HomeScreen } from '../home/HomeScreen.js';
 import { AppScreens, FavoriteSheet } from './SubScreens.js';
 import { GachaUI } from '../gacha/GachaUI.js';
 import { Log, safe, nullObject, Haptic } from './Platform.js';
+import { SCREEN_BGM } from '../audio/BgmTracks.js';
 
 /**
  * HEART STRIKE のアプリ本体(ゲームの「外側」)。
@@ -104,8 +105,9 @@ export class App {
   // ---------------- 画面遷移の共通処理 ----------------
   onRoute(id, def, ctx) {
     if (!def || ctx.sheet || ctx.sheetClosed) { this.refreshNotifications(); return; }
-    // バトル BGM はバトル中(game)だけ。リザルト / ゲームオーバー / 途中で抜けた時 / MULTI 終了で止める
-    if (id !== 'game') safe('AUDIO', () => this.audio.stopBgm?.());
+    // BGM:タブごとの場面(SCREEN_BGM。SUB 画面は下のタブの BGM を続ける)。バトル(game)は開始時に GameManager が鳴らす
+    //   リザルト / ゲームオーバー / 途中で抜けた時 / MULTI 終了は game 以外へ移るので、ここで切り替わる(または止まる)
+    if (id !== 'game') safe('AUDIO', () => { const slot = SCREEN_BGM[this.router.stack[0]?.id]; if (slot) this.audio.startBgm?.(slot); else this.audio.stopBgm?.(); });
     // 行き先の画面を開いたら、その Guidance は解決済み
     const top = this.router.top;
     if (!ctx.restore) safe('HOME', () => this.home.agenda.resolveFor(id, top?.params ?? {}));
