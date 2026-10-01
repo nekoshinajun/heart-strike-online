@@ -82,7 +82,7 @@ function blankSave() {
     records: {},
     cleared: [],
     wallet: { heartGem: 10000 },       // 新規セーブの初期 HEART GEM(既存セーブの所持数は変えない)
-    flags: { starterGranted: false, hellConfirmed: false },
+    flags: { starterGranted: false, hellConfirmed: false, devGrants: [] },
     seen: { banners: {} },
     knownContent: contentKeys(),
     navPulse: { unseen: [] },          // ['stage:stage03', 'diff:stage02:HELL', 'event:xxx', 'tutorial'] → Stage Select(攻略)を開いたら空
@@ -148,6 +148,22 @@ export function migrateV1(d1) {
   return d;
 }
 
+/**
+ * 開発・テスト用の所持数の調整(Config.devGrants)。各 id は1つのセーブに1回だけ(flags.devGrants に記録)。
+ * 所持データそのものを書き換えるので、その後のガチャ等の消費・獲得は普通に反映される
+ */
+export function applyDevGrants(d, grants = Config.devGrants ?? []) {
+  const done = Array.isArray(d.flags.devGrants) ? d.flags.devGrants : [];
+  for (const g of grants) {
+    if (!g?.id || done.includes(g.id)) continue;
+    if (Number.isFinite(g.set?.heartGem)) d.wallet.heartGem = Math.max(0, Math.floor(g.set.heartGem));
+    done.push(g.id);
+    Log.info('SAVE', `dev grant ${g.id}`);
+  }
+  d.flags.devGrants = done;
+  return d;
+}
+
 /** v2 の欠けを埋める(何度呼んでも同じ結果 = idempotent) */
 export function normalizeV2(d) {
   const b = blankSave();
@@ -176,6 +192,7 @@ export function normalizeV2(d) {
   delete d.items;
   if (!Array.isArray(d.party) || d.party.length !== 4 || d.party.some((id) => !characterById(id))) d.party = [...DEFAULT_PARTY];
   d.wallet.heartGem = Math.max(0, Math.floor(Number(d.wallet.heartGem) || 0));
+  applyDevGrants(d);
   d.version = 2;
   return d;
 }

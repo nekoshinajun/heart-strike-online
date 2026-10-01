@@ -19,11 +19,10 @@ export function presentHTML(present, cls = '') {
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const RANK_ORDER = { R: 0, SR: 1, SSR: 2 };
 
-/** GachaHomeBridge:ガチャ → HOME は「results を渡す」「setFavorite を呼ぶ」「HOME へ戻る」の3つだけ */
+/** GachaHomeBridge:ガチャ → HOME は「results を渡す」「HOME へ戻る」だけ(ホームのキャラは育成 → キャラクター詳細でのみ変更)*/
 export class GachaHomeBridge {
   constructor(app) { this.app = app; }
   results(tx) { return tx.items.map((x) => ({ id: x.characterId, isNew: x.isNew })); }
-  setFavorite(id) { return this.app.home.setFavorite(id); }
   toHome(tx) { if (tx) this.app.home.receiveGachaResults(this.results(tx)); this.app.router.go('home'); }
 }
 
@@ -153,15 +152,12 @@ export class GachaUI {
     const tx = this.tx, it = tx.items[this.sel], ch = characterById(it.characterId);
     const ten = tx.count >= 10;
     const cost = this.service.cost(this.banner, tx.count), canAgain = this.p.gem >= cost;
-    const isFav = this.p.favoriteId === ch.id;
-    // 主ボタン1つ + 副ボタン最大3つ(選択で意味を切り替える)
-    const primary = it.isNew ? { act: 'home', label: 'ホームに設定' } : { act: 'again', label: `もう一度 ♦${cost.toLocaleString()}`, disabled: !canAgain };
+    // 主ボタン1つ + 副ボタン(ホームのキャラの変更はここには置かない:育成 → キャラクター詳細だけ)
+    const primary = { act: 'again', label: `もう一度 ♦${cost.toLocaleString()}`, disabled: !canAgain };
     const secondary = [
-      ...(it.isNew ? [{ act: 'again', label: 'もう一度', disabled: !canAgain }] : []),
       { act: 'detail', label: 'プロフィール' },
-      ...(!it.isNew && !isFav ? [{ act: 'home', label: 'ホームに設定' }] : []),
       { act: 'toHome', label: 'ホームへ' },
-    ].slice(0, 3);
+    ];
     const btn = (b, cls) => `<button type="button" class="${cls}" data-act="${b.act}" ${b.disabled ? 'disabled' : ''}>${esc(b.label)}</button>`;
     const info = `<div class="gz-info"><span class="gz-rank" style="color:${RANKS[ch.rank].color}">${ch.rank}</span><b>${esc(ch.name)}</b><span>${ATTRIBUTES[ch.attribute].label} / ${TYPES[ch.type].label}</span>${it.isNew ? '<em class="gz-new">NEW!</em>' : ''}</div>`;
     // プレゼント(キャラと同じ1回分)。10連は全10個のまとめも出す
@@ -189,8 +185,7 @@ export class GachaUI {
   }
   act(a) {
     const it = this.tx.items[this.sel];
-    if (a === 'home') { this.bridge.setFavorite(it.characterId); this.bridge.toHome(this.tx); }
-    else if (a === 'toHome') this.bridge.toHome(this.tx);
+    if (a === 'toHome') this.bridge.toHome(this.tx);
     else if (a === 'detail') this.app.router.go('detail', { id: it.characterId });
     else if (a === 'again') this.app.router.go('gachaConfirm', { count: this.tx.count });
   }
