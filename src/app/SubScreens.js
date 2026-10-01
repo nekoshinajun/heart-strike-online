@@ -30,6 +30,40 @@ export const TRAINING_FEATURES = [
   { id: 'costume', label: '衣装', ready: false },
 ];
 
+/**
+ * ステータスの五角形(レーダーチャート)。stats:[{ key, label, value, max }](上から時計回り)
+ * 半透明のガラスの段 + 発光するグラデーションの多角形 + 頂点のラベルと実数値
+ */
+export function statRadarSVG(stats) {
+  // ラベルは頂点の上 / 下に「名前 + 実数値」を縦に重ねる(左右へ張り出さない = 横幅を小さく)
+  const W = 124, H = 118, cx = 62, cy = 61, R = 36, n = stats.length;
+  const pt = (i, r) => { const a = -Math.PI / 2 + (i / n) * Math.PI * 2; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
+  const poly = (r) => stats.map((_, i) => pt(i, r).map((v) => v.toFixed(1)).join(',')).join(' ');
+  const k = (s) => Math.max(0.06, Math.min(1, s.value / (s.max || 100)));
+  const data = stats.map((s, i) => pt(i, R * k(s)));
+  const labels = stats.map((s, i) => {
+    const [x, y] = pt(i, R);
+    const below = y > cy + 4;
+    // 下の2つ(CONTROL / DEFENCE)は少し外側へ(ラベル同士の間を空ける)
+    const lx = Math.max(19, Math.min(W - 19, below ? x + Math.sign(x - cx) * 5 : x)), anchor = 'middle';
+    const ny = below ? y + 10 : y - 19, vy = below ? y + 24 : y - 5;
+    return `<g class="rd-l" data-stat="${s.key}"><text x="${lx.toFixed(1)}" y="${ny.toFixed(1)}" text-anchor="${anchor}" class="rd-name">${s.label}</text><text x="${lx.toFixed(1)}" y="${vy.toFixed(1)}" text-anchor="${anchor}" class="rd-val">${s.value}</text></g>`;
+  }).join('');
+  return `<svg class="rd" viewBox="0 0 ${W} ${H}" role="img" aria-label="${stats.map((s) => `${s.label} ${s.value}`).join(' / ')}">
+    <defs>
+      <radialGradient id="rdBg" cx="50%" cy="50%" r="55%"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#ffe3f1" stop-opacity=".55"/></radialGradient>
+      <linearGradient id="rdFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7ab6" stop-opacity=".78"/><stop offset=".55" stop-color="#c58cff" stop-opacity=".6"/><stop offset="1" stop-color="#7cc8ff" stop-opacity=".62"/></linearGradient>
+      <filter id="rdGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <polygon points="${poly(R)}" class="rd-bg" fill="url(#rdBg)"/>
+    ${[0.75, 0.5, 0.25].map((f) => `<polygon points="${poly(R * f)}" class="rd-ring"/>`).join('')}
+    ${stats.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rd-axis"/>`; }).join('')}
+    <polygon points="${data.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')}" class="rd-data" fill="url(#rdFill)" filter="url(#rdGlow)"/>
+    ${data.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" class="rd-dot"/>`).join('')}
+    ${labels}
+  </svg>`;
+}
+
 export class AppScreens {
   constructor(app, el) {
     this.app = app;
@@ -100,7 +134,8 @@ export class AppScreens {
     const board = this.p.abilityBoard(id);
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
     const active = ch.abilities ?? [];
-    const stats = STAT_KEYS.map((k) => `<div class="tc-stat" data-stat="${k}"><span>${STAT_LABELS[k]}</span><i class="tc-sbar"><i style="transform:scaleX(${ch.stats[k] / 100})"></i></i><b>${ch.stats[k]}</b></div>`).join('');
+    // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
+    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: Config.playerMaxHp, max: Config.playerMaxHp }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats[k], max: 100 }))]);
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
         <div class="td-bg"></div>
@@ -116,9 +151,9 @@ export class AppScreens {
           ${si >= 0 || home ? `<div class="td-chips">${si >= 0 ? `<span class="td-chip in">✓ 編成中 ${'ABCD'[si]}</span>` : ''}${home ? '<span class="td-chip home">⌂ ホーム設定中</span>' : ''}</div>` : ''}
         </section>
         <section class="td-panel">
-          <div class="td-stats">${stats}</div>
-          <div class="td-stam${ch.tired ? ' tired' : ''}"><div class="tc-row tc-stam${ch.tired ? ' tired' : ''}"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b> / ${ch.staminaMax}</small></div><p>${stamNote}</p></div>
-          <div class="td-abil"><small>ABILITY</small><div class="td-abs">${active.length ? active.map((x) => `<span class="td-ab${x.ultimate ? ' ult' : ''}">${esc(x.name)}</span>`).join('') : '<span class="td-ab none">まだありません</span>'}${pending ? '<span class="td-ab new">NEW ♡ 選べます</span>' : ''}</div></div>
+          <div class="td-radar">${radar}</div>
+          <div class="td-meta"><div class="td-stam${ch.tired ? ' tired' : ''}"><div class="td-stamrow"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b>/${ch.staminaMax}</small></div>${ch.tired ? `<p>${stamNote}</p>` : ''}</div>
+          <div class="td-abil"><small>ABILITY${pending ? '<em class="td-abnew">NEW</em>' : ''}</small><div class="td-abs">${active.length ? active.slice(0, 2).map((x) => `<span class="td-ab${x.ultimate ? ' ult' : ''}">${esc(x.name)}</span>`).join('') + (active.length > 2 ? `<span class="td-ab more" title="${esc(active.slice(2).map((x) => x.name).join(' / '))}">+${active.length - 2}</span>` : '') : '<span class="td-ab none">まだありません</span>'}</div></div></div>
         </section>
         </div>
         <nav class="td-actions">
