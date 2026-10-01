@@ -18,7 +18,7 @@ export const TRAINING_FEATURES = [
   { id: 'limitBreak', label: '限界突破', ready: false },
   { id: 'skill', label: 'スキル', ready: false },
   { id: 'costume', label: '衣装', ready: false },
-  { id: 'affinity', label: '親愛度', ready: false },
+  { id: 'intimacy', label: '親密度', ready: false },
 ];
 
 export class AppScreens {

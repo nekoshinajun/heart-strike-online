@@ -38,6 +38,8 @@ export const TYPES = {
  *       scale … 画像の幅 = 画面幅 × scale / rot … 回転(度)
  *   description … GameplayDescription(CHARACTER DETAIL に出す「どう使うキャラか」1〜2文)
  *   detail      … CHARACTER DETAIL の全身イラスト表示:DetailPosition(x,y:画面比の中心)/ DetailScale / DetailRotation(度)
+ *   heroineId   … (任意)攻略対象をプレイアブル化した味方版の時だけ、元の攻略対象の id(data/RomanceData.js の HEROINES)
+ * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
 export const CHARACTERS = [
   {

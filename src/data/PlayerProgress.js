@@ -1,10 +1,14 @@
 import { CHARACTERS, DEFAULT_PARTY, LEVELING, LEGACY_CHARACTER_IDS, STAGES, characterById } from './GameData.js';
 import { Config } from '../core/Config.js';
+import { HEROINES, HEROINE_ASMR_UNLOCK, INTIMACY, heroineById, heroineByStage, giftById } from './RomanceData.js';
 import { storage, Log } from '../app/Platform.js';
 
 /**
  * PlayerProgress v2(保存キー heart-strike-progress-v2)
- *   characters[id] = { owned, level, exp, obtainedAt, firstHomeSetAt }   ← 固定 Character ID(表示名は使わない)
+ *   characters[id] = { owned, level, exp, obtainedAt, firstHomeSetAt, intimacy, bonus }   ← 固定 Character ID(表示名は使わない)
+ *       intimacy … 親密度ポイント / bonus … プレゼント等による能力の上乗せ { atk, def }
+ *   heroines[heroineId] = { asmrUnlocked: { trackId: 解放時刻 }, asmrSeen: { trackId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)
+ *   items[giftId] = 所持数(プレゼント)
  *   party[4] / favoriteCharacterId
  *   records[stageId][NORMAL|HARD|HELL] = { clearCount, bestRally, bestGateChain, bestHeartPerThrow, firstClearRewarded }
  *   cleared[](旧形式・互換用)/ wallet.heartGem / flags / seen / missions / presents / gacha / home / stats
@@ -26,7 +30,9 @@ export class ProgressRepository {
 }
 
 const now = () => Date.now();
-const charEntry = (o = {}) => ({ owned: false, level: 1, exp: 0, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null, ...o });
+const charEntry = (o = {}) => ({ owned: false, level: 1, exp: 0, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null, intimacy: 0, ...o, bonus: { atk: 0, def: 0, ...(o.bonus ?? {}) } });
+const heroineEntry = (o = {}) => ({ ...o, asmrUnlocked: { ...(o.asmrUnlocked ?? {}) }, asmrSeen: { ...(o.asmrSeen ?? {}) } });
+const num = (v) => (Number.isFinite(v) ? v : 0);   // 未決定(null)の数値は 0 として扱う
 /** 今のコンテンツ(新 Stage / 新 Difficulty の検出用)*/
 export const contentKeys = () => STAGES.flatMap((s) => [`stage:${s.id}`, ...DIFFS.map((d) => `diff:${s.id}:${d}`)]);
 
@@ -40,6 +46,8 @@ function blankSave() {
     characters,
     party: [...DEFAULT_PARTY],
     favoriteCharacterId: null,
+    heroines: {},
+    items: {},
     records: {},
     cleared: [],
     wallet: { heartGem: 1000 },
@@ -124,10 +132,22 @@ export function normalizeV2(d) {
   for (const k of contentKeys()) if (!known.has(k)) { if (!d.navPulse.unseen.includes(k)) d.navPulse.unseen.push(k); known.add(k); }
   d.knownContent = [...known];
   for (const c of CHARACTERS) d.characters[c.id] = charEntry(d.characters[c.id] ?? {});
+  for (const h of HEROINES) d.heroines[h.id] = heroineEntry(d.heroines[h.id] ?? {});
+  if (!d.items || typeof d.items !== 'object' || Array.isArray(d.items)) d.items = {};
   if (!Array.isArray(d.party) || d.party.length !== 4 || d.party.some((id) => !characterById(id))) d.party = [...DEFAULT_PARTY];
   d.wallet.heartGem = Math.max(0, Math.floor(Number(d.wallet.heartGem) || 0));
   d.version = 2;
   return d;
+}
+
+/** 親密度ポイント → レベル(INTIMACY.levels が未決定なら null)*/
+export function intimacyLevel(points) {
+  const t = INTIMACY.levels;
+  if (!Array.isArray(t) || !t.length) return null;
+  const p = num(points);
+  let lv = 0;
+  for (let i = 0; i < t.length; i++) if (p >= t[i]) lv = i + 1;
+  return lv;
 }
 
 export class PlayerProgress {
@@ -142,7 +162,7 @@ export class PlayerProgress {
     if (v2 && typeof v2 === 'object' && v2.version === 2) {
       const d = normalizeV2(v2);
       this.ensureOwnership(d);
-      this.data = d; this.save();
+      this.data = d; this.syncAsmrUnlocks(); this.save();
       Log.info('SAVE', 'loaded v2');
       return d;
     }
@@ -154,6 +174,7 @@ export class PlayerProgress {
         this.ensureOwnership(d);
         if (!d.party.every((id) => d.characters[id]?.owned)) throw new Error('migrated party contains unowned characters');
         this.data = d;
+        this.syncAsmrUnlocks();
         this.save();
         Log.info('SAVE', 'migrated v1 → v2');
         return d;
@@ -260,8 +281,10 @@ export class PlayerProgress {
     }
     this.data.stats.totalClears = (this.data.stats.totalClears ?? 0) + 1;
     this.data.lastPlayedAt = now();
+    const asmrUnlocked = this.syncAsmrUnlocks();   // HELL クリア等で新しく解放された ASMR(リザルトの演出用)
     this.save();
     Object.defineProperty(r, 'firstClearGem', { value: firstClearGem, enumerable: false, configurable: true });
+    Object.defineProperty(r, 'asmrUnlocked', { value: asmrUnlocked, enumerable: false, configurable: true });
     return r;
   }
 
@@ -288,8 +311,10 @@ export class PlayerProgress {
       level: lv,
       exp: p.exp,
       nextExp: lv >= LEVELING.maxLevel ? 0 : LEVELING.nextExp(lv),
-      atk: base.atk + LEVELING.growth.atk * (lv - 1),
-      def: base.def + LEVELING.growth.def * (lv - 1),
+      atk: base.atk + LEVELING.growth.atk * (lv - 1) + num(p.bonus?.atk),
+      def: base.def + LEVELING.growth.def * (lv - 1) + num(p.bonus?.def),
+      intimacy: num(p.intimacy),
+      intimacyLevel: intimacyLevel(p.intimacy),
     };
   }
 
@@ -307,4 +332,85 @@ export class PlayerProgress {
     this.save();
     return { before, after: this.character(id), levelUps, gained: amount };
   }
+
+  // ---------------- 親密度(味方の女の子)----------------
+  addIntimacy(id, amount) {
+    const p = this.data.characters[id];
+    if (!p || !this.isOwned(id)) return null;
+    const before = this.character(id);
+    p.intimacy = Math.max(0, num(p.intimacy) + Math.floor(num(amount)));
+    this.save();
+    return { before, after: this.character(id) };
+  }
+
+  // ---------------- プレゼント(所持数 / 渡す)----------------
+  itemCount(giftId) { return Math.max(0, Math.floor(num(this.data.items[giftId]))); }
+  addItem(giftId, n = 1) {
+    if (!giftById(giftId)) return false;
+    this.data.items[giftId] = this.itemCount(giftId) + Math.floor(num(n));
+    this.save();
+    return true;
+  }
+  /**
+   * 味方の女の子にプレゼントを1つ渡す。効果(GIFTS.effect)が未決定(null)の項目は上がらない
+   * → { gift, levelUps, gainedExp, gainedIntimacy, reaction, before, after } / 渡せない時は null
+   */
+  giveGift(characterId, giftId) {
+    const gift = giftById(giftId), p = this.data.characters[characterId];
+    if (!gift || !p || !this.isOwned(characterId) || this.itemCount(giftId) < 1) return null;
+    const before = this.character(characterId);
+    this.data.items[giftId] = this.itemCount(giftId) - 1;
+    const e = gift.effect ?? {};
+    p.intimacy = Math.max(0, num(p.intimacy) + Math.floor(num(e.intimacy)));
+    p.bonus = { atk: num(p.bonus?.atk) + Math.floor(num(e.atk)), def: num(p.bonus?.def) + Math.floor(num(e.def)) };
+    const exp = Math.floor(num(e.exp));
+    const levelUps = exp > 0 ? this.addExp(characterId, exp).levelUps : 0;
+    this.save();
+    const lines = gift.reactions?.byCharacter?.[characterId] ?? (Array.isArray(gift.reactions) ? gift.reactions : []);
+    const reaction = lines.length ? lines[Math.floor(Math.random() * lines.length)] : null;
+    return { gift, levelUps, gainedExp: exp, gainedIntimacy: Math.floor(num(e.intimacy)), reaction, before, after: this.character(characterId) };
+  }
+
+  // ---------------- ASMR(攻略対象のみ)----------------
+  /** 条件 { type, ... } を満たしているか。heroine はステージ省略時の基準 */
+  isConditionMet(cond, heroine) {
+    if (!cond) return false;
+    if (cond.type === 'clear') {
+      const stageId = cond.stageId ?? heroine?.stageId;
+      return !!stageId && this.isCleared(stageId, cond.difficulty);
+    }
+    return false;   // 未知の条件は解放しない
+  }
+  /** その攻略対象の ASMR 一覧(解放状態つき)*/
+  asmrTracks(heroineId) {
+    const h = heroineById(heroineId);
+    if (!h) return [];
+    const st = this.data.heroines[h.id] ?? heroineEntry();
+    return h.asmr.map((t) => {
+      const unlock = t.unlock ?? HEROINE_ASMR_UNLOCK;
+      const unlockedAt = st.asmrUnlocked[t.id] ?? null;
+      return { ...t, heroineId: h.id, unlock, unlocked: !!unlockedAt, unlockedAt, isNew: !!unlockedAt && !st.asmrSeen[t.id], playable: !!unlockedAt && !!t.src };
+    });
+  }
+  /** 条件を満たした ASMR を解放済みにする(一度解放したら戻さない)→ 新しく解放した [{ heroineId, trackId }] */
+  syncAsmrUnlocks() {
+    const fresh = [];
+    for (const h of HEROINES) {
+      const st = (this.data.heroines[h.id] ??= heroineEntry());
+      for (const t of h.asmr) {
+        if (st.asmrUnlocked[t.id]) continue;
+        if (this.isConditionMet(t.unlock ?? HEROINE_ASMR_UNLOCK, h)) { st.asmrUnlocked[t.id] = now(); fresh.push({ heroineId: h.id, trackId: t.id }); }
+      }
+    }
+    return fresh;
+  }
+  /** 解放済み ASMR を初めて開いた(NEW 表示を消す)*/
+  markAsmrSeen(heroineId, trackId) {
+    const st = this.data.heroines[heroineId];
+    if (!st?.asmrUnlocked[trackId] || st.asmrSeen[trackId]) return false;
+    st.asmrSeen[trackId] = now();
+    this.save();
+    return true;
+  }
+  heroineForStage(stageId) { return heroineByStage(stageId) ?? null; }
 }
