@@ -25,6 +25,7 @@ import { NextPlayerState, BossTauntState, BossReturnState, PlayerDefenseState, P
 import { TitleState, GameClearState, GameOverState } from './states/EndStates.js';
 import { STAGES } from './data/GameData.js';
 import { battleSlot } from './audio/BgmTracks.js';
+import { HitMarker } from './world/HitMarker.js';
 import { heroineByStage } from './data/RomanceData.js';
 import { throwModifiers } from './data/BattleCalc.js';
 import { MenuFlow } from './screens/MenuFlow.js';
@@ -59,6 +60,7 @@ export class GameManager {
     this.cam = new CameraController(1);
     this.arena = new Arena(this.scene);
     this.effects = new Effects(this.scene);
+    this.hitMarker = new HitMarker();   // 着弾マーク(実際に当たった位置に約1秒)
     this.boss = new BossController(this.scene);
     this.ball = new BallController(this.scene);
     this.preview = new TrajectoryPreview(this.scene);
@@ -343,6 +345,7 @@ export class GameManager {
     this.prepareStage(stage);
     // ボスの攻撃ボイス:前のバトルのボイスを止め、このステージのボイスを先読み(最初の反撃で待たない)
     this.lastAttackVoiceId = null;
+    this.hitMarker.clear();
     safe('AUDIO', () => { this.audio.voice.stop(); this.audio.voice.preload(this.attackVoices().map((v) => v.src)); });
     this.partyOrder = party;
     this.turn.reset(party);
@@ -441,6 +444,7 @@ export class GameManager {
       if (this.heartTrailT <= 0) { this.heartTrailT = Config.special.trailHearts; this.effects.heartBurst(this.ball.pos, 2, 1.4, 0.22); }
     }
     this.effects.update(dt);
+    this.hitMarker.update();
     this.arena.update(dt, this.clock);
     this.cam.update(realDt);
     this.ui.update(realDt);

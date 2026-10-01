@@ -194,14 +194,52 @@ export class UIManager {
     h.classList.remove('nudge'); void h.offsetWidth; h.classList.add('nudge');
   }
 
-  /** 直前フリックの数値(デバッグ) */
+  /** 直前フリックの数値(デバッグ)。投球前の球質(PRE-SPIN / DRIVE)と最終的なカーブも */
   setThrowInfo(flick, th) {
     const el = this.el.throwInfo;
     if (!el) return;
     const f = (v, d = 2) => Number(v).toFixed(d);
-    el.innerHTML = th
-      ? `POWER <b>${Math.round(th.power * 100)}%</b> 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>SPIN <b>${{ left: '← 左', right: '右 →', straight: 'ストレート' }[th.curveDir] ?? ''}</b> ${f(th.spin)} 強さ ${f(th.curveStrength, 1)}`
+    const ps = th?.effects?.find((e) => e.type === 'preSpin'), dr = th?.effects?.find((e) => e.type === 'drive');
+    this.lastThrowHTML = th
+      ? `POWER <b>${Math.round(th.power * 100)}%</b> 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>`
+        + `PRE-SPIN <b>${ps ? (ps.dir > 0 ? 'RIGHT' : 'LEFT') : 'NONE'}</b> ${f(ps?.strength ?? 0)} ・ DRIVE <b>${dr ? 'ON' : 'OFF'}</b> ${f(dr?.strength ?? 0)}<br>`
+        + `Throw SPIN ${f(th.throwSpin ?? th.spin)} → Final curve <b>${{ left: '← 左', right: '右 →', straight: 'ストレート' }[th.curveDir] ?? ''}</b> ${f(th.spin)} 強さ ${f(th.curveStrength, 1)}`
       : '投げていません(上へ弾いて離すと投球)';
+    el.innerHTML = this.lastThrowHTML;
+  }
+  /** 命中した位置(デバッグ):実際に Collider に当たった座標と部位 */
+  setHitInfo(result) {
+    const el = this.el.throwInfo;
+    if (!el) return;
+    const f = (v) => Number(v).toFixed(2);
+    const hit = result?.type === 'hit' && result.point
+      ? `Hit position <b>${f(result.point.x)} / ${f(result.point.y)} / ${f(result.point.z)}</b> ・ Hit part <b>${String(result.part ?? '').toUpperCase()}</b>`
+      : `Hit <b>MISS</b>(${result?.type ?? '-'})`;
+    el.innerHTML = `${this.lastThrowHTML ?? ''}<br>${hit}`;
+  }
+
+  /** ハートに仕込んだ球質の表示(投げるまで残る)。null で消す */
+  setBallEffects(effects) {
+    const el = $('ballFx');
+    if (!el) return;
+    const ps = effects?.preSpin, dr = effects?.drive;
+    el.dataset.spin = ps ? (ps.dir > 0 ? 'right' : 'left') : '';
+    el.dataset.drive = dr ? 'on' : '';
+    el.hidden = !ps && !dr;
+  }
+  /** 成立した瞬間の短い表示(RIGHT SPIN / LEFT SPIN / DRIVE)*/
+  flashBallEffect(label) {
+    const b = $('ballFx')?.querySelector('.bf-pop');
+    if (!b) return;
+    b.textContent = label;
+    b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
+  }
+  /** 球質の表示をハートの位置へ(毎フレーム)*/
+  placeBallEffects(x, y, r) {
+    const el = $('ballFx');
+    if (!el || el.hidden) return;
+    el.style.transform = `translate(${x}px, ${y}px)`;
+    el.style.setProperty('--r', `${Math.max(14, r)}px`);
   }
 
 

@@ -1,6 +1,8 @@
 import { Config } from '../core/Config.js';
 import { InputManager } from '../managers/InputManager.js';
 import { simulate } from '../physics/BallPhysics.js';
+import { PreSpinDetector } from '../throw/PreSpinDetector.js';
+import { effectLabel } from '../throw/BallEffects.js';
 
 /** MaxChargeDistance(px)。画面高さ比で指定(ratio が null なら固定 px) */
 export function maxChargeDistancePx(viewH) {
@@ -29,7 +31,10 @@ export const ThrowPhase = Object.freeze({
 });
 
 /**
- * 投球操作:ボールに触る → 下へ引いて POWER → 上へジェスチャー(AIM / SPIN)→ 離して投球。
+ * 投球操作:ボールに触る →(球質を仕込む)→ 下へ引いて POWER → 上へジェスチャー(AIM / SPIN)→ 離して投球。
+ * 球質(PRE-SPIN / DRIVE):掴んでいる間に円を描く / 上下に素早く往復すると成立(PreSpinDetector)。
+ *   成立したら、そこを起点に POWER の引きからやり直せる(同じタッチのまま引いて弾ける)。指を離して掴み直しても保持
+ *   保持はこの手番の投球まで:投げたら必ずリセット(MISS でも)。次の手番(PLAYER_ATTACK の開始)でもリセット
  * パチンコ方式ではない:下へ引いて離すだけでは投げない(構えに戻る)。
  * 物理計算は CurveThrowCalculator / BallPhysics に任せ、ここは「操作」の責務だけを持つ。
  */
@@ -39,6 +44,22 @@ export class ThrowController {
     this.phase = ThrowPhase.IDLE;
     this.power = 0;
     this.drag = null;
+    this.effects = {};        // 仕込んだ球質 { preSpin?: { type, dir, strength }, drive?: { type, strength } }
+    this.detector = null;
+  }
+
+  /** 仕込んだ球質(投球計算に渡す配列)*/
+  get effectList() { return Object.values(this.effects).filter(Boolean); }
+  resetEffects() { this.effects = {}; this.g.ui.setBallEffects?.(null); }
+  /** 球質が成立:同じ向きの回転を重ねると少し強くなる。逆向きは置き換え。表示を更新 */
+  addEffect(r) {
+    const prev = this.effects[r.type];
+    const e = r.type === 'preSpin' && prev && prev.dir === r.dir ? { ...r, strength: Math.min(1, prev.strength + r.strength * 0.5) } : { ...r };
+    this.effects[r.type] = e;
+    this.g.ui.setBallEffects?.(this.effects);
+    this.g.ui.flashBallEffect?.(effectLabel(e), e);
+    this.g.audio.rallyUp?.();
+    return e;
   }
 
   get grabbing() { return this.phase === ThrowPhase.BALL_TOUCH || this.phase === ThrowPhase.POWER_CHARGE || this.phase === ThrowPhase.THROW_GESTURE; }
@@ -56,6 +77,10 @@ export class ThrowController {
     this.lowest = start;          // POWER_CHARGE 中の最下点
     this.gesture = null;          // ジェスチャー区間の軌跡
     this.drag = { start, current: start, samples: [start] };
+    this.origin = start;          // POWER の引きの起点(球質が成立したらそこへ移す)
+    this.detector = new PreSpinDetector(g.viewport.h);
+    this.detector.reset(start);
+    this.lastFed = start;
     g.ball.grab(g.player.fingerToWorld(start.x, start.y));
     g.ui.setThrowType?.(g.turn.current.chara?.type);
     g.ui.setPowerGauge(this.power, false, { ...g.player.toScreen(g.ball.pos), r: g.player.heldBallScreen().r });
@@ -68,7 +93,16 @@ export class ThrowController {
     const P = Config.power;
     this.drag = d;
     const cur = d.current;
-    const s = this.drag.start;
+    // 球質の判定(掴んでいる間の新しいサンプルだけを渡す)。成立したら POWER の引きをその場からやり直す
+    if (this.detector) {
+      const i = d.samples.lastIndexOf(this.lastFed);
+      for (const p of d.samples.slice(i + 1)) {
+        const r = this.detector.feed(p);
+        if (r) { this.addEffect(r); this.rearm(p); }
+      }
+      this.lastFed = d.samples[d.samples.length - 1];
+    }
+    const s = this.origin;
     if (this.phase === ThrowPhase.BALL_TOUCH) {
       if (cur.y - s.y >= P.chargeThreshold) { this.phase = ThrowPhase.POWER_CHARGE; this.charged = true; }
       else if (s.y - cur.y >= P.lockThreshold) this.beginGesture(d.samples.length - 1, s);
@@ -94,6 +128,17 @@ export class ThrowController {
     // POWER は下へ引いている時だけ表示(ボールの左上)
     const bs = { ...this.g.player.toScreen(this.g.ball.pos), r: this.g.player.heldBallScreen().r };
     this.g.ui.setPowerGauge(this.power, this.phase === ThrowPhase.THROW_GESTURE, bs);
+  }
+
+  /** 球質の成立後:その位置を起点に、POWER なし・ジェスチャーなしの状態へ戻す(この後 引いて弾けば投げられる)*/
+  rearm(p) {
+    this.phase = ThrowPhase.BALL_TOUCH;
+    this.origin = p;
+    this.lowest = p;
+    this.chargeRatio = 0;
+    this.power = powerFromCharge(0);
+    this.charged = false;
+    this.gesture = null;
   }
 
   beginGesture(index, from) {
@@ -134,10 +179,12 @@ export class ThrowController {
     g.ui.setPowerGauge(null);
     g.ui.setThrowType?.(null);
     const start = g.player.holdAnchor();
-    const th = wasGesture ? g.player.computeThrow(this.gestureFlick(flick.end), this.power, start) : null;
+    this.detector = null;
+    const th = wasGesture ? g.player.computeThrow(this.gestureFlick(flick.end), this.power, start, this.effectList) : null;
     if (th) th.start = start;
-    if (!th) { g.ball.catchTo(g.player.holdAnchor, 0.2); this.phase = ThrowPhase.IDLE; return null; }
+    if (!th) { g.ball.catchTo(g.player.holdAnchor, 0.2); this.phase = ThrowPhase.IDLE; return null; }   // 投げていない:仕込んだ球質はこの手番の間 保持
     this.phase = ThrowPhase.BALL_FLYING;
+    this.resetEffects();   // 投げた:球質は使い切り(当たっても MISS でも次へ持ち越さない)
     return th;
   }
 
@@ -145,6 +192,8 @@ export class ThrowController {
   cancel() {
     this.phase = ThrowPhase.IDLE;
     this.drag = null;
+    this.detector = null;
+    this.resetEffects();   // 手番の開始・終了:前の投球 / 前のキャラの球質を持ち越さない
     this.g.preview.hideLive();
     this.g.ui.setPowerGauge(null);
     this.g.ui.setThrowType?.(null);

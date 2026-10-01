@@ -11,8 +11,9 @@ const seg = new THREE.Vector3();
  * Flight = { pos, vel, accel(カーブ横力), t, bounces, acc(ステップ余り), result }
  * result = null | { type: 'hit', part, point } | { type: 'short' | 'over' | 'wide', point }
  */
-export function createFlight(p0, v0, curveAccel = null, obstacles = null) {
+export function createFlight(p0, v0, curveAccel = null, obstacles = null, drive = null) {
   return {
+    drive,              // DRIVE(縦回転):{ accel, t0, t1 }。t0 から t1 にかけて下向きの力が強まる
     obstacles,          // 3D 障害物(SpaceSystem)。当たると反射して飛行継続(Bank Shot)
     obstacleHits: 0,
     pos: p0.clone(),
@@ -32,6 +33,8 @@ function fixedStep(f, h, colliders) {
   f.vel.y -= T.gravity * h;
   // カーブの横力:投げた直後は弱く rampTime かけて最大に(前半は真っ直ぐ、後半で曲がる)
   f.vel.addScaledVector(f.accel, h * Math.min(1, f.t / Config.curve.rampTime));
+  // DRIVE:前半は通常の軌道、t0 から下向きの力が強まる(終盤でグッと沈む)
+  if (f.drive && f.t > f.drive.t0) f.vel.y -= f.drive.accel * Math.min(1, (f.t - f.drive.t0) / Math.max(1e-3, f.drive.t1 - f.drive.t0)) * h;
   f.pos.addScaledVector(f.vel, h);
   f.t += h;
   // ボスの絵の面(planeZ)を横切った位置を記録(50% 会話の回答判定用。外れた球でも「どこを通ったか」が分かる)
@@ -49,7 +52,7 @@ function fixedStep(f, h, colliders) {
     const hits = ray.intersectObjects(colliders, false);
     if (hits.length) {
       f.pos.copy(hits[0].point);
-      f.result = { type: 'hit', part: hits[0].object.userData.part, point: hits[0].point.clone() };
+      f.result = { type: 'hit', part: hits[0].object.userData.part, point: hits[0].point.clone(), object: hits[0].object };   // object:当たった Collider(着弾マークをその上に付ける)
       return;
     }
   }
@@ -87,8 +90,8 @@ export function stepFlight(f, dt, colliders) {
 }
 
 /** 予測軌道。points は一定間隔の位置列 */
-export function simulate(p0, v0, curveAccel, colliders, sampleEvery = 0.03, obstacles = null) {
-  const f = createFlight(p0, v0, curveAccel, obstacles);
+export function simulate(p0, v0, curveAccel, colliders, sampleEvery = 0.03, obstacles = null, drive = null) {
+  const f = createFlight(p0, v0, curveAccel, obstacles, drive);
   const h = Config.throw.fixedStep;
   const points = [f.pos.clone()];
   let nextSample = sampleEvery;

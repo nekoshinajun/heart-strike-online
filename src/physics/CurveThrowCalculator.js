@@ -1,11 +1,13 @@
 import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
+import { applyBallEffects } from '../throw/BallEffects.js';
 
 /**
  * 投球パラメータの計算。POWER / AIM / SPIN を分離して扱う。自動エイム・乱数なし。
  *  - POWER:下へ引いた量(ThrowController で確定)→ 初速の大きさ
  *  - AIM  :ジェスチャーの向き(左右)と長さ(高さ)→ ボス面上の狙い点 → その点を通る放物線を解く
  *  - SPIN :ジェスチャー中の切り返し(analyzeCurve)
+ *  - BallEffect(PRE-SPIN / DRIVE …):投球前に仕込んだ球質。投げた瞬間に BallEffects で SPIN・飛行へ合成
  * 旧仕様(フリックの速さ=高さ)は廃止。以下は旧コメント:
  *
  *  1. フリック区間の切り出し:離す直前から遡り、指が止まっていた/下へ動いていた所で区切る
@@ -68,7 +70,7 @@ export class CurveThrowCalculator {
    * 届かない(Power不足)場合は最大到達角で投げる → 手前に落ちる。
    * SPIN は「曲がる向きと逆へ bulge 膨らんでから、狙い点より shift だけ曲がる向きへ」着弾する横運動を解く。
    */
-  buildThrow(start, target, power, spin) {
+  buildThrow(start, target, power, spin, driveSink = 0) {
     const T = Config.throw, C = Config.curve;
     const g = T.gravity;
     const v = this.speedFor(power);
@@ -94,7 +96,15 @@ export class CurveThrowCalculator {
       velocity.addScaledVector(right, -s * K);
       curveAccel = right.clone().multiplyScalar(s * A);
     }
-    return { velocity, curveAccel, speed3d: v, launchDeg: THREE.MathUtils.radToDeg(theta), reachable };
+    // DRIVE:前半は通常の軌道、ボスへ近づくほど下向きの力を強める(t0 から T まで直線的に強く)→ ボスの位置で driveSink だけ沈む
+    //   沈む量 = a·(T−t0)²/6 → a = 6·sink/(T−t0)²。時間で決めるので同じ入力 = 同じ軌道(MULTI の再現も同じ)
+    let drive = null;
+    if (driveSink > 0) {
+      const T = d / Math.max(1, v * Math.cos(theta));
+      const t0 = T * Config.drive.startFrac, span = Math.max(0.05, T - t0);
+      drive = { accel: (6 * driveSink) / (span * span), t0, t1: T };
+    }
+    return { velocity, curveAccel, drive, speed3d: v, launchDeg: THREE.MathUtils.radToDeg(theta), reachable };
   }
 
   /**
@@ -102,8 +112,9 @@ export class CurveThrowCalculator {
    * @param flick  ジェスチャー区間の FlickInfo(samples はジェスチャー開始から)
    * @param power  0〜1(下へ引いた量)
    * @param start  ボールの発射位置(ワールド)
+   * @param effects 投球前に仕込んだ球質(BallEffect の配列。PRE-SPIN / DRIVE …)
    */
-  compute(flick, power, start) {
+  compute(flick, power, start, effects = []) {
     const C = Config.curve;
     const h = this.viewport.h;
     const samples = flick.samples?.length ? flick.samples : [flick.start, flick.end];
@@ -114,15 +125,21 @@ export class CurveThrowCalculator {
 
     // SPIN
     const curve = C.enableCurveBall ? this.analyzeCurve(samples, a, b, flick.velocity, len) : null;
-    const spin = curve?.spin ?? 0;
+    const throwSpin = curve?.spin ?? 0;
+    // 球質の合成:投球の SPIN × PRE-SPIN(同じ向き ×1.5 / 逆 ×0.7)→ 最後にキャラクター性能(mods.curveMul)が buildThrow で掛かる
+    const fx = applyBallEffects(effects, throwSpin);
+    const lim = C.maxSpin * Math.max(1, Config.preSpin.sameDirMul);
+    const spin = THREE.MathUtils.clamp(fx.spin, -lim, lim);
     // AIM(弦の向きと長さ)
     const aim = this.aimTarget(cx / len, cy / len, len);
-    const th = this.buildThrow(start, aim.world, power, spin);
+    const th = this.buildThrow(start, aim.world, power, spin, fx.driveSink);
     return {
       ...th,
-      power, spin, aim,
+      power, spin, throwSpin, aim,
+      effects: (effects ?? []).map((e) => ({ ...e })),
+      driveSink: fx.driveSink,
       direction: th.velocity.clone().normalize(),
-      curveStrength: Math.abs(spin) * C.shift * this.mods.curveMul,
+      curveStrength: Math.abs(spin) * C.shift * this.mods.curveMul,   // 最終的に適用された曲がり量(units)
       curveDir: spin > 0 ? 'right' : spin < 0 ? 'left' : 'straight',
       turnDeg: curve ? THREE.MathUtils.radToDeg(curve.turn) : 0,
       angleDeg: THREE.MathUtils.radToDeg(Math.atan2(cx, -cy)),

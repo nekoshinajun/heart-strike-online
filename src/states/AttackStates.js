@@ -13,6 +13,8 @@ function freezeThrow(th) {
     velocity: th.velocity.clone(),
     curveAccel: th.curveAccel ? th.curveAccel.clone() : null,
     direction: th.direction?.clone(),
+    drive: th.drive ? { ...th.drive } : null,
+    effects: th.effects?.map((e) => ({ ...e })) ?? [],
     savedAt: performance.now(),
   };
 }
@@ -42,6 +44,7 @@ export class PlayerAttackState {
 
   update() {
     const g = this.g;
+    { const b = g.player.toScreen(g.ball.pos); g.ui.placeBallEffects(b.x, b.y, g.player.heldBallScreen().r); }   // 仕込んだ球質の表示はハートに付いていく
     if (!g.thrower.grabbing) {
       const s = g.player.heldBallScreen();
       g.ui.placeHint(s.x, s.y);
@@ -126,7 +129,7 @@ export class BallToBossState {
     const strength = special ? 1 : powerStrength(th.power);
 
     // 実際の飛行と同じ計算(練習用に軌道を残す/カメラの追従先)
-    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.colliders);
+    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.colliders, 0.03, null, th.drive ?? null);
     if (Config.debug.showLastTrajectory && Config.debug.showTrajectoryPreview) g.preview.showGhost(sim.points);
     else g.preview.hideGhost();
 
@@ -135,7 +138,7 @@ export class BallToBossState {
     g.ball.launch(th.velocity, th.curveAccel, g.affection.throwColliders(), strength, (result, flight) => {
       g.space.endThrow();
       g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, flight });
-    }, th.start, g.space.obstacles.length ? g.space : null);
+    }, th.start, g.space.obstacles.length ? g.space : null, th.drive ?? null);
     g.ball.flight.live = true;
     if (g.affection.answerMode) g.ball.flight.planeZ = g.boss.root.position.z;   // 回答の1投:絵の面を通った位置を記録
     g.space.beginThrow();    // Heart Gate の判定もここから(SPECIAL はカットイン完了後)
@@ -197,7 +200,9 @@ export class BossHitState {
 
     // 回答の1投:当たった場所 → リアクション(当たらなければ MISS)
     this.answer = g.affection.answerMode ? g.affection.resolveAnswer(result, flight) : null;
+    g.ui.setHitInfo(result);   // デバッグ:命中位置 / 部位
     if (result.type === 'hit') {
+      g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
       // HeartGain = BaseHeart(部位) × POWER × Attack(ATK) × Attribute × Rally × Energy × Special
       const ch = g.turn.current.chara;

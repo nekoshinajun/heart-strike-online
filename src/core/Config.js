@@ -182,6 +182,38 @@ export const Config = {
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
   },
 
+  // ---- 投球前の球質(ハートを掴んだまま仕込む)。判定と効果の数値はここだけ ----
+  //   PRE-SPIN:指で円を描く(時計回り = RIGHT / 反時計回り = LEFT)→ 投球時の SPIN に掛かる
+  //   DRIVE   :上下へ素早く往復 → 終盤で下へ沈む
+  //   どちらも「下へ引いて POWER → 上へ弾く」通常操作とは区別する(誤認識しない条件)
+  preSpin: {
+    enabled: true,
+    sampleStepPx: 6,        // 指の軌跡をこの間隔で間引いて向きの変化を測る
+    minTurnDeg: 300,        // ★ 成立に必要な回転量(指の進む向きが同じ向きに回った合計)
+    fullTurnDeg: 360,       // この回転量で strength = 1
+    maxStepTurnDeg: 75,     // 1区間でこれ以上向きが変わったら「折り返し」(引いて弾く等)→ 回転の計測をやり直す
+    consistency: 0.85,      // 回転の向きの一貫性(同じ向きの回転量 / 全回転量)
+    minPathRatio: 0.12,     // 最低移動量(画面の高さ比)。小さな指のブレは回転とみなさない
+    minDurationMs: 160,     // 入力時間の下限(一瞬のブレを除く)
+    maxDurationMs: 1600,    // この時間内に回し切る(ゆっくりした位置調整は除く)
+    sameDirMul: 1.5,        // ★ 同じ向きのカーブ:SPIN × 1.5(strength 1 の時)
+    oppositeDirMul: 0.7,    // ★ 逆向きのカーブ:SPIN × 0.7(曲がる向きは投球の SPIN のまま)
+    baseSpin: 0.2,          // ★ ストレートに投げた時の回転の名残(SPIN 0 → 仕込んだ向きへ弱く曲がる。0 で無効)
+  },
+  drive: {
+    enabled: true,
+    minStrokes: 4,          // ★ 上下の往復回数(下→上→下→上 = 4ストローク)。「下へ引いて弾く」は2ストロークなので成立しない
+    minAmplitudeRatio: 0.022, // 1ストロークの最低移動量(画面の高さ比)
+    fullAmplitudeRatio: 0.06, // この振れ幅で strength = 1
+    maxDurationMs: 900,     // ★ この時間内に往復し切る(短時間の往復だけを DRIVE とする)
+    maxHorizontalRatio: 0.7, // 1ストロークの横移動 / 縦移動 の上限(縦の往復だけ)
+    minStrength: 0.5,
+    sink: 4.0,              // ★ strength 1 でボスの位置までに下へ沈む量(units。頭 → 胸 くらい)
+    startFrac: 0.45,        // 飛行のこの割合までは通常の軌道(そこから沈み始め、終盤ほど強く)
+  },
+  // 命中した位置のマーク(実際に Collider に当たった座標)
+  hitMark: { life: 1.0, popScale: 1.25, popSec: 0.12, fadeFrom: 0.75, size: 1.1, color: '#ff7ab8', max: 6 },
+
   // ---- エネルギー / 必殺技 ----
   energy: {
     label: 'HEART ENERGY', // 表示名(世界観に合わせて変更可)

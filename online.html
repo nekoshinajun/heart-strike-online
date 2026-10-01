@@ -214,6 +214,20 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #throwType[data-type="STRAIGHT"] { border-color:#3ee8ff; }
 
 /* ---- POWER / ENERGY ---- */
+/* 投球前に仕込んだ球質(ハートの周り)。小さく・投げるまで残る */
+#ballFx { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; pointer-events: none; }
+#ballFx .bf-spin, #ballFx .bf-drive { position: absolute; left: calc(var(--r, 30px) * -1.35); top: calc(var(--r, 30px) * -1.35); width: calc(var(--r, 30px) * 2.7); height: calc(var(--r, 30px) * 2.7); border-radius: 50%; display: none; }
+#ballFx .bf-spin { background: conic-gradient(from 0deg, transparent 0 62%, rgba(255,160,215,.15) 70%, #ffd6ee 92%, #fff 97%, transparent 100%); -webkit-mask: radial-gradient(closest-side, transparent 78%, #000 80%, #000 96%, transparent 98%); mask: radial-gradient(closest-side, transparent 78%, #000 80%, #000 96%, transparent 98%); filter: drop-shadow(0 0 6px #ff7ab8); }
+#ballFx[data-spin="right"] .bf-spin { display: block; animation: bfSpin .55s linear infinite; }
+#ballFx[data-spin="left"] .bf-spin { display: block; animation: bfSpin .55s linear infinite reverse; transform: scaleX(-1); }
+#ballFx[data-drive="on"] .bf-drive { display: block; border-radius: 0; left: calc(var(--r, 30px) * -0.18); width: calc(var(--r, 30px) * .36); background: linear-gradient(180deg, transparent, rgba(255,214,238,.0) 10%, #fff 22%, transparent 34%, transparent 66%, #fff 78%, transparent 90%); filter: drop-shadow(0 0 5px #ffb3dc); animation: bfDrive .5s ease-in-out infinite; }
+#ballFx .bf-pop { position: absolute; left: 50%; top: calc(var(--r, 30px) * -2.2); transform: translate(-50%, 0); white-space: nowrap; font-family: var(--display); font-size: 12px; letter-spacing: .14em; color: #fff; text-shadow: 0 0 6px #ff5fa2, 0 1px 2px #000; opacity: 0; }
+#ballFx .bf-pop.on { animation: bfPop .9s ease-out forwards; }
+@keyframes bfSpin { to { transform: rotate(360deg); } }
+#ballFx[data-spin="left"] .bf-spin { animation-name: bfSpinL; }
+@keyframes bfSpinL { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes bfDrive { 0% { transform: translateY(-14%); opacity: .5; } 50% { transform: translateY(14%); opacity: 1; } 100% { transform: translateY(-14%); opacity: .5; } }
+@keyframes bfPop { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.8); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.08); } 70% { opacity: 1; transform: translate(-50%, -4px) scale(1); } 100% { opacity: 0; transform: translate(-50%, -10px) scale(1); } }
 #powerGauge { position: absolute; left: 10px; top: 60%; width: 150px; pointer-events: none; display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; background: rgba(7,7,10,.78); border: 1px solid rgba(255,255,255,.1); border-radius: 13px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 #powerGauge span { font-family: var(--display); font-size: 11px; color: var(--gold); letter-spacing: .08em; }
 #powerGauge b { font-family: var(--display); font-weight: 400; font-size: 13px; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -1142,6 +1156,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     </div>
     <div id="throwType" hidden>STRAIGHT</div>
     <div id="powerGauge" hidden><span>POWER</span><div class="pgbar"><i></i></div><b>0%</b></div>
+    <div id="ballFx" hidden aria-hidden="true"><i class="bf-spin"></i><i class="bf-drive"></i><b class="bf-pop"></b></div>
     <button id="energy" type="button"><em>♡ SPECIAL</em><b>0 / 100</b><div class="egbar"><i></i></div></button>
     <div id="players"></div>
     <div id="flash"></div>
