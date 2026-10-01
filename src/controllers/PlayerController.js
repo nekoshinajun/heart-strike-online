@@ -103,8 +103,9 @@ export class PlayerController {
   /** ジェスチャー + POWER → 投球パラメータ(AIM の起点は構え位置の画面座標) */
   computeThrow(flick, power, start, effects = [], route = null, curveSpin = null) {
     const hs = this.heldBallScreen();
-    const oy = Config.aim.originY;
-    this.thrower.holdScreen = oy == null ? hs : { x: hs.x, y: oy * this.viewport.h };
+    // Pokémon GO型では狙いの原点も実際のハート位置にする。
+    // 旧固定 originY を使うと斜めフリックの左右成分が弱くなり、右上を狙いにくかった。
+    this.thrower.holdScreen = hs;
     return this.thrower.compute(flick, power, start ?? this.holdAnchor(), effects, route, curveSpin);
   }
 }
