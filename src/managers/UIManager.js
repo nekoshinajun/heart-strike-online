@@ -227,8 +227,8 @@ export class UIManager {
     p.dataset.type = type;
     p.style.setProperty('--pc', playerColor);
     const text = {
-      flick: ['FLICK!', '下へ引く量で球速 → 上へ弾いて投げる'],
-      grab: ['THROW!', '浅く=よく曲がる・深く=まっすぐ／弾く長さで高さ'],
+      flick: ['FLICK!', 'ハートの周りを回す=カーブ → 下へ引く=球速 → 上へ弾いて投げる'],
+      grab: ['THROW!', '時計回り=右・反時計回り=左カーブ／下へ引いて上へ弾く'],
       catch: ['CATCH!', 'リングが重なる瞬間にタップ'],
     }[type];
     this.el.promptMain.textContent = text[0];
@@ -308,6 +308,33 @@ export class UIManager {
    * SPEED ゲージ(旧 POWER。null で非表示)。下へ引いた量 = 球速と直進性(ダメージは変わらない)
    *   浅い = SLOW(よく曲がる)/ 深い = FAST(まっすぐ)。「100% = 最大ダメージ」に見えない表示にする
    */
+  /**
+   * 円運動のカーブ入力の表示:ハートのまわりの弧(右 = 時計回り・水色 / 左 = 反時計回り・ピンク。長さ = 強さ)+ 表示
+   *   v … -1〜1(null で隠す)/ c … ハートの画面中心と半径 / reset … 2秒止めてストレートに戻った直後
+   */
+  setCurveInput(v, c = null, reset = false) {
+    let el = document.getElementById('curveRing');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'curveRing'; el.hidden = true;
+      el.innerHTML = `<svg viewBox="-60 -60 120 120"><circle class="cr-base" r="46"/><path class="cr-arc"/><path class="cr-head"/></svg><b class="cr-label"></b>`;
+      (document.getElementById('game') ?? document.body).appendChild(el);
+    }
+    if (v == null) { el.hidden = true; return; }
+    el.hidden = false;
+    if (c) { const size = Math.max(84, c.r * 3.4); el.style.width = el.style.height = `${size}px`; el.style.left = `${c.x - size / 2}px`; el.style.top = `${c.y - size / 2}px`; }
+    const a = Math.abs(v), dir = Math.sign(v), R = 46;
+    const sweep = a * Math.PI * 1.6, a0 = -Math.PI / 2, a1 = a0 + dir * sweep;
+    const pt = (t) => [Math.cos(t) * R, Math.sin(t) * R];
+    const [x0, y0] = pt(a0), [x1, y1] = pt(a1);
+    el.querySelector('.cr-arc').setAttribute('d', a > 0.001 ? `M${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 ${sweep > Math.PI ? 1 : 0} ${dir > 0 ? 1 : 0} ${x1.toFixed(1)},${y1.toFixed(1)}` : '');
+    // 矢じり(進む向き)
+    const tx = -Math.sin(a1) * dir, ty = Math.cos(a1) * dir, nx = Math.cos(a1), ny = Math.sin(a1), h = 7;
+    el.querySelector('.cr-head').setAttribute('d', a > 0.001 ? `M${(x1 + tx * h).toFixed(1)},${(y1 + ty * h).toFixed(1)} L${(x1 + nx * h * 0.8).toFixed(1)},${(y1 + ny * h * 0.8).toFixed(1)} L${(x1 - nx * h * 0.8).toFixed(1)},${(y1 - ny * h * 0.8).toFixed(1)} Z` : '');
+    el.dataset.dir = a > 0.001 ? (dir > 0 ? 'right' : 'left') : 'straight';
+    el.querySelector('.cr-label').textContent = a > 0.001 ? `${dir > 0 ? 'RIGHT' : 'LEFT'} CURVE ${'▮'.repeat(Math.max(1, Math.ceil(a * 3)))}` : 'STRAIGHT';
+    if (reset) { el.classList.remove('reset'); void el.offsetWidth; el.classList.add('reset'); }
+  }
+
   setPowerGauge(power, locked = false, ball = null) {
     const el = document.getElementById('powerGauge');
     if (!el) return;
