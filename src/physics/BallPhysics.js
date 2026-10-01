@@ -9,7 +9,8 @@ const seg = new THREE.Vector3();
  * 実際の飛行(BallController)と予測軌道(TrajectoryPreview)は同じ関数を使う。
  *
  * Flight = { pos, vel, accel(カーブ横力), t, bounces, acc(ステップ余り), result }
- * result = null | { type: 'hit', part, point } | { type: 'short' | 'over' | 'wide', point }
+ * result = null | { type: 'hit', part, point } | { type: 'short' | 'over' | 'wide' | 'low', point }
+ * colliders … ボスの攻撃面(BossController.hitPlane:面を通った点で判定)/ Collider の配列(レイキャスト)
  */
 export function createFlight(p0, v0, curveAccel = null, obstacles = null, drive = null) {
   return {
@@ -43,10 +44,15 @@ function fixedStep(f, h, colliders) {
   // 3D 障害物:当たったら反射(POWER 減少)して飛行を続ける。即 MISS にはしない
   if (f.obstacles) f.obstacles.collide(f, prev);
 
-  // ボスColliderとの交差(線分レイキャスト)
+  // ボスの攻撃面(Hit Plane):面を通った瞬間の X / Y で HIT / MISS と部位を確定(奥へ飛びすぎて MISS は無い・通った後に判定し直さない)
+  if (colliders?.isHitPlane) {
+    const r = colliders.resolve(prev, f.pos);
+    if (r) { f.pos.copy(r.point); f.result = r; return; }
+  }
+  // Collider との交差(線分レイキャスト。Energy / Heart Gate の配置の下見など、Collider の配列を渡された時)
   seg.subVectors(f.pos, prev);
   const len = seg.length();
-  if (len > 0 && colliders.length) {
+  if (len > 0 && Array.isArray(colliders) && colliders.length) {
     ray.set(prev, seg.normalize());
     ray.far = len + Config.ball.radius;
     const hits = ray.intersectObjects(colliders, false);
