@@ -180,7 +180,7 @@ export class ThrowController {
     g.ui.setThrowType?.(null);
     const start = g.player.holdAnchor();
     this.detector = null;
-    const th = wasGesture ? g.player.computeThrow(this.gestureFlick(flick.end), this.power, start, this.effectList) : null;
+    const th = wasGesture ? g.player.computeThrow(this.gestureFlick(flick.end), this.power, start, this.effectList, g.throwRoute) : null;
     if (th) th.start = start;
     if (!th) { g.ball.catchTo(g.player.holdAnchor, 0.2); this.phase = ThrowPhase.IDLE; return null; }   // 投げていない:仕込んだ球質はこの手番の間 保持
     this.phase = ThrowPhase.BALL_FLYING;

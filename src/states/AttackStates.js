@@ -171,7 +171,7 @@ export class BallToBossState {
     if (th.strong && !special) {
       g.cam.kickFov(5 + strength * 5);
       g.ui.speedLines(true);
-      if (th.spin === 0) g.ui.showJudge('STRONG!', 'tier', '#ff8a3d');
+      if (th.spin === 0) g.ui.showJudge('FAST BALL', 'tier', '#3ee8ff');   // 速い球(強さの表示ではない)
       g.ui.flash('#ffffff', 0.12);
     }
   }
@@ -204,20 +204,20 @@ export class BossHitState {
     if (result.type === 'hit') {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
-      // HeartGain = BaseHeart(部位) × POWER × Attack(ATK) × Attribute × Rally × Energy × Special
+      // HeartGain = BaseHeart(部位) × Attack(ATK) × Attribute × Rally × Energy × Special(球速・引っ張り量では変えない)
       const ch = g.turn.current.chara;
       const orbs = g.energy.throwCount;
       const bonusTable = Config.energy.throwBonus;
       const energyMul = bonusTable[Math.min(orbs, bonusTable.length - 1)];
       const sMul = special ? special.heartMul : 1;
       const hm = heartMultiplier({
-        power: th.power, atk: ch?.atk ?? 50, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
+        atk: ch?.atk ?? 50, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
         rally: mul, energy: energyMul, special: sMul, fever: g.fever.heartMul,
         // 3D 空間:GATE CHAIN / BANK SHOT は「ボスに当たった時だけ」
         gate: Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)],
         bank: banks > 0 ? Config.space.bank.bonus : 1,
       });
-      const power = hm.powerMul;
+      const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
       const heartMul = hm.total;
       const r = g.boss.addHeart(partId, heartMul, heartMul / (hm.attackMul * hm.attrMul));
       g.stats.heart += r.heartGain;

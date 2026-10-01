@@ -145,8 +145,7 @@ export class MenuFlow {
       case 'stage': return this.pickStage(this.stage);
       case 'diff': return this.confirmDiff();
       case 'party': return this.partyMode === 'sortie' ? this.router.go('chars') : null;
-      case 'chars': return this.router.go('intro');
-      case 'intro': return this.introMulti ? null : this.startGame();
+      case 'chars': return this.startGame();   // 攻略開始:すぐインゲームへ(ボス紹介はインゲームの開始演出)
       case 'result': return this.g.backToMenu();          // ステージ選択
       case 'over': return this.g.online ? this.g.backToMenu() : this.g.retryStage(); // Online は再戦しない
     }
@@ -155,7 +154,6 @@ export class MenuFlow {
   onBack() {
     switch (this.screen) {
       case 'diff': case 'party': case 'chars': return this.router.back();
-      case 'intro': return this.introMulti ? null : this.router.back();
       case 'result': return this.g.retryStage();          // もう一度
       case 'over': return this.g.backToMenu();            // ステージ選択
     }
@@ -403,7 +401,7 @@ export class MenuFlow {
   showCharacterSelect() {
     const party = this.progress.party;
     if (!this.firstId || !party.includes(this.firstId)) this.firstId = party[0];
-    this.frame('chars', '最初に投げる子', '最初にハートを投げる子を選んでね(A になります)', { primary: '♡ デートへ', back: '◀ BACK' });
+    this.frame('chars', '最初に投げる子', '最初にハートを投げる子を選んでね(A になります)', { primary: '攻略開始♡', back: '◀ BACK' });
     const stageLine = `<div class="stageline">STAGE ${String(this.stage.no).padStart(2, '0')} / ♡ ${esc(this.stage.boss.name)} / ${diffChip(this.diff)}</div>`;
     const order = this.order();
     this.body.innerHTML = `${stageLine}
@@ -415,43 +413,11 @@ export class MenuFlow {
       }).join('')}</div>
       <div class="vsbox">VS ♡ ${esc(this.stage.boss.name)} ${attrTag(this.stage.boss.attribute)}</div>
       <div class="howto mini">
-        <div><b>THROW</b>ハート玉を下へ引いてPOWER→上へ弾いて狙う。切り返すとカーブ</div>
+        <div><b>THROW</b>ハート玉を下へ引いて球速を決める(浅い=よく曲がる・深い=まっすぐ)→上へ弾いて狙う。切り返すとカーブ</div>
         <div><b>CATCH</b>◎の位置を、リングが重なる瞬間にタップ</div>
         <div><b>TYPE</b>STRAIGHT=速い球 / CURVE=よく曲がる</div>
       </div>`;
     for (const b of this.body.querySelectorAll('[data-act="first"]')) this.bindCard(b, b.dataset.id, () => { this.firstId = b.dataset.id; this.showCharacterSelect(); });
-    this.focus();
-  }
-
-  // ---------------- 攻略対象紹介(GAME START の直前。SOLO / MULTI 共通)----------------
-  /**
-   * これから攻略する女の子を大きく見せる。説明文・セリフは攻略対象データ(未設定ならステージのデータ。どちらも無ければ出さない)
-   * @param multi MULTI:全員同じタイミングで自動開始(ボタンの代わりにカウントダウン)。startAt = 開始時刻(performance.now)
-   */
-  showIntro({ multi = false, startAt = 0 } = {}) {
-    const st = this.stage, h = heroineByStage(st.id), D = difficultyData(this.g.difficulty);
-    this.introMulti = multi;
-    this.frame('intro', '', '', { primary: multi ? null : '攻略開始♡', back: multi ? null : '◀ BACK' });
-    const profile = h?.profile ?? st.concept ?? null;
-    const line = h?.line ?? st.line ?? null;
-    this.body.innerHTML = `
-      <div class="intro-stage" style="--boss:url('${BOSS_IMAGES[st.boss.image] ?? BOSS_IMAGES[st.boss.fallbackImage] ?? ''}')">
-        <div class="intro-fx" aria-hidden="true">${'<i>♡</i>'.repeat(10)}</div>
-        <section class="intro-card">
-          <div class="intro-tags">${roleTag('heroine', 'sm')}${diffChip(D.id)}</div>
-          <small>STAGE ${String(st.no).padStart(2, '0')} ・ ${esc(st.name)}</small>
-          <strong>${esc(st.boss.name)}</strong>
-          ${profile ? `<p class="intro-profile">${esc(profile)}</p>` : ''}
-          ${line ? `<p class="intro-line">「${esc(line)}」</p>` : ''}
-          <p class="intro-lead">これから、この子を口説きにいきます♡</p>
-        </section>
-      </div>
-      ${multi ? '<div class="intro-wait">みんなで攻略開始♡ <b class="intro-count"></b></div>' : ''}`;
-    clearInterval(this.introTimer);
-    if (multi) {
-      const tick = () => { const left = Math.max(0, Math.ceil((startAt - performance.now()) / 1000)); const c = this.body.querySelector('.intro-count'); if (c) c.textContent = left ? String(left) : 'START!'; if (!left || this.screen !== 'intro') clearInterval(this.introTimer); };
-      tick(); this.introTimer = setInterval(tick, 200);
-    }
     this.focus();
   }
 

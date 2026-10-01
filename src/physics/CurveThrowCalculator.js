@@ -1,6 +1,6 @@
 import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
-import { applyBallEffects } from '../throw/BallEffects.js';
+import { applyBallEffects, throwFeel } from '../throw/BallEffects.js';
 
 /**
  * 投球パラメータの計算。POWER / AIM / SPIN を分離して扱う。自動エイム・乱数なし。
@@ -113,8 +113,9 @@ export class CurveThrowCalculator {
    * @param power  0〜1(下へ引いた量)
    * @param start  ボールの発射位置(ワールド)
    * @param effects 投球前に仕込んだ球質(BallEffect の配列。PRE-SPIN / DRIVE …)
+   * @param route   投球ルート('DIRECT' / 'CURVE'。プレイヤーの選択)
    */
-  compute(flick, power, start, effects = []) {
+  compute(flick, power, start, effects = [], route = null) {
     const C = Config.curve;
     const h = this.viewport.h;
     const samples = flick.samples?.length ? flick.samples : [flick.start, flick.end];
@@ -126,16 +127,21 @@ export class CurveThrowCalculator {
     // SPIN
     const curve = C.enableCurveBall ? this.analyzeCurve(samples, a, b, flick.velocity, len) : null;
     const throwSpin = curve?.spin ?? 0;
-    // 球質の合成:投球の SPIN × PRE-SPIN(同じ向き ×1.5 / 逆 ×0.7)→ 最後にキャラクター性能(mods.curveMul)が buildThrow で掛かる
-    const fx = applyBallEffects(effects, throwSpin);
-    const lim = C.maxSpin * Math.max(1, Config.preSpin.sameDirMul);
-    const spin = THREE.MathUtils.clamp(fx.spin, -lim, lim);
+    // 球質の合成(ダメージには関係しない):
+    //   最終カーブ = キャラクター性能(mods.curveMul:buildThrow で掛かる)× 投球ルート × 投球の SPIN × PRE-SPIN 補正 × 引っ張り量(Curve Resistance)
+    //   引っ張り量 pull = 球速を決めた引きの割合(浅い = 遅い・曲がりやすい / 深い = 速い・まっすぐ。0 にはならない)
+    const m = Config.power.minThrowPower;
+    const pull = THREE.MathUtils.clamp((power - m) / Math.max(1e-6, 1 - m), 0, 1);
+    const feel = throwFeel(route ?? Config.throwRoute.default, pull);
+    const fx = applyBallEffects(effects, throwSpin, feel);
+    const lim = C.maxSpin * Math.max(1, Config.preSpin.sameDirMul) * 2;
+    const spin = THREE.MathUtils.clamp(fx.spin * feel.curveScale, -lim, lim);
     // AIM(弦の向きと長さ)
     const aim = this.aimTarget(cx / len, cy / len, len);
     const th = this.buildThrow(start, aim.world, power, spin, fx.driveSink);
     return {
       ...th,
-      power, spin, throwSpin, aim,
+      power, spin, throwSpin, aim, pull, route: feel.route, feel,
       effects: (effects ?? []).map((e) => ({ ...e })),
       driveSink: fx.driveSink,
       direction: th.velocity.clone().normalize(),

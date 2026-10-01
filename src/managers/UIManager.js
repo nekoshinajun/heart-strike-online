@@ -176,7 +176,7 @@ export class UIManager {
     p.dataset.type = type;
     p.style.setProperty('--pc', playerColor);
     const text = {
-      flick: ['FLICK!', 'ボールを下へ引いてPOWER → 上へ弾いて投げる'],
+      flick: ['FLICK!', '下へ引く量で球速(浅い=よく曲がる・深い=まっすぐ)→ 上へ弾いて投げる'],
       grab: ['THROW!', '下へ引くほど強く、上へ弾いた長さで高さ'],
       catch: ['CATCH!', 'リングが重なる瞬間にタップ'],
     }[type];
@@ -201,7 +201,7 @@ export class UIManager {
     const f = (v, d = 2) => Number(v).toFixed(d);
     const ps = th?.effects?.find((e) => e.type === 'preSpin'), dr = th?.effects?.find((e) => e.type === 'drive');
     this.lastThrowHTML = th
-      ? `POWER <b>${Math.round(th.power * 100)}%</b> 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>`
+      ? `SPEED <b>${Math.round(th.power * 100)}%</b>(引き ${f(th.pull ?? 0)})${th.route ? ` ROUTE <b>${th.route}</b>` : ''} 初速 ${f(th.speed3d, 1)} 発射角 ${f(th.launchDeg, 0)}°${th.reachable ? '' : '(届かない)'}<br>AIM 角度 ${f(th.angleDeg, 0)}° 長さ ${f(th.gestureN)}h<br>`
         + `PRE-SPIN <b>${ps ? (ps.dir > 0 ? 'RIGHT' : 'LEFT') : 'NONE'}</b> ${f(ps?.strength ?? 0)} ・ DRIVE <b>${dr ? 'ON' : 'OFF'}</b> ${f(dr?.strength ?? 0)}<br>`
         + `Throw SPIN ${f(th.throwSpin ?? th.spin)} → Final curve <b>${{ left: '← 左', right: '右 →', straight: 'ストレート' }[th.curveDir] ?? ''}</b> ${f(th.spin)} 強さ ${f(th.curveStrength, 1)}`
       : '投げていません(上へ弾いて離すと投球)';
@@ -253,7 +253,25 @@ export class UIManager {
     el.hidden = false;
   }
 
-  /** POWER ゲージ(null で非表示)。locked=Power確定済み */
+  /** 投球ルート(DIRECT / CURVE)の表示。onRouteToggle はタップで呼ばれる */
+  setRoute(id, label = id) {
+    const el = $('routeToggle');
+    if (!el) return;
+    if (!this.routeWired) {
+      this.routeWired = true;
+      // ゲームの入力(ハートを掴む)へ流さない
+      for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend']) el.addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
+      el.addEventListener('click', (e) => { e.stopPropagation(); this.onRouteToggle?.(); });
+    }
+    el.dataset.route = id;
+    el.querySelector('b').textContent = label;
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  }
+
+  /**
+   * SPEED ゲージ(旧 POWER。null で非表示)。下へ引いた量 = 球速と直進性(ダメージは変わらない)
+   *   浅い = SLOW(よく曲がる)/ 深い = FAST(まっすぐ)。「100% = 最大ダメージ」に見えない表示にする
+   */
   setPowerGauge(power, locked = false, ball = null) {
     const el = document.getElementById('powerGauge');
     if (!el) return;
@@ -265,11 +283,10 @@ export class UIManager {
       el.style.left = `${Math.max(8, ball.x - ball.r - w - 8)}px`;
       el.style.top = `${Math.max(60, ball.y - ball.r - 34)}px`;
     }
-    const pct = Math.round(power * 100);
     el.querySelector('i').style.transform = `scaleX(${power})`;
-    el.querySelector('b').textContent = pct >= 100 ? 'MAX!' : `${pct}%`;
-    el.querySelector('span').textContent = pct >= 100 ? 'POWER' : 'POWER';
-    el.classList.toggle('max', pct >= 100);
+    el.querySelector('b').textContent = power < 0.45 ? 'SLOW' : power < 0.8 ? 'MID' : 'FAST';
+    el.querySelector('span').textContent = 'SPEED';
+    el.classList.remove('max');
     el.classList.toggle('locked', locked);
   }
 

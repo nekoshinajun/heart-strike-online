@@ -156,9 +156,9 @@ export const Config = {
     //   v25: Power 10% から開始。100% は従来の最強と同じ
     minSpeed: 21.6,        // ★ Power 0% の初速(実際の最低は MinThrowPower の値)(旧 28)
     maxSpeed: 53,          // ★ Power 100% の初速
-    // HEART の POWER 倍率:MinThrowPower で heartAtMin、100% で heartAtMax(間は直線)
-    heartAtMin: 0.8,       // ★
-    heartAtMax: 1.5,       // ★
+    // HEART(ダメージ)は球速・引っ張り量で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
+    //   旧仕様の POWER 倍率(0.8〜1.5)の中間あたりにして、ステージの HEART 量とのバランスを大きく崩さない(★ 仮)
+    heartFlat: 1.15,
     maxPullDown: 0.14,     // 引いた時にボールが下がれる量(画面高さ比・見た目)(旧 0.1)
   },
   aim: {
@@ -180,6 +180,38 @@ export const Config = {
     shift: 2.9,            // ★ CurveStrength:spin=1 のとき、狙い点から曲がる向きへずれる量(units)。ボス拡大に合わせ ×1.2(旧 2.4)
     bulge: 1.2,            // ★ spin=1 のとき、逆側へ膨らむ量(units)(旧 1.0)
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
+  },
+
+  // ---- 投球ルート(プレイヤーが自由に選ぶ操作感の違い。強さ・ダメージは同じ)----
+  //   curveMul … 投球の SPIN(カーブ)の効き / preSpinMul … PRE-SPIN の効き / driveMul … DRIVE の効き
+  throwRoute: {
+    default: 'DIRECT',
+    routes: {
+      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },   // 直進性が高く、狙った所へ素直に飛ぶ
+      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },       // 変化球を扱いやすい
+    },
+  },
+  // ---- 下へ引く量(chargeRatio 0〜1)= 球速と直進性。ダメージには使わない ----
+  //   浅く引く → 遅い・曲がりやすい・PRE-SPIN / DRIVE が強く出る / 深く引く → 速い・まっすぐ・球質の効きが少し弱い(0 にはしない)
+  pull: {
+    curveAtMin: 1.25, curveAtMax: 0.55,       // ★ カーブの効き(Curve Resistance)
+    preSpinAtMin: 1.3, preSpinAtMax: 0.55,    // ★ PRE-SPIN の効き
+    driveAtMin: 1.2, driveAtMax: 0.8,         // ★ DRIVE の効き
+  },
+
+  // ---- バトル開始演出(OPENING):インゲームに入り バトル BGM が流れる中でボス紹介 → BATTLE START → A の投球 ----
+  //   各時刻は OPENING に入ってからの秒。MULTI はサーバーが全員に同じ長さ(totalSec)を配る
+  opening: {
+    dimAt: 0.0,          // 画面を少し暗くする
+    bossAt: 0.2,         // ボスを強調(カメラを寄せる)
+    nameAt: 0.4,         // TARGET / 名前
+    diffAt: 0.6,         // 難易度
+    textAt: 0.8,         // 紹介文 / セリフ(データがある時だけ)
+    fadeAt: 2.8,         // 紹介 UI のフェードアウト開始
+    fadeSec: 0.35,
+    startSec: 0.8,       // 「BATTLE START」を見せてから A の投球へ
+    dim: 0.45,           // 暗さ(0〜1)
+    bossZoom: 4,         // ボスへ寄せる量
   },
 
   // ---- 投球前の球質(ハートを掴んだまま仕込む)。判定と効果の数値はここだけ ----

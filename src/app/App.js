@@ -82,7 +82,6 @@ export class App {
     R.register('diff', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('diff', c)) M.showDifficultySelect(p); } });
     R.register('party', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'sortie')) M.showPartyEdit({ mode: 'sortie' }); } });
     R.register('chars', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('chars', c)) M.showCharacterSelect(); } });
-    R.register('intro', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showIntro(p) });   // 攻略対象紹介(GAME START の直前)
     R.register('game', { kind: KIND.FLOW, layer: null, resetTo: 'stage', show: () => M.hide() });
     R.register('result', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showResult(p.res ?? g.lastResult) });
     R.register('over', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showGameOver(p.stage ?? g.stage, p.stats ?? []) });
