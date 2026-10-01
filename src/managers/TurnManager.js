@@ -25,7 +25,8 @@ export class TurnManager {
         ...slot,
         name: ch ? ch.name : slot.name,
         chara: ch ?? null,          // CharacterData + 進行度(ATK/DEF/属性/タイプ)
-        hp: Config.playerMaxHp, maxHp: Config.playerMaxHp,
+        // 最大 HP はキャラごと(Lv で伸びる)。キャラ無しの時だけ共通の値
+        hp: ch?.maxHp ?? Config.playerMaxHp, maxHp: ch?.maxHp ?? Config.playerMaxHp,
       };
     });
     this.index = 0;

@@ -637,7 +637,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
 /* ---- キャラクターカード(育成・コレクション・編成・リザルト共通)---- */
 .attr { color: color-mix(in srgb, var(--ac) 70%, var(--hs-ink)); font-weight: 800; white-space: nowrap; }
-.ccard { --rc: #fff; --ac: #fff; position: relative; display: grid; justify-items: center; gap: 1px; padding: 6px 4px 5px; min-width: 0; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--rc) 70%, #fff); background: linear-gradient(180deg, color-mix(in srgb, var(--ac) 16%, #fff), #fff 72%); color: var(--hs-ink); font-size: 10px; box-shadow: var(--hs-shadow); }
+.ccard { --rc: #fff; --ac: #fff; position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 1px; padding: 6px 4px 5px; min-width: 0; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--rc) 70%, #fff); background: linear-gradient(180deg, color-mix(in srgb, var(--ac) 16%, #fff), #fff 72%); color: var(--hs-ink); font-size: 10px; box-shadow: var(--hs-shadow); }
 .crank { position: absolute; left: 4px; top: 3px; padding: 0 5px; border-radius: 6px; background: var(--rc); color: #fff; font: 800 9px/1.5 var(--round); text-shadow: 0 1px 1px rgba(91,43,69,.35); }
 .cslot { position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--hs-pink); color: #fff; font: 800 10px var(--round); display: grid; place-items: center; box-shadow: 0 0 0 2px #fff; }
 .cbadge { position: absolute; z-index: 2; left: 4px; top: 20px; font-size: 9px; font-weight: 800; padding: 0 5px; border-radius: 6px; white-space: nowrap; }
@@ -648,12 +648,18 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .avatar.ph span { font: 800 22px var(--round); color: #fff; text-shadow: 0 1px 2px rgba(91,43,69,.4); }
 .avatar i { position: absolute; font-style: normal; font-size: 14px; right: -4px; bottom: -3px; }
 .cname { font-weight: 800; font-size: 12px; margin-top: 3px; white-space: nowrap; }
-.cmeta { display: flex; gap: 4px; align-items: center; font-weight: 800; font-size: 9px; color: color-mix(in srgb, var(--ac) 70%, var(--hs-ink)); }
-.cstat { display: flex; gap: 5px; font-size: 9px; font-weight: 800; color: var(--hs-ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cstat span:first-child { color: var(--hs-pink-deep); }
+.cmeta { display: flex; max-width: 100%; overflow: hidden; gap: 4px; align-items: center; font-weight: 800; font-size: 9px; color: color-mix(in srgb, var(--ac) 70%, var(--hs-ink)); }
+.cstat { display: flex; max-width: 100%; gap: 5px; font-size: 9px; font-weight: 800; color: var(--hs-ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cstat-lv span:first-child { color: var(--hs-pink-deep); }
+.cstat .chp { color: #e2557f; }
 .ccard.compact .avatar { width: 38px; height: 38px; }
 .ccard.compact .avatar.ph span { font-size: 17px; }
-.ccard.compact .cstat { flex-direction: column; gap: 0; align-items: center; }
+.ccard.compact .cstat { gap: 3px; justify-content: center; font-size: 8px; letter-spacing: -.02em; }
+@media (max-width: 360px) {
+  .ccard .cstat, .ccard .cmeta { gap: 0 2px; font-size: 7.5px; letter-spacing: -.03em; }
+  .ccard .cstat { flex-wrap: wrap; justify-content: center; }
+  .ccard.compact .cstat { gap: 0 2px; font-size: 7px; letter-spacing: -.05em; }
+}
 
 /* ---- 育成:上 = 編成 / 下 = 所持キャラクター(カードでキャラ画像が主役)---- */
 .tl-sec { margin-top: 6px; }
@@ -681,6 +687,12 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .tl-lv { font-size: 9px; font-weight: 800; color: var(--hs-pink-deep); }
 .tl-lv b { font-size: 12px; }
 .tl-type { grid-column: 1 / -1; font-size: 9px; font-weight: 800; color: color-mix(in srgb, var(--ac) 65%, var(--hs-ink)); white-space: nowrap; overflow: hidden; }
+.tl-row { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
+.tl-hp { flex: none; font-size: 9px; font-weight: 800; color: #e2557f; }
+.tl-row .stam { gap: 3px; min-width: 0; }
+.tl-row .stam i { width: 14px; }
+.tl-hp b { font-weight: 900; }
+.tl-card.party .tl-hp { display: none; }
 .tl-info .stam { grid-column: 1 / -1; }
 .tl-card.party .tl-info { padding: 4px 5px 5px; }
 .tl-card.party .tl-name { font-size: 11px; }

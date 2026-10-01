@@ -2,7 +2,7 @@ import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
 import { STAT_KEYS, STAT_LABELS, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
-import { staminaNextMs } from '../data/Growth.js';
+import { staminaNextMs, HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML, staminaHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
@@ -69,7 +69,7 @@ export class AppScreens {
       ${si >= 0 ? `<span class="tl-in" title="編成中"><i>✓</i>${'ABCD'[si]}</span>` : ''}
       ${home ? '<span class="tl-home" title="ホーム設定中">⌂</span>' : ''}
       <span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span>
-        <span class="tl-type">${a.icon} ${t.label}</span>${staminaHTML(ch, 'sm')}</span>
+        <span class="tl-type">${a.icon} ${t.label}</span><span class="tl-row">${staminaHTML(ch, 'sm')}<span class="tl-hp">HP <b>${ch.maxHp}</b></span></span></span>
     </button>`;
   }
   showTraining() {
@@ -105,7 +105,7 @@ export class AppScreens {
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
     const active = ch.abilities ?? [];
     // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
-    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: Config.playerMaxHp, max: Config.playerMaxHp }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats[k], max: 100 }))]);
+    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats[k], max: 100 }))]);
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
         <div class="td-bg"></div>

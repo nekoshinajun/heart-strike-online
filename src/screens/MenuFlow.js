@@ -44,7 +44,7 @@ export function staminaHTML(ch, cls = '') {
   return `<span class="stam ${ch.tired ? 'tired' : ''} ${cls}" title="STAMINA ${ch.stamina} / ${ch.staminaMax}"><i style="--k:${k}"></i><b>${ch.tired ? '疲労中 EXP×10%' : `STA ${ch.stamina}`}</b></span>`;
 }
 
-/** キャラクターカード(ランク・画像・名前・属性・タイプ・親密度 Lv・ATTACK・DEFENCE・STAMINA) */
+/** キャラクターカード(ランク・画像・名前・属性・タイプ・親密度 Lv・HP・ATTACK・DEFENCE・STAMINA) */
 export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
   const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
   const ps = portraitStyle(ch);
@@ -57,7 +57,8 @@ export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
     ${img}
     <div class="cname">${esc(ch.name)}</div>
     <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${t.label}</span></div>
-    <div class="cstat"><span>♡Lv.${ch.level}</span><span>ATK ${ch.stats?.attack ?? '-'}</span><span>DEF ${ch.stats?.defence ?? '-'}</span></div>
+    <div class="cstat cstat-lv"><span>♡Lv.${ch.level}</span><span class="chp">HP ${ch.maxHp ?? '-'}</span></div>
+    <div class="cstat"><span>ATK ${ch.stats?.attack ?? '-'}</span><span>DEF ${ch.stats?.defence ?? '-'}</span></div>
     ${staminaHTML(ch)}
   </div>`;
 }

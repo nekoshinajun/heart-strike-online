@@ -27,7 +27,7 @@ export const DETAIL_SECTIONS = [
     render: (ch) => {
       const ratio = ch.maxLevel ? 1 : ch.expNeed ? clamp(ch.expInto / ch.expNeed, 0, 1) : 0;
       const st = ch.stats ?? {};
-      return `<div class="cd-stat"><span class="cd-lv">♡ AFFECTION Lv.<b>${ch.level}</b></span>${STAT_KEYS.map((k) => `<span>${STAT_LABELS[k].slice(0, 3)} <b>${st[k] ?? '-'}</b></span>`).join('')}</div>
+      return `<div class="cd-stat"><span class="cd-lv">♡ AFFECTION Lv.<b>${ch.level}</b></span><span>HP <b>${ch.maxHp ?? '-'}</b></span>${STAT_KEYS.map((k) => `<span>${STAT_LABELS[k].slice(0, 3)} <b>${st[k] ?? '-'}</b></span>`).join('')}</div>
         <div class="cd-exp"><span>EXP</span><div class="cd-expbar"><i style="transform:scaleX(${ratio})"></i></div><b>${ch.maxLevel ? 'MAX' : `${ch.expInto ?? 0} / ${ch.expNeed ?? 0}`}</b></div>`;
     },
   },

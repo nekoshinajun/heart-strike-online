@@ -2,7 +2,7 @@ import { CHARACTERS, DEFAULT_PARTY, LEGACY_CHARACTER_IDS, STAGES, characterById 
 import { Config } from '../core/Config.js';
 import { HEROINES, REWARD_VOICE_SLOTS, rewardUnlock, heroineById, heroineByStage, giftById, giftExp } from './RomanceData.js';
 import { STAMINA, ABILITY_RESET_ITEM, STAT_KEYS } from './GrowthData.js';
-import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, statsAt, activeAbilities, abilitySlots, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
+import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, statsAt, hpAt, activeAbilities, abilitySlots, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
 import { storage, Log } from '../app/Platform.js';
 
 /**
@@ -374,6 +374,7 @@ export class PlayerProgress {
       affectionLevel: prog.level, level: prog.level,
       affectionExp: prog.total, expInto: prog.into, expNeed: prog.need, maxLevel: prog.max,
       stats: statsAt(id, prog.level, abilities),
+      maxHp: hpAt(id, prog.level),
       abilities,
       selectedAbilities: { ...p.selectedAbilities },
       stamina: st.stamina, staminaMax: STAMINA.max, tired: st.stamina <= 0,
@@ -477,7 +478,7 @@ export class PlayerProgress {
   /** 戦闘で使う値だけ(Lv / ステータス / 有効なアビリティの ID)*/
   combatProfile(id) {
     const ch = this.character(id);
-    return { characterId: id, level: ch.level, stats: { ...ch.stats }, abilities: ch.abilities.map((a) => a.id) };
+    return { characterId: id, level: ch.level, maxHp: ch.maxHp, stats: { ...ch.stats }, abilities: ch.abilities.map((a) => a.id) };
   }
   /** 他プレイヤーのキャラ:マスター + そのプレイヤーの育成(profile)。自分のセーブは使わない */
   characterFromProfile(id, profile) {
@@ -486,7 +487,8 @@ export class PlayerProgress {
     const stats = {};
     for (const k of STAT_KEYS) stats[k] = Math.max(0, Math.min(100, Math.round(Number(profile?.stats?.[k] ?? statsAt(base.id, lv)[k]))));
     const abilities = (Array.isArray(profile?.abilities) ? profile.abilities : []).map((x) => (ABILITY_DEF(x).name ? { id: x, ...ABILITY_DEF(x) } : null)).filter(Boolean);
-    return { ...base, owned: true, affectionLevel: lv, level: lv, stats, abilities, stamina: STAMINA.max, staminaMax: STAMINA.max, tired: false, remote: true };
+    const maxHp = Math.max(1, Math.min(300, Math.round(Number(profile?.maxHp) || hpAt(base.id, lv))));
+    return { ...base, owned: true, affectionLevel: lv, level: lv, stats, maxHp, abilities, stamina: STAMINA.max, staminaMax: STAMINA.max, tired: false, remote: true };
   }
 
   // ---------------- プレゼント(所持数 / 渡す)----------------
