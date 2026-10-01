@@ -12,6 +12,7 @@ import { HomeScreen } from '../home/HomeScreen.js';
 import { AppScreens, FavoriteSheet } from './SubScreens.js';
 import { GachaUI } from '../gacha/GachaUI.js';
 import { Log, safe, nullObject, Haptic } from './Platform.js';
+import { SCREEN_BGM } from '../audio/BgmTracks.js';
 
 /**
  * HEART STRIKE のアプリ本体(ゲームの「外側」)。
@@ -54,7 +55,9 @@ export class App {
     R.register('home', { kind: KIND.TAB_ROOT, layer: 'home', opaque: true, show: (p, c) => this.home.show(p, c), hide: () => this.home.hide() });
     R.register('training', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: () => S.showTraining() });
     R.register('gacha', { kind: KIND.TAB_ROOT, layer: 'gacha', opaque: true, show: () => this.gacha.showTop() });
-    R.register('collection', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showCollection() });
+    R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p) => S.showCollection(p) });
+    R.register('trainChar', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showTrainChar(p) });
+    R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopAsmr(), leave: () => S.stopAsmr() });
     R.register('mission', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showMission() });
     R.register('present', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showPresent() });
     R.register('settings', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showSettings() });
@@ -65,7 +68,7 @@ export class App {
     R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });
     R.register('gachaResult', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: (p) => this.gacha.showResult(p) });
     // 3D ゲームが使えない環境でも HOME / ガチャは動く(攻略・編成は案内だけ)
-    for (const id of ['stage', 'partyTab']) R.register(id, { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: () => this.showGameUnavailable() });
+    for (const id of ['stage', 'partyTab']) R.register(id, { kind: id === 'stage' ? KIND.TAB_ROOT : KIND.SUB, layer: 'app', opaque: true, show: () => this.showGameUnavailable() });
   }
 
   /** 既存のインゲーム(STAGE SELECT → … → RESULT)をつなぐ */
@@ -75,7 +78,7 @@ export class App {
     this.router.registerLayer('menu', M.el);
     const same = (id, c) => c.restore && M.screen === id && !M.el.hidden;
     R.register('stage', { kind: KIND.TAB_ROOT, layer: 'menu', opaque: true, show: (p, c) => { if (!same('stage', c)) M.showStageSelect(p); } });
-    R.register('partyTab', { kind: KIND.TAB_ROOT, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'standalone')) M.showPartyEdit({ mode: 'standalone' }); } });
+    R.register('partyTab', { kind: KIND.SUB, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'standalone')) M.showPartyEdit({ mode: 'standalone' }); } });
     R.register('diff', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('diff', c)) M.showDifficultySelect(p); } });
     R.register('party', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'sortie')) M.showPartyEdit({ mode: 'sortie' }); } });
     R.register('chars', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('chars', c)) M.showCharacterSelect(); } });
@@ -102,6 +105,9 @@ export class App {
   // ---------------- 画面遷移の共通処理 ----------------
   onRoute(id, def, ctx) {
     if (!def || ctx.sheet || ctx.sheetClosed) { this.refreshNotifications(); return; }
+    // BGM:タブごとの場面(SCREEN_BGM。SUB 画面は下のタブの BGM を続ける)。バトル(game)は開始時に GameManager が鳴らす
+    //   リザルト / ゲームオーバー / 途中で抜けた時 / MULTI 終了は game 以外へ移るので、ここで切り替わる(または止まる)
+    if (id !== 'game') safe('AUDIO', () => { const slot = SCREEN_BGM[this.router.stack[0]?.id]; if (slot) this.audio.startBgm?.(slot); else this.audio.stopBgm?.(); });
     // 行き先の画面を開いたら、その Guidance は解決済み
     const top = this.router.top;
     if (!ctx.restore) safe('HOME', () => this.home.agenda.resolveFor(id, top?.params ?? {}));
@@ -143,10 +149,16 @@ export class App {
   applySettings() {
     const s = this.progress.data.settings;
     Haptic.enabled = s.haptic && Config.gacha.haptic;
-    Config.audio.bgm = !!s.bgm;
+    const a = s.audio ?? {};
+    safe('AUDIO', () => {
+      this.audio.setVolume?.('bgm', a.bgmVolume ?? 0.5);
+      this.audio.bgm?.setMuted?.(!!a.bgmMuted);
+      this.audio.setVolume?.('se', a.seVolume ?? 1);
+      this.audio.setVolume?.('voice', a.voiceVolume ?? 1);
+    });
   }
 
-  bossThumb(stage) { return BOSS_IMAGES[stage.boss.image] ?? ''; }
+  bossThumb(stage) { return BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? ''; }
 
   toast(text) {
     const t = this.toastEl;

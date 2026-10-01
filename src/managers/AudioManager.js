@@ -1,6 +1,10 @@
-// WebAudioで簡易効果音と BGM を合成(素材ファイル不要)。最初のタップで有効化。
+// WebAudio の効果音(合成)と BGM(ファイル。audio/BgmManager.js)。最初のタップで有効化。
+// 音の系統:効果音 = master(SE)/ BGM = BgmManager のバス / ボイス = 将来用(voice)。それぞれ別に音量を持つ
 import { Config } from '../core/Config.js';
 import { Haptic } from '../app/Platform.js';
+import { BgmManager } from '../audio/BgmManager.js';
+
+const SE_MASTER = 0.35;   // 効果音の基準音量(従来値。SE 音量設定 1 のとき)
 
 export class AudioManager {
   /** HeartbeatCue の Mood(count:拍数 / interval:間隔 / volume / reverb:残響 / grow:2拍目の強さ / haptic)*/
@@ -8,7 +12,20 @@ export class AudioManager {
     talk50: { count: 1, interval: 0.65, volume: 1, reverb: 0, grow: 1, haptic: null },
     gachaSSR: { count: 2, interval: 0.65, volume: 1.2, reverb: 0.35, grow: 1.25, haptic: 'medium' },
   };
-  constructor() { this.ctx = null; this.muted = false; }
+  constructor() {
+    this.ctx = null; this.muted = false;
+    this.volumes = { se: 1, voice: 1 };   // ユーザー設定(0〜1)。BGM は this.bgm が持つ
+    this.bgm = new BgmManager(this);
+  }
+
+  /** 系統ごとの音量(設定画面)。se は効果音の master に掛ける(1 = 従来どおり)。voice は将来のボイス用 */
+  setVolume(kind, v) {
+    const x = Math.max(0, Math.min(1, Number(v)));
+    if (!Number.isFinite(x)) return;
+    if (kind === 'bgm') { this.bgm.setVolume(x); return; }
+    this.volumes[kind] = x;
+    if (kind === 'se' && this.master) this.master.gain.value = SE_MASTER * x;
+  }
 
   /** 最初のユーザー操作で呼ぶ。iOS はユーザー操作の中で resume + 無音再生しないと鳴らない */
   unlock() {
@@ -16,7 +33,7 @@ export class AudioManager {
       try {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this.master = this.ctx.createGain();
-        this.master.gain.value = 0.35;
+        this.master.gain.value = SE_MASTER * this.volumes.se;
         this.master.connect(this.ctx.destination);
       } catch { this.ctx = null; return; }
     }
@@ -29,6 +46,7 @@ export class AudioManager {
       } catch { /* noop */ }
     }
     this.resume();
+    this.bgm.onUnlock();
   }
 
   /** 一時停止(iOS のアプリ切替・着信など)からの復帰 */
@@ -37,63 +55,12 @@ export class AudioManager {
     if (c && (c.state === 'suspended' || c.state === 'interrupted')) c.resume().catch(() => {});
   }
 
-  // ---------------- BGM(仮:やわらかいパッド + アルペジオをループ)----------------
-  /** 音量は Config.audio.bgmVolume。会話中などは duck(level) で下げる(短いフェード付き) */
-  startBgm() {
-    const A = Config.audio;
-    if (!this.ctx || !A.bgm || this.bgmTimer) return;
-    this.bgmGain = this.ctx.createGain();
-    this.bgmGain.gain.value = 0;
-    this.bgmGain.connect(this.master);
-    this.bgmLevel = 1;
-    this.bgmGain.gain.linearRampToValueAtTime(A.bgmVolume, this.ctx.currentTime + 1.2);
-    // I - vi - IV - V(F メジャー)
-    const chords = [[53, 57, 60, 65], [50, 53, 57, 62], [46, 50, 53, 58], [48, 52, 55, 60]];
-    const beat = 60 / 92;
-    this.bgmStep = 0;
-    this.bgmNext = this.ctx.currentTime + 0.1;
-    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
-    const note = (m, t, dur, type, vol) => {
-      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-      o.type = type; o.frequency.value = hz(m);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.08, dur * 0.3));
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g).connect(this.bgmGain); o.start(t); o.stop(t + dur + 0.05);
-    };
-    const schedule = () => {
-      if (!this.ctx) return;
-      while (this.bgmNext < this.ctx.currentTime + 0.35) {
-        const t = this.bgmNext, s = this.bgmStep, ch = chords[Math.floor(s / 8) % 4];
-        if (s % 8 === 0) for (const m of ch) note(m - 12, t, beat * 4, 'triangle', 0.045);   // パッド
-        note(ch[[0, 2, 1, 3, 2, 1, 3, 2][s % 8]] + 12, t, beat * 0.9, 'sine', 0.05);         // アルペジオ
-        if (s % 4 === 0) note(ch[0] - 24, t, beat * 1.6, 'sine', 0.07);                      // ベース
-        this.bgmNext += beat / 2;
-        this.bgmStep++;
-      }
-    };
-    schedule();
-    this.bgmTimer = setInterval(schedule, 120);
-  }
-
-  stopBgm(fade = 0.6) {
-    if (!this.bgmTimer) return;
-    clearInterval(this.bgmTimer); this.bgmTimer = null;
-    const g = this.bgmGain, t = this.ctx.currentTime;
-    g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade);
-    setTimeout(() => g.disconnect(), (fade + 0.2) * 1000);
-    this.bgmGain = null;
-  }
-
-  /** BGM の音量を level(0〜1 × bgmVolume)へ fade 秒で */
-  duckBgm(level = 1, fade = Config.audio.bgmFade) {
-    this.bgmLevel = level;
-    const g = this.bgmGain;
-    if (!g || !this.ctx) return;
-    const t = this.ctx.currentTime;
-    g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t);
-    g.gain.linearRampToValueAtTime(Config.audio.bgmVolume * level, t + fade);
-  }
+  // ---------------- BGM(ファイル再生は BgmManager。ここは従来の呼び出し口)----------------
+  /** 場面(slot)の BGM を再生。restart:最初から(再戦など)*/
+  startBgm(slot = 'battle', opts = {}) { this.bgm.play(slot, opts); }
+  stopBgm(fade = 0.6) { this.bgm.stop(fade); }
+  /** 会話中などに BGM を level(0〜1)へ一時的に下げる。1 で元へ */
+  duckBgm(level = 1, fade = Config.audio.bgmFade) { this.bgm.duck(level, fade); }
 
   /**
    * HeartbeatCue:「ドクン……」はブランドの共通 Cue(HEART 50% 会話 / ガチャ SSR)。音の芯は同じで、Mood だけ変える

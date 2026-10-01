@@ -38,10 +38,12 @@ export const TYPES = {
  *       scale … 画像の幅 = 画面幅 × scale / rot … 回転(度)
  *   description … GameplayDescription(CHARACTER DETAIL に出す「どう使うキャラか」1〜2文)
  *   detail      … CHARACTER DETAIL の全身イラスト表示:DetailPosition(x,y:画面比の中心)/ DetailScale / DetailRotation(度)
+ *   heroineId   … (任意)攻略対象をプレイアブル化した味方版の時だけ、元の攻略対象の id(data/RomanceData.js の HEROINES)
+ * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
 export const CHARACTERS = [
   {
-    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT', atk: 120, def: 90,
+    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT', atk: 125, def: 90,
     art: { portrait: 'minamo', fullBody: 'minamo', specialCutIn: 'minamo', cutout: 'minamo_cut' },
     portraitFocus: { x: 0.48, y: 0.21, zoom: 3.0 },
     cutIn: { faceX: 0.47, faceY: 0.18, x: 0.5, y: 0.34, scale: 1.9, rot: -6 },
@@ -144,6 +146,7 @@ export const STAGES = [
     boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 18000 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
     concept: '甘え上手な猫系の女の子。きらめくプレミアムコンカフェを舞台に、ハートを届けて口説き落とす。',
+    line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
       energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.0 },
   },

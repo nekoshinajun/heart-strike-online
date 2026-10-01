@@ -24,6 +24,7 @@ import { PlayerAttackState, BallToBossState, BossHitState } from './states/Attac
 import { NextPlayerState, BossReturnState, PlayerDefenseState, PlayerCatchState } from './states/DefenseStates.js';
 import { TitleState, GameClearState, GameOverState } from './states/EndStates.js';
 import { STAGES } from './data/GameData.js';
+import { battleSlot } from './audio/BgmTracks.js';
 import { throwModifiers } from './data/BattleCalc.js';
 import { MenuFlow } from './screens/MenuFlow.js';
 import { SpecialCutIn } from './screens/SpecialCutIn.js';
@@ -261,7 +262,7 @@ export class GameManager {
     this.player.boss = this.boss;
     this.returnBall.boss = this.boss;
     const key = this.stage?.boss.image;
-    const img = key ? this.bossImgs[key] : this.customImage;
+    const img = key ? (this.bossImgs[key] ?? this.bossImgs[this.stage.boss.fallbackImage]) : this.customImage;
     const apply = (im) => {
       this.customImage = im;
       const d = Config.bossImage[Config.boss.layout] ?? Config.bossImage.demon;
@@ -299,7 +300,8 @@ export class GameManager {
   /** GAME START:party は先頭キャラ(A)→B→C→D の順 */
   startStage(stage, party) {
     this.router.go('game');   // FLOW:Game 中は Bottom Navigation を出さない
-    safe('AUDIO', () => { this.audio.unlock(); this.audio.startBgm(); });
+    // バトル BGM(SOLO / MULTI 共通)。再戦でも最初から。画面を離れたら App.onRoute が止める
+    safe('AUDIO', () => { this.audio.unlock(); this.audio.startBgm(battleSlot(this.difficulty), { restart: true }); });
     Log.info('STAGE', `start ${stage.id} ${this.difficulty}`);
     this.setDifficulty(this.difficulty);   // 調整パネルでの変更もここで反映
     this.prepareStage(stage);
@@ -323,6 +325,7 @@ export class GameManager {
 
   /** ゲームを終えてメニューへ(既定:攻略タブの STAGE SELECT。'home' で HOME)*/
   backToMenu(to = 'stage') {
+    this.online?.leaveGame?.();   // MULTI 終了:ルームを抜けて g.online を外す(この後の SOLO に持ち越さない)
     safe('AUDIO', () => this.audio.stopBgm());
     this.prepareStage(this.stage ?? STAGES[0]);
     this.sm.change(GameState.TITLE);

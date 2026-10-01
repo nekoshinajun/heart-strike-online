@@ -49,7 +49,7 @@ export class HomeScreen {
         </div>
       </header>
       <button type="button" class="hm-fav">♡ 変更</button>
-      <button type="button" class="hm-pick" hidden><span class="pk-thumb"></span><span class="pk-main"><span class="pk-h">TODAY'S PICK</span><span class="pk-t"></span><span class="pk-s"></span></span><span class="pk-go">挑戦 ▶</span></button>`;
+      <button type="button" class="hm-pick" hidden><span class="pk-thumb"></span><span class="pk-main"><span class="pk-h">TODAY'S PICK <span class="role heroine sm">🎧 攻略対象</span></span><span class="pk-t"></span><span class="pk-s"></span></span><span class="pk-go">挑戦 ▶</span></button>`;
     this.img = el.querySelector('.hm-char img');
     this.charEl = el.querySelector('.hm-char');
     this.bubble = el.querySelector('.hm-bubble');
@@ -147,7 +147,11 @@ export class HomeScreen {
       card.style.setProperty('--ac', ATTRIBUTES[st.boss.attribute].color);
       card.querySelector('.pk-thumb').style.backgroundImage = `url('${this.app.bossThumb(st)}')`;
       card.querySelector('.pk-t').innerHTML = `${esc(st.boss.name)} <b style="--dc:${D.color}">${D.label}</b>`;
-      card.querySelector('.pk-s').textContent = a.pick.reason ?? `STAGE ${st.no}`;
+      // 初回クリア報酬(Config.rewards。受取済みならそう表示)
+      const gem = Config.rewards.firstClearGem?.[a.pick.difficulty] ?? 0;
+      const got = this.p.record(a.pick.stageId, a.pick.difficulty)?.firstClearRewarded;
+      const reward = gem ? (got ? '初回報酬 受取済' : `初回クリア ♦${gem}`) : '';
+      card.querySelector('.pk-s').textContent = [a.pick.reason ?? `STAGE ${st.no}`, reward].filter(Boolean).join(' ・ ');
       card.dataset.stage = a.pick.stageId; card.dataset.diff = a.pick.difficulty;
     }
     const n = a.notifications;
@@ -181,14 +185,17 @@ export class HomeScreen {
     const ox = r.left - host.left, oy = r.top - host.top;
     const faceR = ox + (pf.x + 0.13) * r.width, faceL = ox + (pf.x - 0.13) * r.width, faceT = oy + (pf.y - 0.1) * r.height;
     const topLimit = this.el.querySelector('.hm-top').getBoundingClientRect().bottom - host.top + 4;
-    const availR = host.width - 12 - Math.max(faceR + 4, ox + A.x * r.width), availL = faceL - 4 - 12;
+    // 右上の縦アイコン列(GEM / ミッション / プレゼント / 設定)には重ねない:右端はアイコン列の左まで
+    const rail = this.el.querySelector('.hm-icons').getBoundingClientRect();
+    const rightEdge = rail.width ? Math.min(host.width - 12, rail.left - host.left - 8) : host.width - 12;
+    const availR = rightEdge - Math.max(faceR + 4, ox + A.x * r.width), availL = faceL - 4 - 12;
     b.style.maxWidth = '';
     let x, y;
-    if (availR >= 140 || availR >= availL) { b.style.maxWidth = `${Math.min(230, availR)}px`; x = host.width - 12 - availR; }
+    if (availR >= 140 || availR >= availL) { b.style.maxWidth = `${Math.min(230, availR)}px`; x = rightEdge - availR; }
     else { b.style.maxWidth = `${Math.min(230, availL)}px`; x = faceL - 4 - b.offsetWidth; }
     const bh = b.offsetHeight;
     y = oy + A.y * r.height - bh / 2;
-    if (Math.min(availR, 230) < 120 && availL < 120) { b.style.maxWidth = '230px'; x = Math.max(12, Math.min(host.width - b.offsetWidth - 12, (faceL + faceR) / 2 - b.offsetWidth / 2)); y = faceT - b.offsetHeight - 8; }
+    if (Math.min(availR, 230) < 120 && availL < 120) { b.style.maxWidth = `${Math.min(230, rightEdge - 12)}px`; x = Math.max(12, Math.min(rightEdge - b.offsetWidth, (faceL + faceR) / 2 - b.offsetWidth / 2)); y = faceT - b.offsetHeight - 8; }
     b.style.left = `${Math.max(12, x)}px`; b.style.top = `${Math.max(topLimit, y)}px`;
   }
   hideBubble() { clearTimeout(this.bubbleTimer); this.bubble.hidden = true; this.bubbleDest = null; }

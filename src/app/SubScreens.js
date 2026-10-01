@@ -1,15 +1,22 @@
 import { Config } from '../core/Config.js';
-import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById } from '../data/GameData.js';
+import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById } from '../data/GameData.js';
+import { HEROINES, GIFTS, INTIMACY, heroineById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
 import { Haptic } from './Platform.js';
+import { roleTag, unlockText, clearChips, asmrStatus, defaultUnlockText } from './Roles.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+/** プレゼントを受け取った時のセリフ(GIFTS.reactions が未登録の時だけ使う。仕様書の例文)*/
+const GIFT_FALLBACK_LINES = ['えっ、これ私に？', 'ありがとう♡'];
+const fmtTime = (sec) => (Number.isFinite(sec) ? `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}` : '--:--');
+
 /**
  * 明るい HEART STRIKE テーマの汎用画面(レイヤー 'app')
- *   TAB_ROOT:育成(TRAINING)/ SUB:COLLECTION・MISSION・PRESENT・SETTINGS
+ *   TAB_ROOT:育成(仲間の一覧)・コレクション(仲間 / 攻略対象)
+ *   SUB     :仲間の育成画面(trainChar)・攻略対象の画面(heroine:ASMR)・MISSION・PRESENT・SETTINGS
  * どれもデータが空でも破綻しない(空状態の表示あり)。
  */
 export const TRAINING_FEATURES = [
@@ -18,7 +25,7 @@ export const TRAINING_FEATURES = [
   { id: 'limitBreak', label: '限界突破', ready: false },
   { id: 'skill', label: 'スキル', ready: false },
   { id: 'costume', label: '衣装', ready: false },
-  { id: 'affinity', label: '親愛度', ready: false },
+  { id: 'intimacy', label: '親密度', ready: false },
 ];
 
 export class AppScreens {
@@ -45,28 +52,171 @@ export class AppScreens {
     this.body.scrollTop = 0;
   }
 
-  // ---------------- 育成(TAB_ROOT)----------------
+  // ---------------- 育成(TAB_ROOT):仲間の女の子を選ぶ ----------------
+  intimacyHTML(ch) {
+    return ch.intimacyLevel == null ? `♡ 親密度 <b>${ch.intimacy}</b>` : `♡ 親密度 Lv.<b>${ch.intimacyLevel}</b>`;
+  }
   showTraining() {
-    this.frame('training', '育成', { side: '<button type="button" class="as-chip" data-go="collection">図鑑</button>' });
+    this.frame('training', '育成');
     const ids = this.p.ownedIds;
     this.body.innerHTML = `
-      <p class="as-lead">キャラクターを選ぶと、レベル・ATK・DEF を確認できます</p>
-      <div class="as-grid">${ids.map((id) => `<button type="button" class="as-card" data-id="${id}">${cardHTML(this.p.character(id))}</button>`).join('')}</div>`;
-    this.side.querySelector('[data-go]').addEventListener('click', () => this.app.router.go('collection'));
-    for (const b of this.body.querySelectorAll('[data-id]')) b.addEventListener('click', () => this.app.router.go('detail', { id: b.dataset.id }));
+      <p class="as-lead">${roleTag('ally')} 仲間の女の子を育てて、もっと仲良くなろう</p>
+      <div class="tr-grid">${ids.map((id) => {
+        const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
+        return `<button type="button" class="tr-card" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
+          <span class="tr-art"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false"></span>
+          <span class="tr-rank">${r.id}</span><span class="tr-attr">${a.icon}</span>
+          <span class="tr-info"><b>${esc(ch.name)}</b><span>Lv.${ch.level}</span><em>${this.intimacyHTML(ch)}</em></span>
+        </button>`;
+      }).join('')}</div>`;
+    for (const b of this.body.querySelectorAll('[data-id]')) b.addEventListener('click', () => this.app.router.go('trainChar', { id: b.dataset.id }));
   }
 
-  // ---------------- 図鑑(SUB)----------------
-  showCollection() {
-    this.frame('collection', '図鑑 COLLECTION', { back: true });
-    const owned = new Set(this.p.ownedIds);
-    const n = CHARACTERS.filter((c) => owned.has(c.id)).length;
+  // ---------------- 仲間の育成画面(SUB):大きく表示 + 親密度 + プレゼント(ASMR は無い)----------------
+  showTrainChar({ id } = {}, keepScroll = false) {
+    if (!id || !this.p.isOwned(id)) { this.app.router.back(); return; }
+    this.trainId = id;
+    const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    const top = this.body.scrollTop;
+    this.frame('trainChar', '育成', { back: true });
+    const expRatio = ch.nextExp ? Math.min(1, ch.exp / ch.nextExp) : 1;
+    const lv = INTIMACY.levels;
+    let intiBar = '';
+    if (Array.isArray(lv) && lv.length && ch.intimacyLevel != null) {
+      const cur = lv[ch.intimacyLevel - 1] ?? 0, next = lv[ch.intimacyLevel];
+      intiBar = next == null ? '<span class="tc-max">MAX</span>' : `<i class="tc-bar"><i style="transform:scaleX(${Math.min(1, (ch.intimacy - cur) / (next - cur))})"></i></i><small>次の Lv まで ${next - ch.intimacy}</small>`;
+    }
     this.body.innerHTML = `
-      <p class="as-lead">出会ったキャラクター <b>${n}</b> / ${CHARACTERS.length}</p>
-      <div class="as-grid">${CHARACTERS.map((c) => owned.has(c.id)
-        ? `<button type="button" class="as-card" data-id="${c.id}">${cardHTML(this.p.character(c.id))}</button>`
-        : `<div class="as-card unowned" data-rank="${c.rank}"><div class="un-sil" style="background-image:url('${artUrl(c, 'cutout')}')"></div><div class="un-q">？？？</div><div class="un-how">入手:ガチャ「${esc(Config.gacha.banners[0]?.name ?? '')}」</div></div>`).join('')}</div>`;
-    for (const b of this.body.querySelectorAll('button[data-id]')) b.addEventListener('click', () => this.app.router.go('detail', { id: b.dataset.id }));
+      <section class="tc-hero" style="--ac:${a.color};--rc:${r.color}">
+        <img src="${artUrl(ch, 'cutout')}" alt="${esc(ch.name)}" draggable="false">
+        <div class="tc-bubble" hidden></div>
+        <div class="tc-tags">${roleTag('ally')}<span class="tc-rank">${r.id}</span></div>
+      </section>
+      <section class="tc-card">
+        <div class="tc-name"><b>${esc(ch.name)}</b><span>Lv.${ch.level}</span><em>${a.icon} ${a.label} / ${t.label}</em></div>
+        <div class="tc-row tc-inti"><span>${this.intimacyHTML(ch)}</span>${intiBar}</div>
+        <div class="tc-row"><span>EXP</span><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.nextExp ? `${ch.exp} / ${ch.nextExp}` : 'MAX'}</small></div>
+        <div class="tc-stats"><span>ATK <b>${ch.atk}</b></span><span>DEF <b>${ch.def}</b></span></div>
+      </section>
+      <section class="tc-gifts">
+        <header><b>🎁 プレゼントを渡す</b><span>仲良くなると、もっと頼りになる</span></header>
+        <div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id), rk = giftRank(g); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<span>${esc(giftName(g))}</span>${rk ? `<em class="tg-rank">${esc(rk.label)}</em>` : ''}<b>×${n}</b></button>`; }).join('')}</div>
+        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません。ガチャを引くと毎回1個もらえます</p>' : ''}
+      </section>
+      <button type="button" class="tc-detail r-btn ghost" data-act="detail">プロフィールを見る</button>`;
+    if (keepScroll) this.body.scrollTop = top;
+    for (const b of this.body.querySelectorAll('[data-gift]')) b.addEventListener('click', () => this.giveGift(b.dataset.gift));
+    this.body.querySelector('[data-act="detail"]').addEventListener('click', () => this.app.router.go('detail', { id }));
+  }
+  giveGift(giftId) {
+    const r = this.p.giveGift(this.trainId, giftId);
+    if (!r) return;
+    Haptic.light();
+    this.showTrainChar({ id: this.trainId }, true);
+    const line = r.reaction ?? GIFT_FALLBACK_LINES[Math.floor(Math.random() * GIFT_FALLBACK_LINES.length)];
+    const gains = [r.gainedIntimacy > 0 ? `♡ 親密度 +${r.gainedIntimacy}` : '', r.gainedExp > 0 ? `EXP +${r.gainedExp}` : '', r.levelUps > 0 ? 'LEVEL UP!' : ''].filter(Boolean).join(' ・ ');
+    const bub = this.body.querySelector('.tc-bubble');
+    bub.innerHTML = `<p>${esc(line)}</p>${gains ? `<small>${gains}</small>` : ''}`;
+    bub.hidden = false; bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in');
+    const img = this.body.querySelector('.tc-hero img'); img.classList.remove('react'); void img.offsetWidth; img.classList.add('react');
+    clearTimeout(this.bubTimer); this.bubTimer = setTimeout(() => { bub.hidden = true; }, 3200);
+  }
+
+  // ---------------- コレクション(TAB_ROOT):仲間 / 攻略対象 ----------------
+  showCollection({ tab } = {}) {
+    if (tab) this.collectionTab = tab;
+    const cur = this.collectionTab ?? 'ally';
+    this.frame('collection', 'コレクション');
+    const owned = new Set(this.p.ownedIds);
+    const nA = CHARACTERS.filter((c) => owned.has(c.id)).length;
+    const nH = HEROINES.filter((h) => this.p.isCleared(h.stageId)).length;
+    const tabs = `<div class="col-tabs" role="tablist">
+      <button type="button" class="ally${cur === 'ally' ? ' sel' : ''}" data-tab="ally" role="tab">♡ 仲間 <small>${nA} / ${CHARACTERS.length}</small></button>
+      <button type="button" class="heroine${cur === 'heroine' ? ' sel' : ''}" data-tab="heroine" role="tab">🎧 攻略対象 <small>${nH} / ${HEROINES.length}</small></button></div>`;
+    if (cur === 'ally') {
+      this.body.innerHTML = `${tabs}
+        <p class="as-lead">${roleTag('ally')} 一緒に戦ってくれる女の子。ガチャで出会えます</p>
+        <div class="as-grid">${CHARACTERS.map((c) => owned.has(c.id)
+          ? `<button type="button" class="as-card" data-id="${c.id}">${cardHTML(this.p.character(c.id))}</button>`
+          : `<div class="as-card unowned" data-rank="${c.rank}"><div class="un-sil" style="background-image:url('${artUrl(c, 'cutout')}')"></div><div class="un-q">？？？</div><div class="un-how">ガチャで出会える</div></div>`).join('')}</div>`;
+      for (const b of this.body.querySelectorAll('button[data-id]')) b.addEventListener('click', () => this.app.router.go('detail', { id: b.dataset.id }));
+    } else {
+      this.body.innerHTML = `${tabs}
+        <p class="as-lead">${roleTag('heroine')} コンカフェで口説く女の子。仲間にはなりません。HELL をクリアすると ASMR が聴けます</p>
+        <div class="hc-list">${HEROINES.map((h) => {
+          const st = stageById(h.stageId);
+          return `<button type="button" class="hc-card" data-heroine="${h.id}">
+            <span class="hc-art" style="background-image:url('${this.app.bossThumb(st)}')"></span>
+            <span class="hc-main"><small>STAGE ${st.no}</small><b>${esc(st.boss.name)}</b>${clearChips(this.p, st.id, Config.difficultyOrder)}${asmrStatus(this.p, h)}</span>
+          </button>`;
+        }).join('')}</div>`;
+      for (const b of this.body.querySelectorAll('[data-heroine]')) b.addEventListener('click', () => this.app.router.go('heroine', { id: b.dataset.heroine }));
+    }
+    for (const b of this.body.querySelectorAll('.col-tabs [data-tab]')) b.addEventListener('click', () => this.showCollection({ tab: b.dataset.tab }));
+  }
+
+  // ---------------- 攻略対象の画面(SUB):プロフィール + クリア状況 + ASMR ----------------
+  showHeroine({ id } = {}) {
+    const h = heroineById(id);
+    if (!h) { this.app.router.back(); return; }
+    this.stopAsmr();
+    this.heroineId = id;
+    const st = stageById(h.stageId);
+    const tracks = this.p.asmrTracks(id);
+    this.frame('heroine', '攻略対象', { back: true });
+    const trackRow = (t, i) => {
+      const title = t.title ?? `ASMR ${String(i + 1).padStart(2, '0')}`;
+      const state = !t.unlocked ? `🔒 ${esc(unlockText(t.unlock, h))}` : !t.src ? '音声準備中' : fmtTime(t.durationSec);
+      return `<li class="am-row${t.unlocked ? '' : ' locked'}${t.playable ? ' playable' : ''}" data-track="${t.id}">
+        <button type="button" class="am-play" ${t.playable ? '' : 'disabled'} aria-label="${t.playable ? '再生' : '再生できません'}">${t.unlocked ? '▶' : '🔒'}</button>
+        <div class="am-main"><b>${esc(title)}${t.isNew ? ' <em>NEW</em>' : ''}</b><span class="am-state">${state}</span>
+          <div class="am-seek" hidden><input type="range" min="0" max="1000" value="0" aria-label="再生位置"><small><span class="am-cur">0:00</span> / <span class="am-dur">${fmtTime(t.durationSec)}</span></small></div></div>
+      </li>`;
+    };
+    this.body.innerHTML = `
+      <section class="hr-hero" style="background-image:url('${this.app.bossThumb(st)}')">
+        <div class="hr-tags">${roleTag('heroine')}</div>
+        <div class="hr-name"><small>STAGE ${st.no} ・ ${esc(st.name)}</small><b>${esc(st.boss.name)}</b>${h.cv ? `<span>CV ${esc(h.cv)}</span>` : ''}</div>
+      </section>
+      <section class="hr-card">
+        ${st.concept ? `<p class="hr-concept">${esc(st.concept)}</p>` : ''}
+        ${h.collab?.name ? `<p class="hr-collab">コラボ:${esc(h.collab.name)}</p>` : ''}
+        <div class="hr-clear"><span>攻略状況</span>${clearChips(this.p, st.id, Config.difficultyOrder)}</div>
+        <button type="button" class="r-btn hr-go" data-act="stage">♡ この子を攻略する</button>
+      </section>
+      <section class="hr-asmr">
+        <header><b>🎧 ASMR</b><span>${esc(defaultUnlockText(h))}</span></header>
+        ${tracks.length ? `<ul class="am-list">${tracks.map(trackRow).join('')}</ul>` : `<p class="am-empty">ASMR は準備中です。<br>${esc(defaultUnlockText(h))}すると、ここで聴けるようになります</p>`}
+      </section>`;
+    this.body.querySelector('[data-act="stage"]').addEventListener('click', () => this.app.deepLink({ screen: 'stage', stageId: st.id }));
+    for (const row of this.body.querySelectorAll('.am-row.playable')) row.querySelector('.am-play').addEventListener('click', () => this.toggleAsmr(row.dataset.track));
+    for (const t of tracks) if (t.unlocked) this.p.markAsmrSeen(id, t.id);   // 開いたら NEW は既読
+  }
+  /** ASMR の再生 / 一時停止(1曲ずつ)。シークバーと再生時間 */
+  toggleAsmr(trackId) {
+    const t = this.p.asmrTracks(this.heroineId).find((x) => x.id === trackId);
+    if (!t?.playable) return;
+    const row = this.body.querySelector(`.am-row[data-track="${trackId}"]`);
+    if (this.asmr?.trackId === trackId) {
+      if (this.asmr.audio.paused) this.asmr.audio.play().catch(() => {}); else this.asmr.audio.pause();
+      return;
+    }
+    this.stopAsmr();
+    const audio = new Audio(t.src);
+    audio.preload = 'auto';
+    const seek = row.querySelector('.am-seek'), range = seek.querySelector('input'), cur = seek.querySelector('.am-cur'), dur = seek.querySelector('.am-dur'), btn = row.querySelector('.am-play');
+    seek.hidden = false; row.classList.add('on');
+    const sync = () => { const d = audio.duration; if (Number.isFinite(d) && d > 0) { range.value = String(Math.round((audio.currentTime / d) * 1000)); dur.textContent = fmtTime(d); } cur.textContent = fmtTime(audio.currentTime); btn.textContent = audio.paused ? '▶' : '⏸'; };
+    for (const ev of ['timeupdate', 'loadedmetadata', 'play', 'pause', 'ended']) audio.addEventListener(ev, sync);
+    range.addEventListener('input', () => { const d = audio.duration; if (Number.isFinite(d)) audio.currentTime = (Number(range.value) / 1000) * d; });
+    this.asmr = { trackId, audio, row };
+    audio.play().catch(() => {});
+  }
+  stopAsmr() {
+    if (!this.asmr) return;
+    this.asmr.audio.pause(); this.asmr.audio.src = '';
+    this.asmr.row?.classList.remove('on');
+    this.asmr = null;
   }
 
   // ---------------- ミッション(SUB)----------------
@@ -110,12 +260,19 @@ export class AppScreens {
     this.body.innerHTML = `
       <ul class="as-list">
         <li class="as-row"><div class="r-main"><b>プレイヤー名</b><span>${esc(this.p.data.player.name)}</span></div><button type="button" class="r-btn ghost" data-act="name">変更</button></li>
-        ${row('bgm', 'BGM', st.bgm)}
+        <li class="as-row snd-row"><div class="r-main"><b>BGM</b><span>ホームとバトルで流れる音楽</span>
+          <div class="snd-ctl"><input type="range" min="0" max="100" step="1" value="${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}" data-vol="bgm" aria-label="BGM 音量"${st.audio?.bgmMuted ? ' disabled' : ''}><output>${st.audio?.bgmMuted ? 'ミュート' : `${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}%`}</output></div></div>
+          <button type="button" class="r-tgl${st.audio?.bgmMuted ? '' : ' on'}" data-mute="bgm" aria-pressed="${!st.audio?.bgmMuted}">${st.audio?.bgmMuted ? 'OFF' : 'ON'}</button></li>
         ${row('haptic', '振動(対応端末のみ)', st.haptic)}
         <li class="as-row"><div class="r-main"><b>ガチャ演出</b><span>FULL:すべて / FAST:短く(山場は残す)/ SKIP:初めての SSR だけ</span></div><button type="button" class="r-btn ghost" data-act="speed">${st.gachaPlaybackMode}</button></li>
       </ul>
       <div class="as-ver">${Config.app.title} ${Config.app.version}</div>`;
     for (const b of this.body.querySelectorAll('[data-tgl]')) b.addEventListener('click', () => { st[b.dataset.tgl] = !st[b.dataset.tgl]; this.p.save(); this.app.applySettings(); this.showSettings(); });
+    // BGM 音量:動かしている間は即反映、離したら保存 / ミュート ON・OFF(旧設定 bgm とも同期)
+    const vol = this.body.querySelector('[data-vol="bgm"]');
+    vol?.addEventListener('input', () => { st.audio.bgmVolume = Number(vol.value) / 100; vol.nextElementSibling.textContent = `${vol.value}%`; this.app.applySettings(); });
+    vol?.addEventListener('change', () => this.p.save());
+    this.body.querySelector('[data-mute="bgm"]')?.addEventListener('click', () => { st.audio.bgmMuted = !st.audio.bgmMuted; st.bgm = !st.audio.bgmMuted; this.p.save(); this.app.applySettings(); this.showSettings(); });
     this.body.querySelector('[data-act="speed"]').addEventListener('click', () => {
       const order = ['FULL', 'FAST', 'SKIP_TO_NEW'];
       st.gachaPlaybackMode = order[(order.indexOf(st.gachaPlaybackMode) + 1) % order.length];

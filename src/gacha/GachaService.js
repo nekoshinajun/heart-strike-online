@@ -1,9 +1,11 @@
 import { Config } from '../core/Config.js';
 import { characterById } from '../data/GameData.js';
+import { GIFTS, giftById } from '../data/RomanceData.js';
 import { Log } from '../app/Platform.js';
 
 /**
  * GachaService(抽選 + Transaction。演出を一切知らない)
+ *   1回 = 仲間の女の子 1体 + プレゼント 1個(両方必ず。プレゼントはキャラとは独立した別の抽選)
  *   PENDING(メモリのみ)→ COMMITTED(GEM 消費・結果・キャラ付与・pendingReveal を 1回の保存で確定)→ REVEALED
  *   COMMITTED 前に失敗 = ABORTED(何も変わらない)
  * 投げ方(POWER / AIM / SPIN / タイミング)は抽選に一切使わない。演出からの書き戻しも無い。
@@ -65,6 +67,37 @@ export class GachaService {
     return items;
   }
 
+  /**
+   * プレゼント抽選(キャラとは別の乱数)→ [{ giftId, rank }]
+   *   rankRates が決まっていれば ランク → そのランクの中で drop.weight の順に引く
+   *   未決定(null)の間は drop.weight だけで引く(weight が null のものは同じ重み)
+   */
+  drawPresents(banner, count, rng, data = { gifts: GIFTS }) {
+    const cfg = banner.presents ?? {};
+    const pool = data.gifts.filter((g) => g.drop?.enabled !== false && (!cfg.pool || cfg.pool.includes(g.id)));
+    if (!pool.length) return [];
+    const w = (g) => (Number.isFinite(g.drop?.weight) ? Math.max(0, g.drop.weight) : 1);
+    const pickBy = (list, weight) => {
+      const tw = list.reduce((a, x) => a + weight(x), 0);
+      if (tw <= 0) return list[Math.floor(rng() * list.length)];
+      let r = rng() * tw;
+      for (const x of list) { r -= weight(x); if (r <= 0) return x; }
+      return list[list.length - 1];
+    };
+    const rates = cfg.rankRates;
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      let list = pool;
+      if (rates && typeof rates === 'object') {
+        const ranks = Object.keys(rates).filter((k) => pool.some((g) => g.rank === k) && rates[k] > 0);
+        if (ranks.length) { const rk = pickBy(ranks, (k) => rates[k]); list = pool.filter((g) => g.rank === rk); }
+      }
+      const g = pickBy(list, w);
+      out.push({ giftId: g.id, rank: g.rank ?? null });
+    }
+    return out;
+  }
+
   cost(banner, count) { return count >= 10 ? banner.cost.ten : banner.cost.single * count; }
 
   /**
@@ -91,17 +124,22 @@ export class GachaService {
       seen.add(x.characterId);
       return { ...x, ownedBefore, isNew: !ownedBefore && !dupInPull, isDuplicate: ownedBefore || dupInPull };
     });
+    // プレゼント:キャラとは独立した乱数(同じ seed でもキャラの結果は今までと同じ)
+    const presents = this.drawPresents(banner, count, mulberry32((seed ^ 0x5bd1e995) >>> 0));
+    if (opts.forcePresents?.length) opts.forcePresents.slice(0, count).forEach((id, i) => { if (giftById(id)) presents[i] = { giftId: id, rank: giftById(id).rank ?? null }; });
+    items.forEach((it, i) => { if (presents[i]) it.present = presents[i]; });
     const txId = `tx${Date.now().toString(36)}${(++d.gacha.seq).toString(36)}`;
     const result = { txId, status: 'COMMITTED', bannerId: banner.id, count, cost, createdAt: Date.now(), items, seed };
     // COMMITTED:GEM 消費 / キャラ付与 / 結果 / pendingReveal を同じ 1回の保存で
     d.wallet.heartGem -= cost;
     for (const it of items) this.p.grant(it.characterId, result.createdAt, 'gacha');
+    for (const it of items) if (it.present) d.items[it.present.giftId] = this.p.itemCount(it.present.giftId) + 1;   // プレゼントを所持品へ
     d.gacha.transactions.push(result);
     if (d.gacha.transactions.length > Config.gacha.keepTransactions) d.gacha.transactions.splice(0, d.gacha.transactions.length - Config.gacha.keepTransactions);
     d.gacha.pending = txId;
     d.gacha.pulls = (d.gacha.pulls ?? 0) + count;
     this.p.save();
-    Log.info('GACHA', `COMMITTED ${txId} ${items.map((x) => `${x.characterId}(${x.rarity}${x.isNew ? ' NEW' : ''})`).join(' ')}`);
+    Log.info('GACHA', `COMMITTED ${txId} ${items.map((x) => `${x.characterId}(${x.rarity}${x.isNew ? ' NEW' : ''})+${x.present?.giftId ?? '-'}`).join(' ')}`);
     return { status: 'COMMITTED', result };
   }
 

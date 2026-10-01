@@ -3,6 +3,7 @@ import { characterById, ATTRIBUTES, TYPES, RANKS } from '../data/GameData.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { RARITY_OBTAIN_LINES } from '../data/CharacterVoice.js';
 import { GachaThrowInput } from './GachaThrowInput.js';
+import { giftById, giftName, giftIcon } from '../data/RomanceData.js';
 import { Haptic, reducedMotion, Log } from '../app/Platform.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -30,7 +31,7 @@ export class GachaDirector {
       <div class="ga-rows" hidden></div>
       <div class="ga-reveal" hidden><div class="ga-halo"></div><div class="ga-fig"><img class="ga-sil" alt="" draggable="false"><img class="ga-col" alt="" draggable="false"><i class="ga-catch"></i></div>
         <div class="ga-bubble" hidden></div>
-        <div class="ga-info" hidden><div class="gi-rank"></div><div class="gi-name"></div><div class="gi-meta"></div><div class="gi-new">NEW!</div></div>
+        <div class="ga-info" hidden><div class="gi-rank"></div><div class="gi-name"></div><div class="gi-meta"></div><div class="gi-new">NEW!</div><div class="gi-present" hidden></div></div>
         <div class="ga-tapnext" hidden>TAP</div></div>
       <div class="ga-hud"><span class="ga-count">×1</span><button type="button" class="ga-skip">SKIP »</button></div>
       <div class="ga-guide" hidden><i class="gg-finger"></i><span>引いて、投げて</span></div>
@@ -394,6 +395,10 @@ export class GachaDirector {
     info.querySelector('.gi-name').textContent = ch.name;
     info.querySelector('.gi-meta').textContent = `${ATTRIBUTES[ch.attribute].label} / ${TYPES[ch.type].label}`;
     info.querySelector('.gi-new').hidden = !it.isNew;
+    // 同じ1回分のプレゼント(セットでもらったことが一目で分かるように)
+    const pr = this.result?.items?.[it.drawIndex]?.present, pg = pr && giftById(pr.giftId), pe = info.querySelector('.gi-present');
+    pe.hidden = !pg;
+    if (pg) pe.innerHTML = `<small>＋ BONUS PRESENT</small><i>${giftIcon(pg)}</i><b>${esc(giftName(pg))}</b>`;
     const line = this.obtainLine(it);
     const b = this.rv.querySelector('.ga-bubble');
     b.textContent = line;
