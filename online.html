@@ -472,7 +472,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
 /* ---- 下部ナビ(5項目固定)。二重の細枠 + 上部中央の飾り + 専用アイコン。選択中はピンクに発光 ---- */
 .bnav {
-  box-sizing: border-box; position: absolute; left: 7px; right: 7px; bottom: 0; z-index: 12;
+  box-sizing: border-box; position: absolute; left: 7px; right: 7px; bottom: 0; z-index: 18;   /* キャラ詳細(16)より上・SHEET(22)より下 */
   height: calc(var(--navh) + var(--sab)); display: flex; align-items: flex-start; justify-content: space-around;
   padding: 5px calc(var(--sar) + 4px) var(--sab) calc(var(--sal) + 4px); overflow: visible; pointer-events: none;
   border: 1px solid var(--hs-line); border-bottom: 0; border-radius: 22px 22px 0 0;
@@ -498,6 +498,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .bnav .nv.center.pulse .nv-ic { animation: navpulse 2.4s ease-in-out infinite; }
 @keyframes navpulse { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.08); } 24% { transform: scale(1); } }
 #game.nav-on .menu { padding-bottom: calc(var(--navh) + var(--sab) + 8px); }
+/* 下部メニューはインゲーム以外の全画面で固定表示:どの画面も最後の要素がメニューの裏に隠れないよう下に余白を取る */
+#game.nav-on #gachaLayer > .ga-result { padding-bottom: calc(var(--navh) + var(--sab) + 14px); }
+#game.nav-on .ga-tapnext { bottom: calc(var(--navh) + var(--sab) + 6px); }
+#game.nav-on .cd-panel { padding-bottom: calc(var(--navh) + var(--sab) + 10px); }
 #game.nav-on #appScreen .as-body { padding-bottom: calc(var(--navh) + var(--sab) + 16px); }
 
 /* ---- シート(暗幕 + 下から出るパネル。ナビは暗幕の下)---- */
@@ -1104,7 +1108,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 /* =====================================================================
    11. MULTI ロビー(#game の外・画面全体に重ねる)
    ===================================================================== */
-#onlineLobby { position: fixed; inset: 0; z-index: 2147483647; display: flex; justify-content: center; align-items: stretch; padding: 20px; box-sizing: border-box; overflow: hidden; pointer-events: auto; background: var(--hs-bg); color: var(--hs-ink); font-family: var(--round); color-scheme: light; }
+#onlineLobby { position: fixed; inset: 0 0 calc(82px + env(safe-area-inset-bottom, 0px)) 0; z-index: 2147483647; display: flex; justify-content: center; align-items: stretch; padding: 20px; box-sizing: border-box; overflow: hidden; pointer-events: auto; background: var(--hs-bg); color: var(--hs-ink); font-family: var(--round); color-scheme: light; }
 #onlineLobby .ol-card { position: relative; z-index: 1; width: min(380px, 100%); max-width: 100%; height: 100%; box-sizing: border-box; margin: 0 auto; padding: 22px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; text-align: center; border: 1px solid var(--hs-line); border-radius: 26px; background: var(--hs-panel-strong); box-shadow: var(--hs-shadow-lg), inset 0 0 0 3px rgba(255,240,246,.9); }
 #onlineLobby .ol-card > b { font: 800 21px var(--round); letter-spacing: .06em; color: var(--hs-pink-deep); }
 #onlineLobby .ol-card > b::after { content: "✦ · ♡ · ✦"; display: block; margin: 6px auto 0; font-size: 10px; letter-spacing: 3px; color: var(--hs-pink); }

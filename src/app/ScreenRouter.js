@@ -2,10 +2,12 @@ import { Log, reducedMotion } from './Platform.js';
 
 /**
  * ScreenRouter:画面を4種類で管理する
- *   TAB_ROOT … HOME / 育成 / 攻略(STAGE SELECT)/ ガチャ / コレクション。Bottom Navigation を表示。タブ切替で履歴はリセット
- *   SUB      … CHARACTER DETAIL / 編成 / MISSION / PRESENT / SETTINGS。Nav 非表示。BACK で元へ
- *   SHEET    … Favorite Select / Gacha Confirm / Gacha Rates。Nav は暗幕の下に残す。× / 外側タップ / 下スワイプで閉じる
- *   FLOW     … DIFFICULTY / PARTY確認 / CHARACTER SELECT / GAME / RESULT / GACHA SEQUENCE / GACHA RESULT。Nav 非表示
+ *   TAB_ROOT … HOME / 育成 / 攻略(STAGE SELECT)/ ガチャ / コレクション。タブ切替で履歴はリセット
+ *   SUB      … CHARACTER DETAIL / 編成 / MISSION / PRESENT / SETTINGS。BACK で元へ
+ *   SHEET    … Favorite Select / Gacha Confirm / Gacha Rates。× / 外側タップ / 下スワイプで閉じる
+ *   FLOW     … DIFFICULTY / PARTY確認 / CHARACTER SELECT / GAME / RESULT / GACHA SEQUENCE / GACHA RESULT
+ * Bottom Navigation は画面の種類では決めない:インゲーム(battle:true の画面 = GAME)だけ非表示、それ以外はすべて表示
+ *   = 通常画面(ソシャゲ側 UI・共通メニュー BGM)/ インゲーム(バトル・バトル BGM)の2モード。BGM の切り替えと同じ境界
  * 画面は「レイヤー」(DOM のまとまり)に載る。overlay:true の画面(CHARACTER DETAIL)は下のレイヤーを隠さない(戻った時に編成・スクロールがそのまま)
  * Game 中(HEART50 / SPECIAL / FEVER を含む)は常に FLOW なので Bottom Navigation は絶対に出ない。
  */
@@ -31,8 +33,10 @@ export class ScreenRouter {
   get currentId() { return this.top?.id ?? null; }
   get currentKind() { return this.top ? this.def(this.top.id).kind : null; }
   get sheetOpen() { return this.sheets.length > 0; }
-  /** Bottom Navigation を出すか(TAB_ROOT の時だけ。SHEET は暗幕の下に Nav を残す)*/
-  get navVisible() { return this.currentKind === KIND.TAB_ROOT; }
+  /** インゲーム(バトル)中か:battle:true の画面(GAME)*/
+  get inBattle() { return !!this.top && !!this.def(this.top.id).battle; }
+  /** Bottom Navigation を出すか:インゲーム以外はすべて表示(SHEET は暗幕の下に Nav を残す)*/
+  get navVisible() { return !!this.top && !this.inBattle; }
 
   /** 画面へ移動 */
   go(id, params = {}) {
