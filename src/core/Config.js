@@ -109,9 +109,9 @@ export const Config = {
     holdOffset: { x: 0, y: -1.3, z: -3.2 },  // z = 構え位置の奥行き(カメラからの距離)。y は旧仕様(未使用)
     // ★ HeartBallIdlePositionY:投球前のハート玉の画面上の高さ(画面高さ比。0=上端 / 1=下端)
     //   端末ごとの px 固定ではなく割合で指定。下に POWER CHARGE 用の空間を空けるため旧 0.78 → 0.60
-    idlePositionY: 0.63,
+    idlePositionY: 0.86,
     // ★ ハート玉より下に必ず残す操作空間(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
-    idleMinChargeSpace: 0.27,
+    idleMinChargeSpace: 0.08,
     catchDepth: 2.1,                          // キャッチ地点のカメラからの距離
     // ハートの見た目の回転(rad/秒)。投球前(構え / 引っ張り中)は全キャラ共通の一定速度。キャラ性能は投球後の軌道にだけ出す
     idleSpin: { held: 1.2, grabbed: 3, flying: 3 },
@@ -157,8 +157,8 @@ export const Config = {
     minThrowPower: 0.10,
     // 初速 = minSpeed + (maxSpeed - minSpeed) × finalPower
     //   v25: Power 10% から開始。100% は従来の最強と同じ
-    minSpeed: 21.6,        // ★ Power 0% の初速(実際の最低は MinThrowPower の値)(旧 28)
-    maxSpeed: 53,          // ★ Power 100% の初速
+    minSpeed: 10.8,        // ★ Power 0% の初速(実際の最低は MinThrowPower の値)(旧 28)
+    maxSpeed: 26.5,          // ★ Power 100% の初速
     // HEART(ダメージ)は球速・引っ張り量で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
     //   旧仕様の POWER 倍率(0.8〜1.5)の中間あたりにして、ステージの HEART 量とのバランスを大きく崩さない(★ 仮)
     //   旧 ATK 倍率(ATK÷50:平均 ×2.0 前後)を新しい ATTACK 倍率(50 = ×1.0)へ置き換えた分もここで引き継ぐ(1.15 × 2.0)
