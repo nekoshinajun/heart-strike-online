@@ -156,9 +156,9 @@ export const Config = {
     //   v25: Power 10% から開始。100% は従来の最強と同じ
     minSpeed: 21.6,        // ★ Power 0% の初速(実際の最低は MinThrowPower の値)(旧 28)
     maxSpeed: 53,          // ★ Power 100% の初速
-    // HEART の POWER 倍率:MinThrowPower で heartAtMin、100% で heartAtMax(間は直線)
-    heartAtMin: 0.8,       // ★
-    heartAtMax: 1.5,       // ★
+    // HEART(ダメージ)は球速・引っ張り量で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
+    //   旧仕様の POWER 倍率(0.8〜1.5)の中間あたりにして、ステージの HEART 量とのバランスを大きく崩さない(★ 仮)
+    heartFlat: 1.15,
     maxPullDown: 0.14,     // 引いた時にボールが下がれる量(画面高さ比・見た目)(旧 0.1)
   },
   aim: {
@@ -181,6 +181,70 @@ export const Config = {
     bulge: 1.2,            // ★ spin=1 のとき、逆側へ膨らむ量(units)(旧 1.0)
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
   },
+
+  // ---- 投球ルート(プレイヤーが自由に選ぶ操作感の違い。強さ・ダメージは同じ)----
+  //   curveMul … 投球の SPIN(カーブ)の効き / preSpinMul … PRE-SPIN の効き / driveMul … DRIVE の効き
+  throwRoute: {
+    default: 'DIRECT',
+    routes: {
+      DIRECT: { label: 'DIRECT', curveMul: 0.85, preSpinMul: 0.8, driveMul: 0.85 },   // 直進性が高く、狙った所へ素直に飛ぶ
+      CURVE: { label: 'CURVE', curveMul: 1.2, preSpinMul: 1.3, driveMul: 1.2 },       // 変化球を扱いやすい
+    },
+  },
+  // ---- 下へ引く量(chargeRatio 0〜1)= 球速と直進性。ダメージには使わない ----
+  //   浅く引く → 遅い・曲がりやすい・PRE-SPIN / DRIVE が強く出る / 深く引く → 速い・まっすぐ・球質の効きが少し弱い(0 にはしない)
+  pull: {
+    curveAtMin: 1.25, curveAtMax: 0.55,       // ★ カーブの効き(Curve Resistance)
+    preSpinAtMin: 1.3, preSpinAtMax: 0.55,    // ★ PRE-SPIN の効き
+    driveAtMin: 1.2, driveAtMax: 0.8,         // ★ DRIVE の効き
+  },
+
+  // ---- バトル開始演出(OPENING):インゲームに入り バトル BGM が流れる中でボス紹介 → BATTLE START → A の投球 ----
+  //   各時刻は OPENING に入ってからの秒。MULTI はサーバーが全員に同じ長さ(totalSec)を配る
+  opening: {
+    dimAt: 0.0,          // 画面を少し暗くする
+    bossAt: 0.2,         // ボスを強調(カメラを寄せる)
+    nameAt: 0.4,         // TARGET / 名前
+    diffAt: 0.6,         // 難易度
+    textAt: 0.8,         // 紹介文 / セリフ(データがある時だけ)
+    fadeAt: 2.8,         // 紹介 UI のフェードアウト開始
+    fadeSec: 0.35,
+    startSec: 0.8,       // 「BATTLE START」を見せてから A の投球へ
+    dim: 0.45,           // 暗さ(0〜1)
+    bossZoom: 4,         // ボスへ寄せる量
+  },
+
+  // ---- 投球前の球質(ハートを掴んだまま仕込む)。判定と効果の数値はここだけ ----
+  //   PRE-SPIN:指で円を描く(時計回り = RIGHT / 反時計回り = LEFT)→ 投球時の SPIN に掛かる
+  //   DRIVE   :上下へ素早く往復 → 終盤で下へ沈む
+  //   どちらも「下へ引いて POWER → 上へ弾く」通常操作とは区別する(誤認識しない条件)
+  preSpin: {
+    enabled: true,
+    sampleStepPx: 6,        // 指の軌跡をこの間隔で間引いて向きの変化を測る
+    minTurnDeg: 300,        // ★ 成立に必要な回転量(指の進む向きが同じ向きに回った合計)
+    fullTurnDeg: 360,       // この回転量で strength = 1
+    maxStepTurnDeg: 75,     // 1区間でこれ以上向きが変わったら「折り返し」(引いて弾く等)→ 回転の計測をやり直す
+    consistency: 0.85,      // 回転の向きの一貫性(同じ向きの回転量 / 全回転量)
+    minPathRatio: 0.12,     // 最低移動量(画面の高さ比)。小さな指のブレは回転とみなさない
+    minDurationMs: 160,     // 入力時間の下限(一瞬のブレを除く)
+    maxDurationMs: 1600,    // この時間内に回し切る(ゆっくりした位置調整は除く)
+    sameDirMul: 1.5,        // ★ 同じ向きのカーブ:SPIN × 1.5(strength 1 の時)
+    oppositeDirMul: 0.7,    // ★ 逆向きのカーブ:SPIN × 0.7(曲がる向きは投球の SPIN のまま)
+    baseSpin: 0.2,          // ★ ストレートに投げた時の回転の名残(SPIN 0 → 仕込んだ向きへ弱く曲がる。0 で無効)
+  },
+  drive: {
+    enabled: true,
+    minStrokes: 4,          // ★ 上下の往復回数(下→上→下→上 = 4ストローク)。「下へ引いて弾く」は2ストロークなので成立しない
+    minAmplitudeRatio: 0.022, // 1ストロークの最低移動量(画面の高さ比)
+    fullAmplitudeRatio: 0.06, // この振れ幅で strength = 1
+    maxDurationMs: 900,     // ★ この時間内に往復し切る(短時間の往復だけを DRIVE とする)
+    maxHorizontalRatio: 0.7, // 1ストロークの横移動 / 縦移動 の上限(縦の往復だけ)
+    minStrength: 0.5,
+    sink: 4.0,              // ★ strength 1 でボスの位置までに下へ沈む量(units。頭 → 胸 くらい)
+    startFrac: 0.45,        // 飛行のこの割合までは通常の軌道(そこから沈み始め、終盤ほど強く)
+  },
+  // 命中した位置のマーク(実際に Collider に当たった座標)
+  hitMark: { life: 1.0, popScale: 1.25, popSec: 0.12, fadeFrom: 0.75, size: 1.1, color: '#ff7ab8', max: 6 },
 
   // ---- エネルギー / 必殺技 ----
   energy: {

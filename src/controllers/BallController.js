@@ -126,17 +126,17 @@ export class BallController {
    * 投球:物理(BallPhysics)で飛行。colliders と交差/床/場外で onResult(result)。
    * @param strength 0..1 軌跡・残像の強さ
    */
-  launch(velocity, curveAccel, colliders, strength, onResult, start = null, obstacles = null) {
+  launch(velocity, curveAccel, colliders, strength, onResult, start = null, obstacles = null, drive = null) {
     this.mode = 'flying';
     // 物理は start(構え位置)から。見た目だけ指の位置からなめらかに合流させる(同じ入力=同じ軌道)
     if (start) { this.visOffset = this.pos.clone().sub(start); this.pos.copy(start); }
-    this.flight = createFlight(this.pos, velocity, curveAccel, obstacles);
+    this.flight = createFlight(this.pos, velocity, curveAccel, obstacles, drive);
     this.colliders = colliders;
     this.onResult = onResult;
     this.flyStrength = strength;
     this.resetTrail();
     // 進行方向に対する前転+カーブ回転
-    this.spin.set(-18 - strength * 30, (curveAccel ? Math.sign(curveAccel.x) * 20 : 0), 0);
+    this.spin.set(-18 - strength * 30 - (drive ? 40 : 0), (curveAccel ? Math.sign(curveAccel.x) * 20 : 0), 0);   // DRIVE は縦回転を強く見せる
     this.setVisible(true);
   }
 

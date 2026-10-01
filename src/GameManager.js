@@ -23,8 +23,10 @@ import { TrajectoryPreview } from './world/TrajectoryPreview.js';
 import { PlayerAttackState, BallToBossState, BossHitState } from './states/AttackStates.js';
 import { NextPlayerState, BossTauntState, BossReturnState, PlayerDefenseState, PlayerCatchState } from './states/DefenseStates.js';
 import { TitleState, GameClearState, GameOverState } from './states/EndStates.js';
+import { OpeningState } from './states/OpeningState.js';
 import { STAGES } from './data/GameData.js';
 import { battleSlot } from './audio/BgmTracks.js';
+import { HitMarker } from './world/HitMarker.js';
 import { heroineByStage } from './data/RomanceData.js';
 import { throwModifiers } from './data/BattleCalc.js';
 import { MenuFlow } from './screens/MenuFlow.js';
@@ -59,6 +61,7 @@ export class GameManager {
     this.cam = new CameraController(1);
     this.arena = new Arena(this.scene);
     this.effects = new Effects(this.scene);
+    this.hitMarker = new HitMarker();   // 着弾マーク(実際に当たった位置に約1秒)
     this.boss = new BossController(this.scene);
     this.ball = new BallController(this.scene);
     this.preview = new TrajectoryPreview(this.scene);
@@ -70,6 +73,7 @@ export class GameManager {
     this.catchTarget = new CatchTargetController(this.player, this.cam, this.viewport);
     this.returnBall = new ReturnBallController(this.player, this.boss, this.viewport);
     this.ui = new UIManager(this.turn.players);
+    this.ui.onRouteToggle = () => this.toggleThrowRoute();   // 投球ルート DIRECT / CURVE の切り替え(左上)
     this.audio = app.audio;
     this.input = new InputManager(container, this.bus);
     this.inspector = new InspectorPanel(this);
@@ -96,6 +100,7 @@ export class GameManager {
     this.sm.register(S.PLAYER_ATTACK, new PlayerAttackState(this));
     this.sm.register(S.BALL_TO_BOSS, new BallToBossState(this));
     this.sm.register(S.BOSS_HIT, new BossHitState(this));
+    this.sm.register(S.OPENING, new OpeningState(this));
     this.sm.register(S.NEXT_PLAYER, new NextPlayerState(this));
     this.sm.register(S.BOSS_TAUNT, new BossTauntState(this));
     this.sm.register(S.BOSS_RETURN, new BossReturnState(this));
@@ -300,6 +305,17 @@ export class GameManager {
     else this.sm.change(S.BOSS_TAUNT);
   }
 
+  /** 投球ルート(プレイヤーの選択。保存して次回も同じ)。強さ・ダメージは変わらない(操作感だけ) */
+  get throwRoute() { const r = this.progress?.data?.settings?.throwRoute; return Config.throwRoute.routes[r] ? r : Config.throwRoute.default; }
+  setThrowRoute(id) {
+    if (!Config.throwRoute.routes[id] || this.thrower?.grabbing) return false;   // 投球操作中は切り替えない
+    this.progress.data.settings.throwRoute = id;
+    this.progress.save();
+    this.ui.setRoute(id, Config.throwRoute.routes[id].label);
+    return true;
+  }
+  toggleThrowRoute() { const ids = Object.keys(Config.throwRoute.routes); return this.setThrowRoute(ids[(ids.indexOf(this.throwRoute) + 1) % ids.length]); }
+
   /** このステージの攻略対象の攻撃ボイス(データ:RomanceData の attackVoices。ファイルのあるものだけ)*/
   attackVoices() { return (heroineByStage(this.stage?.id)?.attackVoices ?? []).filter((v) => v?.src); }
   /**
@@ -334,7 +350,7 @@ export class GameManager {
   }
 
   /** GAME START:party は先頭キャラ(A)→B→C→D の順 */
-  startStage(stage, party) {
+  startStage(stage, party, { openingSec = null } = {}) {
     this.router.go('game');   // FLOW:Game 中は Bottom Navigation を出さない
     // バトル BGM(SOLO / MULTI 共通)。再戦でも最初から。画面を離れたら App.onRoute が止める
     safe('AUDIO', () => { this.audio.unlock(); this.audio.startBgm(battleSlot(this.difficulty), { restart: true }); });
@@ -343,6 +359,7 @@ export class GameManager {
     this.prepareStage(stage);
     // ボスの攻撃ボイス:前のバトルのボイスを止め、このステージのボイスを先読み(最初の反撃で待たない)
     this.lastAttackVoiceId = null;
+    this.hitMarker.clear();
     safe('AUDIO', () => { this.audio.voice.stop(); this.audio.voice.preload(this.attackVoices().map((v) => v.src)); });
     this.partyOrder = party;
     this.turn.reset(party);
@@ -350,10 +367,11 @@ export class GameManager {
     this.newGame();
     this.menu.hide();
     this.applyCharacter(this.turn.current);
-    this.ui.showTurn(this.turn.current, `STAGE ${stage.no} START`);
-    this.showStageIntro(stage);
+    this.ui.setRoute(this.throwRoute, Config.throwRoute.routes[this.throwRoute].label);
     this.ball.hold(this.player.holdAnchor);
-    this.sm.change(GameState.PLAYER_ATTACK);
+    // バトル開始演出:バトル BGM(上で最初から再生)が流れる中でボス紹介 → BATTLE START → A の投球(OpeningState)
+    //   MULTI はサーバーが配った長さ(全員同じ)。RETRY も新しいバトルとして同じ流れ
+    this.sm.change(GameState.OPENING, { totalSec: openingSec });
   }
 
   retryStage() {
@@ -369,17 +387,6 @@ export class GameManager {
     this.prepareStage(this.stage ?? STAGES[0]);
     this.sm.change(GameState.TITLE);
     this.router.go(to);
-  }
-
-  /** ステージ開始の案内「STAGE 02 / HELL / VS セイレーン」(1.6 秒・操作は止めない) */
-  showStageIntro(stage) {
-    const el = document.getElementById('stageIntro');
-    if (!el) return;
-    const D = difficultyData(this.difficulty);
-    el.innerHTML = `<div class="si-stage">STAGE ${String(stage.no).padStart(2, '0')}</div><div class="si-diff" style="--dc:${D.color}">${D.label}</div><div class="si-vs">VS ${stage.boss.name}</div>`;
-    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-    clearTimeout(this.introTimer);
-    this.introTimer = setTimeout(() => el.classList.remove('show'), 1700);
   }
 
   /** クリア:参加4人に EXP(ステージ EXP × 難易度倍率)→ Stage × Difficulty の記録 → RESULT 画面 */
@@ -441,6 +448,7 @@ export class GameManager {
       if (this.heartTrailT <= 0) { this.heartTrailT = Config.special.trailHearts; this.effects.heartBurst(this.ball.pos, 2, 1.4, 0.22); }
     }
     this.effects.update(dt);
+    this.hitMarker.update();
     this.arena.update(dt, this.clock);
     this.cam.update(realDt);
     this.ui.update(realDt);

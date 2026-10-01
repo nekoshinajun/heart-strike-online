@@ -82,8 +82,7 @@ export class App {
     R.register('diff', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('diff', c)) M.showDifficultySelect(p); } });
     R.register('party', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!(same('party', c) && M.partyMode === 'sortie')) M.showPartyEdit({ mode: 'sortie' }); } });
     R.register('chars', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('chars', c)) M.showCharacterSelect(); } });
-    R.register('intro', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showIntro(p) });   // 攻略対象紹介(GAME START の直前)
-    R.register('game', { kind: KIND.FLOW, layer: null, resetTo: 'stage', show: () => M.hide() });
+    R.register('game', { kind: KIND.FLOW, layer: null, battle: true, resetTo: 'stage', show: () => M.hide() });   // battle:インゲーム(下部メニュー非表示・バトル BGM)
     R.register('result', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showResult(p.res ?? g.lastResult) });
     R.register('over', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showGameOver(p.stage ?? g.stage, p.stats ?? []) });
   }
@@ -106,10 +105,12 @@ export class App {
   // ---------------- 画面遷移の共通処理 ----------------
   onRoute(id, def, ctx) {
     if (!def || ctx.sheet || ctx.sheetClosed) { this.refreshNotifications(); return; }
-    // BGM:インゲーム(game)以外はすべて共通メニュー BGM。同じ曲が鳴っていれば何もしない(画面を切り替えても途切れない)
+    // BGM:インゲーム(game = 下部メニュー非表示)以外はすべて共通メニュー BGM。下部メニューと同じ境界(router.inBattle)。同じ曲が鳴っていれば何もしない(画面を切り替えても途切れない)
     //   バトル(game)は開始時に GameManager がバトル BGM を最初から鳴らす。リザルト / ゲームオーバー / 途中退出 / MULTI 終了で
     //   game 以外へ移った時は、メニュー BGM を前回止めた位置から再開する
-    if (id !== 'game') safe('AUDIO', () => { this.audio.voice?.stop(); this.audio.startBgm?.(MENU_SLOT, { resume: true }); });   // ゲームを離れたらボイスも残さない
+    if (!this.router.inBattle) safe('AUDIO', () => { this.audio.voice?.stop(); this.audio.startBgm?.(MENU_SLOT, { resume: true }); });   // ゲームを離れたらボイスも残さない
+    // MULTI のロビー(難易度選択の上に重なる)を開いたまま下部メニューで別の画面へ移った時は、ルームを抜けて閉じる
+    if (!this.router.inBattle && id !== 'diff') safe('ONLINE', () => { const o = window.__online; if (o && !this.game?.online && o.root?.style.display !== 'none') o.closeLobby(); });
     // 行き先の画面を開いたら、その Guidance は解決済み
     const top = this.router.top;
     if (!ctx.restore) safe('HOME', () => this.home.agenda.resolveFor(id, top?.params ?? {}));

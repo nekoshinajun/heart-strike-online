@@ -1,6 +1,7 @@
 // 汎用ステートマシン。各ステートは { enter(data), update(dt), exit(), onTap(e), onDragstart(e), onDrag(e), onRelease(flick) } を任意で持つ。
 export const GameState = Object.freeze({
   TITLE: 'TITLE',
+  OPENING: 'OPENING',           // バトル開始演出(BGM が流れる中でボス紹介 → BATTLE START)。この間は投球・ターン進行なし
   PLAYER_ATTACK: 'PLAYER_ATTACK',
   BALL_TO_BOSS: 'BALL_TO_BOSS',
   BOSS_HIT: 'BOSS_HIT',

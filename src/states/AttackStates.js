@@ -13,6 +13,8 @@ function freezeThrow(th) {
     velocity: th.velocity.clone(),
     curveAccel: th.curveAccel ? th.curveAccel.clone() : null,
     direction: th.direction?.clone(),
+    drive: th.drive ? { ...th.drive } : null,
+    effects: th.effects?.map((e) => ({ ...e })) ?? [],
     savedAt: performance.now(),
   };
 }
@@ -42,6 +44,7 @@ export class PlayerAttackState {
 
   update() {
     const g = this.g;
+    { const b = g.player.toScreen(g.ball.pos); g.ui.placeBallEffects(b.x, b.y, g.player.heldBallScreen().r); }   // 仕込んだ球質の表示はハートに付いていく
     if (!g.thrower.grabbing) {
       const s = g.player.heldBallScreen();
       g.ui.placeHint(s.x, s.y);
@@ -126,7 +129,7 @@ export class BallToBossState {
     const strength = special ? 1 : powerStrength(th.power);
 
     // 実際の飛行と同じ計算(練習用に軌道を残す/カメラの追従先)
-    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.colliders);
+    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.hitColliders, 0.03, null, th.drive ?? null);
     if (Config.debug.showLastTrajectory && Config.debug.showTrajectoryPreview) g.preview.showGhost(sim.points);
     else g.preview.hideGhost();
 
@@ -135,7 +138,7 @@ export class BallToBossState {
     g.ball.launch(th.velocity, th.curveAccel, g.affection.throwColliders(), strength, (result, flight) => {
       g.space.endThrow();
       g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, flight });
-    }, th.start, g.space.obstacles.length ? g.space : null);
+    }, th.start, g.space.obstacles.length ? g.space : null, th.drive ?? null);
     g.ball.flight.live = true;
     if (g.affection.answerMode) g.ball.flight.planeZ = g.boss.root.position.z;   // 回答の1投:絵の面を通った位置を記録
     g.space.beginThrow();    // Heart Gate の判定もここから(SPECIAL はカットイン完了後)
@@ -168,7 +171,7 @@ export class BallToBossState {
     if (th.strong && !special) {
       g.cam.kickFov(5 + strength * 5);
       g.ui.speedLines(true);
-      if (th.spin === 0) g.ui.showJudge('STRONG!', 'tier', '#ff8a3d');
+      if (th.spin === 0) g.ui.showJudge('FAST BALL', 'tier', '#3ee8ff');   // 速い球(強さの表示ではない)
       g.ui.flash('#ffffff', 0.12);
     }
   }
@@ -197,22 +200,24 @@ export class BossHitState {
 
     // 回答の1投:当たった場所 → リアクション(当たらなければ MISS)
     this.answer = g.affection.answerMode ? g.affection.resolveAnswer(result, flight) : null;
+    g.ui.setHitInfo(result);   // デバッグ:命中位置 / 部位
     if (result.type === 'hit') {
+      g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
-      // HeartGain = BaseHeart(部位) × POWER × Attack(ATK) × Attribute × Rally × Energy × Special
+      // HeartGain = BaseHeart(部位) × Attack(ATK) × Attribute × Rally × Energy × Special(球速・引っ張り量では変えない)
       const ch = g.turn.current.chara;
       const orbs = g.energy.throwCount;
       const bonusTable = Config.energy.throwBonus;
       const energyMul = bonusTable[Math.min(orbs, bonusTable.length - 1)];
       const sMul = special ? special.heartMul : 1;
       const hm = heartMultiplier({
-        power: th.power, atk: ch?.atk ?? 50, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
+        atk: ch?.atk ?? 50, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
         rally: mul, energy: energyMul, special: sMul, fever: g.fever.heartMul,
         // 3D 空間:GATE CHAIN / BANK SHOT は「ボスに当たった時だけ」
         gate: Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)],
         bank: banks > 0 ? Config.space.bank.bonus : 1,
       });
-      const power = hm.powerMul;
+      const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
       const heartMul = hm.total;
       const r = g.boss.addHeart(partId, heartMul, heartMul / (hm.attackMul * hm.attrMul));
       g.stats.heart += r.heartGain;

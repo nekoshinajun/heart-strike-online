@@ -5,7 +5,7 @@ import { Config } from '../core/Config.js';
  * 戦闘まわりの計算(差し替え可能な純関数)。
  *
  * HeartGain = BaseHeart × Attack × Attribute × Rally × Energy × Special × GateChain × BankShot × FEVER
- *   BaseHeart … 部位ごとの基本値 × 投球の強さ(POWER)
+ *   BaseHeart … 部位ごとの基本値(球速・引っ張り量では変わらない)
  *   Attack    … ATK / atkBase
  *   Attribute … 有利 1.3 / 通常 1.0 / 不利 0.7(ATTRIBUTE_MUL)
  */
@@ -27,11 +27,9 @@ export function attackMultiplier(atk) {
 }
 
 /** HeartGain の倍率部分(BaseHeart 以外)をまとめて返す。内訳は演出・デバッグ用 */
-export function heartMultiplier({ power, atk, attribute, bossAttribute, rally, energy, special, fever = 1, gate = 1, bank = 1 }) {
-  // POWER:MinThrowPower で heartAtMin、100% で heartAtMax(引かずに投げると HEART は少ない)
-  const P = Config.power, m = P.minThrowPower;
-  const k = Math.min(1, Math.max(0, (power - m) / Math.max(1e-6, 1 - m)));
-  const powerMul = P.heartAtMin + (P.heartAtMax - P.heartAtMin) * k;
+export function heartMultiplier({ atk, attribute, bossAttribute, rally, energy, special, fever = 1, gate = 1, bank = 1 }) {
+  // 球速(引っ張り量 / POWER / 初速)では HEART を変えない:速い球も遅い球も同じ(Config.power.heartFlat)
+  const powerMul = Config.power.heartFlat ?? 1;
   const attackMul = attackMultiplier(atk);
   const attrMul = attributeMultiplier(attribute, bossAttribute);
   // FEVER 倍率は既存の全倍率(POWER/ATK/属性/RALLY/Energy/SPECIAL)の最後に掛ける(LOVE SPOT は BossController 側)
