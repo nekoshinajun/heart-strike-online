@@ -191,6 +191,16 @@ export class BossController {
     return c ? c.getWorldPosition(out) : out.set(0, 0, 0);
   }
 
+  /**
+   * 部位の中心(ワールド)・体が止まった姿勢(判定用の写し)。呼吸・揺れのタイミングに左右されないので
+   * ゲート / Energy の配置(お手本の1投の狙い点)に使う → MULTI で全クライアントが同じ位置になる
+   */
+  restPartCenter(part, out = new THREE.Vector3()) {
+    this.syncHitRoot();
+    const h = this.hitColliders?.find((c) => c.userData.part === part);
+    return h ? h.getWorldPosition(out) : this.partCenter(part, out);
+  }
+
   setDebugColliders(on) { this.colliderMat.visible = on; }
   get heartRate() { return this.heart / this.maxHeart; }
   get clearT() { return this.view.clearT; }

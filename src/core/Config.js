@@ -113,6 +113,8 @@ export const Config = {
     // ★ ハート玉より下に必ず残す操作空間(画面高さ比。Safe Area の下端から測る)。縦に短い画面でも下がりすぎない
     idleMinChargeSpace: 0.27,
     catchDepth: 2.1,                          // キャッチ地点のカメラからの距離
+    // ハートの見た目の回転(rad/秒)。投球前(構え / 引っ張り中)は全キャラ共通の一定速度。キャラ性能は投球後の軌道にだけ出す
+    idleSpin: { held: 1.2, grabbed: 3, flying: 3 },
   },
 
   // ---- 投球(指でボールを投げる) ----
@@ -288,11 +290,14 @@ export const Config = {
       maxHits: 3,
     },
     obstacleClearance: 1.9,      // 障害物と Heart Gate の基本ルート(guide)との最小距離(障害物の半径 + この値)。Gate を正しく狙った投球を邪魔しない
-    obstacleShapes: {            // 当たり判定は球(wall は箱)。見た目は仮素材
-      star:  { radius: 0.95, color: '#ffd23e' },
-      heart: { radius: 1.0,  color: '#ff5fa2' },
-      cloud: { radius: 1.2,  color: '#dfe6ff' },
-      wall:  { w: 3.2, h: 2.4, d: 0.5, color: '#9b7bff' },
+    // 障害物はすべて「壁」系の見た目(当てたらダメ:暗い石の壁 + 赤い警告の縁と ✕)。ゲート(ピンクの光る輪 = 狙うもの)と一目で区別する
+    //   当たり判定は従来どおり:block / pillar / panel は球(radius)、wall は箱(w × h × d)。見た目の壁はその判定の中に収まる大きさ
+    //   block … 正方形のブロック / pillar … 縦長の柱 / panel … 横長の板 / wall … 大きな壁(動く壁など)
+    obstacleShapes: {
+      block:  { radius: 0.95, color: '#ff3b3b', size: [1.34, 1.34, 0.5] },
+      pillar: { radius: 1.0,  color: '#ff3b3b', size: [1.1, 1.65, 0.55] },
+      panel:  { radius: 1.2,  color: '#ff3b3b', size: [2.1, 1.1, 0.45] },
+      wall:   { w: 3.2, h: 2.4, d: 0.5, color: '#ff3b3b' },
     },
     /**
      * ★ 2ルート同時配置(DualRoutePairs):1投ごとに Heart Gate のルートを左右2本、同時にフィールドへ出す。
@@ -336,7 +341,7 @@ export const Config = {
         points: [
           { type: 'Energy', at: 'NEAR', to: 'FAR', count: 5 },
           { type: 'Gate', at: 'MID' },
-          { type: 'Obstacle', shape: 'star', anchor: 'world', x: 3.8, y: 9, at: 0.6 },
+          { type: 'Obstacle', shape: 'block', anchor: 'world', x: 3.8, y: 9, at: 0.6 },
         ] },
       LEFT_CURVE: { label: 'LEFT CURVE', kind: 'curve',   // 手前中央 → 左中間 → 左奥 → ボス中央
         guide: { target: 'chest', land: true, power: 0.85, spin: 1.0 },
@@ -345,7 +350,7 @@ export const Config = {
           { type: 'Energy', at: 0.4, dy: 0.3 },
           { type: 'Gate', at: 'MID' },
           { type: 'Energy', at: 0.66, to: 'FAR', count: 2 },
-          { type: 'Obstacle', shape: 'heart', anchor: 'world', x: 3.6, y: 10, at: 0.55 },
+          { type: 'Obstacle', shape: 'pillar', anchor: 'world', x: 3.6, y: 10, at: 0.55 },
         ] },
       RIGHT_CURVE: { label: 'RIGHT CURVE', kind: 'curve',
         guide: { target: 'chest', land: true, power: 0.85, spin: -1.0 },
@@ -354,7 +359,7 @@ export const Config = {
           { type: 'Energy', at: 0.4, dy: 0.3 },
           { type: 'Gate', at: 'MID' },
           { type: 'Energy', at: 0.66, to: 'FAR', count: 2 },
-          { type: 'Obstacle', shape: 'heart', anchor: 'world', x: -3.8, y: 10, at: 0.55 },
+          { type: 'Obstacle', shape: 'pillar', anchor: 'world', x: -3.8, y: 10, at: 0.55 },
         ] },
       HIGH_ARC: { label: 'HIGH ARC', kind: 'arc',   // 中間〜奥が高い(POWER を落として山なりに / 長く弾いて頭へ)
         guide: { target: 'head', power: 0.5, spin: 0 },
@@ -362,14 +367,14 @@ export const Config = {
           { type: 'Energy', at: 'NEAR' },
           { type: 'Gate', at: 0.45 },
           { type: 'Energy', at: 0.55, to: 0.9, count: 3 },
-          { type: 'Obstacle', shape: 'cloud', anchor: 'world', x: -3.8, y: 7, at: 'MID' },
+          { type: 'Obstacle', shape: 'panel', anchor: 'world', x: -3.8, y: 7, at: 'MID' },
         ] },
       LOW_ROUTE: { label: 'LOW ROUTE', kind: 'low',   // 床すれすれの低弾道(強い POWER で短く弾く)
         guide: { target: 'leftLeg', tx: -1.4, power: 1.0, spin: 0 },
         points: [
           { type: 'Energy', at: 0.2, to: 0.85, count: 4 },
           { type: 'Gate', at: 'FAR' },
-          { type: 'Obstacle', shape: 'cloud', anchor: 'world', x: 4.0, y: 4.5, at: 'MID' },
+          { type: 'Obstacle', shape: 'panel', anchor: 'world', x: 4.0, y: 4.5, at: 'MID' },
         ] },
       S_CURVE: { label: 'S CURVE', tier: 'hard', kind: 'curve',   // 右へ膨らんでから左へ切り返す
         guide: { target: 'stomach', land: true, power: 0.8, spin: -1.0 },
@@ -397,21 +402,21 @@ export const Config = {
           { type: 'Energy', at: 0.66, to: 'FAR', count: 2 },
           { type: 'Gate', at: 0.85 },
         ] },
-      STAR_DRIFT: { label: 'STAR DRIFT', tier: 'hard', kind: 'obstacle',
+      STAR_DRIFT: { label: 'WALL DRIFT', tier: 'hard', kind: 'obstacle',
         guide: { target: 'stomach', power: 0.85, spin: 0 },
         points: [
           { type: 'Energy', at: 0.2 },
-          { type: 'Obstacle', shape: 'star', at: 0.45, dy: 0.4, move: { axis: 'x', amp: 2.6, speed: 0.28 } },
-          { type: 'Obstacle', shape: 'heart', at: 0.72, dy: -0.4, move: { axis: 'y', amp: 2.0, speed: 0.22 } },
+          { type: 'Obstacle', shape: 'block', at: 0.45, dy: 0.4, move: { axis: 'x', amp: 2.6, speed: 0.28 } },
+          { type: 'Obstacle', shape: 'pillar', at: 0.72, dy: -0.4, move: { axis: 'y', amp: 2.0, speed: 0.22 } },
           { type: 'Energy', at: 0.6, to: 0.9, count: 2 },
           { type: 'Gate', at: 'FAR', dy: 0.4 },
         ] },
-      BANK_STARS: { label: 'BANK STARS', tier: 'hard', kind: 'obstacle',   // 左右の星に当てて跳ね返す(BANK SHOT)
+      BANK_STARS: { label: 'BANK WALLS', tier: 'hard', kind: 'obstacle',   // 左右の壁に当てて跳ね返す(BANK SHOT)
         guide: { target: 'chest', power: 0.85, spin: 0 },
         points: [
           { type: 'Energy', at: 'NEAR', to: 'MID', count: 3 },
-          { type: 'Obstacle', shape: 'star', anchor: 'world', x: -3.6, y: 11, at: 0.72 },
-          { type: 'Obstacle', shape: 'star', anchor: 'world', x: 4.2, y: 11, at: 0.72 },
+          { type: 'Obstacle', shape: 'block', anchor: 'world', x: -3.6, y: 11, at: 0.72 },
+          { type: 'Obstacle', shape: 'block', anchor: 'world', x: 4.2, y: 11, at: 0.72 },
           { type: 'Gate', at: 'FAR' },
         ] },
     },

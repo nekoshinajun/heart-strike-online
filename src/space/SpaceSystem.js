@@ -1,10 +1,10 @@
 import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { simulate } from '../physics/BallPhysics.js';
-import { glowTexture, shadowTexture } from '../world/Textures.js';
+import { glowTexture, shadowTexture, wallTexture } from '../world/Textures.js';
 import { heartGeometry } from '../controllers/BallController.js';
 
-const POOL = { gate: 6, star: 3, heart: 3, cloud: 3, wall: 3 };   // gate:2ルート × 最大3
+const POOL = { gate: 6, block: 3, pillar: 3, panel: 3, wall: 3 };   // gate:2ルート × 最大3
 
 /**
  * 3D 空間の攻略:RoutePatternData から Heart Energy / Heart Gate / 障害物 を3D配置する。
@@ -19,7 +19,7 @@ const POOL = { gate: 6, star: 3, heart: 3, cloud: 3, wall: 3 };   // gate:2ル�
  *   ルートはボタンで選ばない。投げた軌道がどちらのゲートを通ったかを自動で判定する(passedRoute)。
  *   MULTI はサーバーが配った seed で同じペア・同じ位置(全クライアントが同じ投球を同じ物理で飛ばすので通過判定も一致)。
  * Heart Gate:通過で GATE PASS → GATE CHAIN。ボーナスは「最後にボスへ当たった時だけ」HEART に掛かる。
- * 障害物:当たると反射して飛行継続(POWER 減少)。その後ボスに当たれば BANK SHOT。
+ * 障害物:見た目はすべて壁(当ててはいけないもの)。当たると反射して飛行継続(POWER 減少)。その後ボスに当たれば BANK SHOT。
  */
 export class SpaceSystem {
   constructor(g) {
@@ -43,7 +43,7 @@ export class SpaceSystem {
     const g = this.g, S = Config.space;
     const shadowMat = () => new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, opacity: 0.5 });
     const shadow = () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), shadowMat()); m.rotation.x = -Math.PI / 2; m.visible = false; g.scene.add(m); return m; };
-    this.pool = { gate: [], star: [], heart: [], cloud: [], wall: [] };
+    this.pool = { gate: [], block: [], pillar: [], panel: [], wall: [] };
     // Heart Gate:ピンクのリング + 内側のうっすら膜 + 発光
     for (let i = 0; i < POOL.gate; i++) {
       const R = S.gate.radius;
@@ -63,39 +63,22 @@ export class SpaceSystem {
       gsh.rotation.x = -Math.PI / 2; gsh.visible = false; g.scene.add(gsh);
       this.pool.gate.push({ group: grp, ring, film, glow, shadow: gsh, busy: false });
     }
+    // 障害物:すべて「壁」系(石の壁 + 赤黒の警告ストライプ + ✕)。形と大きさだけ違う(block / pillar / panel / wall)
     const O = S.obstacleShapes;
-    const starShape = (r) => {
-      const s = new THREE.Shape();
-      for (let k = 0; k < 10; k++) {
-        const a = (k / 10) * Math.PI * 2 + Math.PI / 2, rr = k % 2 ? r * 0.45 : r;
-        if (k === 0) s.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); else s.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-      }
-      s.closePath();
-      const geo = new THREE.ExtrudeGeometry(s, { depth: 0.35, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 1 });
-      geo.center();
-      return geo;
-    };
-    const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.45, metalness: 0.1, ...extra });
-    for (let i = 0; i < POOL.star; i++) this.addObstacleMesh('star', new THREE.Mesh(starShape(O.star.radius * 1.15), mat(O.star.color)));
-    for (let i = 0; i < POOL.heart; i++) this.addObstacleMesh('heart', new THREE.Mesh(heartGeometry(O.heart.radius * 0.95), mat(O.heart.color)));
-    for (let i = 0; i < POOL.cloud; i++) {
+    const wallMesh = (w, h, d) => {
       const grp = new THREE.Group();
-      const m = mat(O.cloud.color, { emissiveIntensity: 0.25, transparent: true, opacity: 0.92 });
-      for (const [x, y, r] of [[0, 0, 0.8], [-0.75, -0.15, 0.6], [0.75, -0.12, 0.62], [0.3, 0.35, 0.55], [-0.3, 0.3, 0.5]]) {
-        const sp = new THREE.Mesh(new THREE.SphereGeometry(r * O.cloud.radius / 1.0, 14, 10), m);
-        sp.position.set(x * O.cloud.radius, y * O.cloud.radius, 0);
-        grp.add(sp);
-      }
-      this.addObstacleMesh('cloud', grp);
-    }
-    for (let i = 0; i < POOL.wall; i++) {
-      const W = O.wall;
-      const grp = new THREE.Group();
-      const box = new THREE.Mesh(new THREE.BoxGeometry(W.w, W.h, W.d), mat(W.color, { transparent: true, opacity: 0.55, emissiveIntensity: 0.5 }));
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W.w, W.h, W.d)), new THREE.LineBasicMaterial({ color: '#e6dcff' }));
+      const face = new THREE.MeshStandardMaterial({ map: wallTexture(w / h), color: '#ffffff', emissive: '#ff2a2a', emissiveIntensity: 0.12, roughness: 0.85, metalness: 0.05 });
+      const side = new THREE.MeshStandardMaterial({ color: '#2b2430', emissive: '#3a0d12', emissiveIntensity: 0.4, roughness: 0.9 });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [side, side, side, side, face, face]);   // 前後の面に壁の模様
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), new THREE.LineBasicMaterial({ color: '#ff4a4a' }));
       grp.add(box, edges);
-      this.addObstacleMesh('wall', grp);
+      return grp;
+    };
+    for (const shape of ['block', 'pillar', 'panel']) {
+      const [w, h, d] = O[shape].size;
+      for (let i = 0; i < POOL[shape]; i++) this.addObstacleMesh(shape, wallMesh(w, h, d));
     }
+    for (let i = 0; i < POOL.wall; i++) this.addObstacleMesh('wall', wallMesh(O.wall.w, O.wall.h, O.wall.d));
     this.shadowFactory = shadow;
   }
 
@@ -233,7 +216,7 @@ export class SpaceSystem {
     const path0 = (obstacleRoute ?? routes[0]).path;
     for (let k = 0; k < (D.extraMovers ?? 0) && obs < cap; k++) {
       const f = [0.5, 0.66, 0.38][k % 3];
-      const pt = { type: 'Obstacle', shape: k % 2 ? 'heart' : 'star', at: f, dy: k % 2 ? -0.5 : 0.5,
+      const pt = { type: 'Obstacle', shape: k % 2 ? 'pillar' : 'block', at: f, dy: k % 2 ? -0.5 : 0.5,
         move: { axis: k % 2 ? 'y' : 'x', amp: 2.4, speed: 0.25 }, extra: true };
       if (!this.pool[pt.shape]?.some((o) => !o.busy)) break;
       obs++;
@@ -250,7 +233,7 @@ export class SpaceSystem {
    * 動く障害物は往復の範囲ごと離す。距離は難易度に依らず同じ(Gate の見た目の大きさではなく基準の半径で測る)
    */
   keepClear(o, paths) {
-    const S = Config.space, O = S.obstacleShapes[o.pt.shape ?? 'star'];
+    const S = Config.space, O = S.obstacleShapes[o.pt.shape ?? 'block'];
     const rx = O.w ? O.w / 2 : O.radius, ry = O.h ? O.h / 2 : O.radius;
     const clear = S.obstacleClearance ?? 1.9;
     const mv = o.pt.move, A = mv?.amp ?? 0, alongX = !!mv && mv.axis !== 'y';
@@ -272,7 +255,13 @@ export class SpaceSystem {
       }
       if (!moved) { o.cleared = true; return true; }
     }
-    o.cleared = refs.every(({ p, r }) => nearest(p) >= r);
+    // 2本のルートの間に収まらない(動く壁など):両方のルートの外側(左端の外 / 右端の外)の近い方へ
+    const out = Math.max(...refs.map(({ r }) => r)) + rx + (alongX ? A : 0);
+    const xs = refs.map(({ p }) => p.x), x0 = o.pos.x;
+    const cand = [Math.min(...xs) - out, Math.max(...xs) + out].sort((a, b) => Math.abs(a - x0) - Math.abs(b - x0));
+    for (const x of cand) { o.pos.x = x; if (refs.every(({ p, r }) => nearest(p) >= r)) { o.cleared = true; return true; } }
+    o.pos.x = x0;
+    o.cleared = false;
     return o.cleared;   // 2本のルートの間に置き場所が無ければ置かない(どちらのルートも邪魔しない)
   }
 
@@ -284,7 +273,7 @@ export class SpaceSystem {
     g.cam.settle();
     const start = g.player.holdAnchor();
     g.player.thrower.holdScreen = g.player.heldBallScreen();
-    const target = g.boss.partCenter(gd.target, new THREE.Vector3());
+    const target = g.boss.restPartCenter(gd.target, new THREE.Vector3());   // 揺れていない姿勢の部位(端末・タイミングで変わらない)
     target.x += gd.tx ?? 0; target.y += gd.ty ?? 0;
     target.z = Config.boss.z + 0.5;
     // land:target に「着弾」させる(カーブは狙い点から shift だけ曲がる向きへずれるので、その分だけ逆へ狙う)
@@ -293,7 +282,7 @@ export class SpaceSystem {
       target.x -= Math.sign(gd.spin) * L;
     }
     const th = g.player.thrower.buildThrow(start, target, gd.power, gd.spin ?? 0);
-    const sim = simulate(start, th.velocity, th.curveAccel, g.boss.colliders, 0.01);
+    const sim = simulate(start, th.velocity, th.curveAccel, g.boss.hitColliders, 0.01);
     return { points: sim.points, start, planeZ: Config.boss.z + 0.5, result: sim.result, th, target };
   }
 
@@ -340,7 +329,7 @@ export class SpaceSystem {
   }
 
   addObstacle(pt, pos, speedMul) {
-    const shape = pt.shape ?? 'star';
+    const shape = pt.shape ?? 'block';
     const slot = this.pool[shape]?.find((s) => !s.busy);
     if (!slot) return;
     slot.busy = true;
@@ -488,8 +477,6 @@ export class SpaceSystem {
       o.pos.copy(o.base);
       if (o.move) o.pos[o.move.axis === 'y' ? 'y' : 'x'] += Math.sin(this.time * Math.PI * 2 * o.move.speed + o.phase) * o.move.amp;
       o.slot.group.position.copy(o.pos);
-      if (o.shape === 'star') o.slot.group.rotation.z += dt * 0.8;
-      if (o.shape === 'heart') o.slot.group.rotation.y = Math.sin(this.time * 1.5 + o.phase) * 0.5;
       o.hitPulse = Math.max(0, (o.hitPulse ?? 0) - dt * 3);
       o.slot.group.scale.setScalar(1 + (o.hitPulse ?? 0) * 0.25);
       this.placeShadow(o.slot.shadow, o.pos, (o.box ? o.box.hx * 2 : o.radius * 2.2));

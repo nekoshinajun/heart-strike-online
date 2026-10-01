@@ -119,10 +119,10 @@ export class EnergySystem {
       if (!r) return;
       const count = item.count ?? r.count ?? 1;
       const span = item.span ?? r.span ?? [0.3, 0.8];
-      const target = g.boss.partCenter(r.target, new THREE.Vector3());
+      const target = g.boss.restPartCenter(r.target, new THREE.Vector3());   // 揺れていない姿勢(MULTI で全員同じ配置)
       target.z = Config.boss.z + 0.5;
       const th = g.player.thrower.buildThrow(start, target, r.power, r.spin ?? 0);
-      const sim = simulate(start, th.velocity, th.curveAccel, g.boss.colliders);
+      const sim = simulate(start, th.velocity, th.curveAccel, g.boss.hitColliders);
       const pts = sim.points;
       const n = pts.length;
       for (let k = 0; k < count; k++) {

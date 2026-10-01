@@ -60,6 +60,7 @@ export class CameraController {
     this.dolly = this.dollyTarget;
     this.lookOffset.copy(this.lookOffsetTarget);
     this.fovHold = this.fovHoldTarget;
+    this.fovKick = 0;   // 一時的な FOV キックも残さない(構え位置 = ゲート / Energy の配置が端末ごとの演出のタイミングでずれないように。MULTI で全員一致)
     this.update(0);
   }
 
