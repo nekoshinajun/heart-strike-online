@@ -61,7 +61,11 @@ export const HEROINES = [
     },
   },
   { id: 'siren', stageId: 'stage02', cv: null, collab: null, playableCharacterId: null, profile: null, line: null, attackVoices: [], rewardVoices: { NORMAL: null, HARD: null, HELL: null } },
-  { id: 'milk', stageId: 'stage03', cv: null, collab: null, playableCharacterId: null, profile: null, line: null, attackVoices: [], rewardVoices: { NORMAL: null, HARD: null, HELL: null } },
+  {
+    id: 'milk', stageId: 'stage03', cv: null, collab: null, playableCharacterId: null, profile: null, line: null,
+    attackVoices: attackVoices('milk', ['milk_voice_01.mp3', 'milk_voice_02.mp3', 'milk_voice_03.mp3', 'milk_voice_04.mp3', 'milk_voice_05.mp3']),
+    rewardVoices: { NORMAL: null, HARD: null, HELL: null },
+  },
 ];
 
 /** その難易度の報酬ボイスの解放条件(その攻略対象のステージをその難易度でクリア)*/
