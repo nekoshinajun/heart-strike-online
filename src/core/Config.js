@@ -134,7 +134,9 @@ export const Config = {
     grabRadiusScale: 1.9,  // ボール見かけ半径×この値 以内のタッチで掴める
     grabRadiusMin: 46,     // px
     sampleWindowMs: 80,    // (InputManager の FlickInfo 用。投球の向き・速さは throwInput.releaseWindowMs)
-    gravity: 14,           // ★ 投球の重力(弾道の高さと飛ぶ時間は throwInput の発射角・速さとセット)
+    // ★ 投球の重力(弾道の高さと飛ぶ時間は throwInput の発射角・速さとセット)
+    //   球速を k 倍にする時は 初速 ×k・重力 ×k² で、同じ弾道(届く所・高さ・カーブ)のまま速さだけ変わる
+    gravity: 56,
     fixedStep: 1 / 240,    // 物理の固定ステップ(同じ入力 = 同じ軌道)
     maxFlightTime: 3.5,
     floorBounce: 0.42,
@@ -172,9 +174,9 @@ export const Config = {
     // 速さ → 強さ 0〜1(画面高さ/秒)
     weakSpeed: 0.8,        // ★ これ以下 = 強さ 0(手前に落ちる)
     strongSpeed: 3.4,      // ★ これ以上 = 強さ 1(奥まで届く)
-    // 強さ → 水平の初速(units/秒)。発射角は一定 → 速いほど遠く・高く届く。飛ぶ時間 ≈ 1.0〜1.6 秒(目で追える)
-    minVelocity: 5.5,      // ★
-    maxVelocity: 16.5,     // ★
+    // 強さ → 水平の初速(units/秒)。発射角は一定 → 速いほど遠く・高く届く。飛ぶ時間 ≈ 0.5〜0.8 秒
+    minVelocity: 11,       // ★
+    maxVelocity: 33,       // ★
     launchDeg: 55,         // ★ 発射角(水平から)
     // 向き:画面のリリース方向の傾き → 水平の向き
     yawGain: 0.45,         // ★ 45° 斜めに弾く → 約20° 斜めへ

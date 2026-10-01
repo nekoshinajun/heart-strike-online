@@ -1448,7 +1448,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .cd-nav { top: 46%; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--hs-line); background: rgba(255,255,255,.85); color: var(--hs-pink-deep); font-size: 16px; cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .cd-nav.prev { left: 8px; } .cd-nav.next { right: 8px; }
 .cd-nav:focus-visible, .cd-back:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-.cd-panel { left: 0; right: 0; bottom: 0; padding: 0 14px calc(10px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 6px; }
+/* ステータスは絵の上に重なるので、下から白くぼかした面の上に置く(文字が絵に埋もれない)*/
+.cd-panel { left: 0; right: 0; bottom: 0; padding: 30px 14px calc(10px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 6px;
+  background: linear-gradient(180deg, rgba(255,246,251,0) 0, rgba(255,246,251,.9) 30px, #fff6fb 100%); }
 .cd-sections { display: grid; gap: 6px; }
 .cd-stat { display: flex; justify-content: center; gap: 14px; align-items: baseline; font-size: 12px; font-weight: 800; color: var(--hs-ink-soft); }
 .cd-stat b { font: 800 18px var(--round); color: var(--hs-ink); }
