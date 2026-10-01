@@ -2,8 +2,8 @@ import { Log, reducedMotion } from './Platform.js';
 
 /**
  * ScreenRouter:画面を4種類で管理する
- *   TAB_ROOT … HOME / 育成 / 攻略(STAGE SELECT)/ ガチャ / 編成。Bottom Navigation を表示。タブ切替で履歴はリセット
- *   SUB      … CHARACTER DETAIL / COLLECTION / MISSION / PRESENT / SETTINGS。Nav 非表示。BACK で元へ
+ *   TAB_ROOT … HOME / 育成 / 攻略(STAGE SELECT)/ ガチャ / コレクション。Bottom Navigation を表示。タブ切替で履歴はリセット
+ *   SUB      … CHARACTER DETAIL / 編成 / MISSION / PRESENT / SETTINGS。Nav 非表示。BACK で元へ
  *   SHEET    … Favorite Select / Gacha Confirm / Gacha Rates。Nav は暗幕の下に残す。× / 外側タップ / 下スワイプで閉じる
  *   FLOW     … DIFFICULTY / PARTY確認 / CHARACTER SELECT / GAME / RESULT / GACHA SEQUENCE / GACHA RESULT。Nav 非表示
  * 画面は「レイヤー」(DOM のまとまり)に載る。overlay:true の画面(CHARACTER DETAIL)は下のレイヤーを隠さない(戻った時に編成・スクロールがそのまま)
@@ -112,13 +112,13 @@ export class ScreenRouter {
   closeAllSheets() { while (this.sheets.length) this.closeSheet(); }
 }
 
-/** Bottom Navigation(5項目固定:HOME / 育成 / 攻略 / ガチャ / 編成)*/
+/** Bottom Navigation(5項目固定:HOME / 育成 / 攻略 / ガチャ / コレクション)*/
 export const NAV_TABS = [
   { id: 'home', label: 'HOME', icon: 'home' },
-  { id: 'training', label: '育成', icon: 'up' },
+  { id: 'training', label: '育成', icon: 'train' },
   { id: 'stage', label: '攻略', icon: 'heart', center: true },
   { id: 'gacha', label: 'ガチャ', icon: 'gift' },
-  { id: 'partyTab', label: 'コレクション', icon: 'cards' },
+  { id: 'collection', label: 'コレクション', icon: 'cards' },
 ];
 const ICONS = {
   home: '<path d="M3 11.3 12 3l9 8.3"/><path d="M5.2 10.4V21h5.1v-6.1h3.4V21h5.1V10.4"/><path d="M7.4 6.9V4.2h3"/>',

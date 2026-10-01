@@ -292,7 +292,7 @@ export class MenuFlow {
   // ---------------- PARTY EDIT ----------------
   /**
    * PARTY EDIT(同じ Party データを2つのモードで使う)
-   *   standalone … Bottom Nav「編成」から(TAB_ROOT)。NEXT なし
+   *   standalone … 攻略画面の「編成」ボタンから(SUB)。NEXT なし・BACK で攻略へ
    *   sortie     … 難易度の後の出撃フロー(PARTY確認)。NEXT → CHARACTER SELECT
    * 表示するのは所持キャラだけ
    */
@@ -301,7 +301,7 @@ export class MenuFlow {
     const sortie = this.partyMode === 'sortie';
     const keepScroll = this.screen === 'party' ? this.body.scrollTop : 0;
     if (sortie) this.frame('party', 'PARTY確認', `STAGE ${this.stage.no}:${this.stage.boss.name} ─ 4人を編成`, { primary: 'NEXT ▶', back: '◀ BACK', diff: this.diff });
-    else this.frame('party', '編成', '4人のパーティを編成(A が最初に投げます)', {});
+    else this.frame('party', '編成', '4人のパーティを編成(A が最初に投げます)', { back: '◀ BACK' });
     this.el.dataset.mode = this.partyMode;
     const party = this.progress.party;
     const boss = this.stage.boss.attribute;

@@ -9,7 +9,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 /**
  * 明るい HEART STRIKE テーマの汎用画面(レイヤー 'app')
- *   TAB_ROOT:育成(TRAINING)/ SUB:COLLECTION・MISSION・PRESENT・SETTINGS
+ *   TAB_ROOT:育成(TRAINING)・COLLECTION / SUB:MISSION・PRESENT・SETTINGS
  * どれもデータが空でも破綻しない(空状態の表示あり)。
  */
 export const TRAINING_FEATURES = [
@@ -58,7 +58,7 @@ export class AppScreens {
 
   // ---------------- 図鑑(SUB)----------------
   showCollection() {
-    this.frame('collection', '図鑑 COLLECTION', { back: true });
+    this.frame('collection', 'コレクション');
     const owned = new Set(this.p.ownedIds);
     const n = CHARACTERS.filter((c) => owned.has(c.id)).length;
     this.body.innerHTML = `

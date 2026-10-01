@@ -261,7 +261,7 @@ export class GameManager {
     this.player.boss = this.boss;
     this.returnBall.boss = this.boss;
     const key = this.stage?.boss.image;
-    const img = key ? this.bossImgs[key] : this.customImage;
+    const img = key ? (this.bossImgs[key] ?? this.bossImgs[this.stage.boss.fallbackImage]) : this.customImage;
     const apply = (im) => {
       this.customImage = im;
       const d = Config.bossImage[Config.boss.layout] ?? Config.bossImage.demon;
@@ -323,6 +323,7 @@ export class GameManager {
 
   /** ゲームを終えてメニューへ(既定:攻略タブの STAGE SELECT。'home' で HOME)*/
   backToMenu(to = 'stage') {
+    this.online?.leaveGame?.();   // MULTI 終了:ルームを抜けて g.online を外す(この後の SOLO に持ち越さない)
     safe('AUDIO', () => this.audio.stopBgm());
     this.prepareStage(this.stage ?? STAGES[0]);
     this.sm.change(GameState.TITLE);

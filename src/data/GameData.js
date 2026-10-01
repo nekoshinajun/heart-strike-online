@@ -41,7 +41,7 @@ export const TYPES = {
  */
 export const CHARACTERS = [
   {
-    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT', atk: 120, def: 90,
+    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT', atk: 125, def: 90,
     art: { portrait: 'minamo', fullBody: 'minamo', specialCutIn: 'minamo', cutout: 'minamo_cut' },
     portraitFocus: { x: 0.48, y: 0.21, zoom: 3.0 },
     cutIn: { faceX: 0.47, faceY: 0.18, x: 0.5, y: 0.34, scale: 1.9, rot: -6 },
