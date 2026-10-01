@@ -54,6 +54,18 @@ export class CameraController {
   }
   reset() { this.dollyTarget = 0; this.lookOffsetTarget.set(0, 0, 0); this.fovHoldTarget = 0; }
 
+  /**
+   * 演出(前進・FOV・シェイク・手番の左右)を含まない基準の姿勢のカメラ。端末ごとの演出のタイミングに左右されない計算用
+   * (返球の軌道が画面に収まるかの判定:MULTI で全員が同じ結果になる)
+   */
+  restCamera() {
+    const c = this.rest ?? (this.rest = new THREE.PerspectiveCamera());
+    c.fov = this.fovBase ?? Config.camera.fov; c.aspect = this.base.aspect; c.near = this.base.near; c.far = this.base.far;
+    c.position.copy(this.basePos); c.lookAt(this.baseLook);
+    c.updateProjectionMatrix(); c.updateMatrixWorld(true);
+    return c;
+  }
+
   /** 補間中の値を目標値へ即座に揃える(Energy Orb 配置など、構え位置を確定させたい時) */
   settle() {
     this.playerX = this.playerXTarget;

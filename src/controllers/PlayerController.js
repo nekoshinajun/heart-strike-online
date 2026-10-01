@@ -52,10 +52,10 @@ export class PlayerController {
   }
 
   /** 画面上の点(px) → カメラから depth 離れた3D点(キャッチ地点の算出に使う) */
-  screenToWorld(x, y, depth, out = new THREE.Vector3()) {
+  screenToWorld(x, y, depth, out = new THREE.Vector3(), camera = this.cam.base) {
     const { w, h } = this.viewport;
     ndc.set((x / w) * 2 - 1, -(y / h) * 2 + 1);
-    ray.setFromCamera(ndc, this.cam.base);
+    ray.setFromCamera(ndc, camera);
     return out.copy(ray.ray.origin).addScaledVector(ray.ray.direction, depth);
   }
 

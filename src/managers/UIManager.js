@@ -1,7 +1,11 @@
-import { ATTRIBUTES } from '../data/GameData.js';
+import { ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
+import { Config } from '../core/Config.js';
+import { STAT_KEYS, STAT_LABELS } from '../data/GrowthData.js';
+import { statRadarSVG } from '../screens/StatRadar.js';
 import { portraitStyle } from '../data/CharacterArt.js';
 
 const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ATTR_ICON = Object.fromEntries(Object.values(ATTRIBUTES).map((a) => [a.id, a.icon]));
 
 /**
@@ -33,6 +37,8 @@ export class UIManager {
    * 画像・名前は players[i].chara から取得(UI側にキャラ固有の値は持たない)
    */
   buildPlayers(players) {
+    this.players = players;
+    this.hideStatus?.();
     this.el.players.innerHTML = '';
     this.cards = players.map((p) => {
       const d = document.createElement('div');
@@ -44,11 +50,55 @@ export class UIManager {
       const face = ps ? `<div class="picon" style="${ps}">` : `<div class="picon ph">${ch ? ch.name[0] : p.id}`;
       d.innerHTML = `${face}<i class="pslot">${p.id}</i>${ch ? `<i class="pattr">${ATTR_ICON[ch.attribute] ?? ''}</i>` : ''}</div><div class="pbar"><i></i></div>`;
       this.el.players.appendChild(d);
+      this.bindStatusPeek(d, players.indexOf(p));
       return { d, fill: d.querySelector('.pbar i') };
     });
   }
 
+  /**
+   * 味方のアイコンを長押し → その子のステータス(押している間だけ表示。離すと消える)
+   *   押した操作は投球 / キャッチの入力へ流さない
+   */
+  bindStatusPeek(d, i) {
+    let timer = null;
+    const stop = (e) => e.stopPropagation();
+    const end = () => { clearTimeout(timer); timer = null; this.hideStatus(); };
+    d.addEventListener('pointerdown', (e) => { stop(e); clearTimeout(timer); timer = setTimeout(() => { timer = null; this.showStatus(i); }, Config.home?.longPressMs ?? 450); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) d.addEventListener(ev, (e) => { stop(e); end(); });
+    d.addEventListener('click', stop);
+    d.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  showStatus(i) {
+    const p = this.players?.[i], ch = p?.chara;
+    if (!ch) return;
+    const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    let el = this.statusEl;
+    if (!el) { el = this.statusEl = document.createElement('div'); el.id = 'pstat'; el.setAttribute('role', 'dialog'); this.el.players.parentElement.appendChild(el); }
+    const ps = portraitStyle(ch);
+    const hpK = Math.max(0, Math.min(1, p.hp / (p.maxHp || 100)));
+    const ab = ch.abilities ?? [];
+    el.style.setProperty('--pc', p.color); el.style.setProperty('--ac', a?.color ?? '#fff'); el.style.setProperty('--rc', r?.color ?? '#fff');
+    el.innerHTML = `
+      <div class="pst-head"><span class="pst-face"${ps ? ` style="${ps}"` : ''}></span>
+        <div class="pst-name"><b>${esc(ch.name)}</b><small><i class="pst-rank">${r?.id ?? ''}</i> ${a?.icon ?? ''} ${a?.label ?? ''} / ${t?.label ?? ''}</small><em>♡ Lv.${ch.level ?? 1}</em></div>
+        <i class="pst-slot">${p.id}</i></div>
+      ${p.ownerName ? `<div class="pst-owner">${p.mine ? 'YOU' : esc(p.ownerName)}</div>` : ''}
+      <div class="pst-hp${p.hp <= 0 ? ' down' : ''}"><span>HP</span><i><i style="transform:scaleX(${hpK})"></i></i><b>${Math.max(0, Math.round(p.hp))}</b>/${p.maxHp ?? 100}</div>
+      <div class="pst-radar">${statRadarSVG([{ key: 'hp', label: 'HP', value: p.maxHp ?? Config.playerMaxHp, max: Config.playerMaxHp }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats?.[k] ?? 50, max: 100 }))])}</div>
+      <div class="pst-ab"><small>ABILITY</small><div>${ab.length ? ab.map((x) => `<span class="${x.ultimate ? 'ult' : ''}">${esc(x.name)}</span>`).join('') : '<span class="none">なし</span>'}</div></div>`;
+    // アイコンの左横(画面内に収める)
+    const card = this.cards[i].d.getBoundingClientRect(), host = el.parentElement.getBoundingClientRect();
+    el.hidden = false; el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
+    const h = el.offsetHeight;
+    el.style.top = `${Math.max(8, Math.min(host.height - h - 8, card.top - host.top + card.height / 2 - h / 2))}px`;
+    el.style.right = `${host.right - card.left + 8}px`;
+    this.statusIndex = i;
+  }
+  hideStatus() { if (this.statusEl) this.statusEl.hidden = true; this.statusIndex = null; }
+
   setPlayers(players, current) {
+    this.players = players;
+    if (this.statusIndex != null && this.statusEl && !this.statusEl.hidden) this.showStatus(this.statusIndex);   // 表示中に HP が変わったら更新
     players.forEach((p, i) => {
       const c = this.cards[i];
       c.fill.style.transform = `scaleX(${p.hp / p.maxHp})`;

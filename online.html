@@ -270,6 +270,29 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @keyframes hurt { 0%, 100% { translate: 0; } 20% { translate: -5px 0; background: #7a1026; } 40% { translate: 5px 0; } 60% { translate: -3px 0; } }
 
 #game[data-state="TITLE"], #game[data-state="GAME_CLEAR"], #game[data-state="GAME_OVER"] { cursor: pointer; }
+/* 味方のアイコン:長押しでステータス(押している間だけ)*/
+#players .pcard { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#pstat { position: absolute; z-index: 30; width: 172px; padding: 9px 10px 10px; border-radius: 18px; border: 1px solid rgba(255,255,255,.9); background: linear-gradient(160deg, rgba(255,255,255,.92), rgba(255,236,246,.86)); color: var(--hs-ink); font-family: var(--round); box-shadow: 0 10px 28px rgba(140,50,95,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); pointer-events: none; }
+#pstat.in { animation: bubin .18s ease-out; }
+.pst-head { display: grid; grid-template-columns: 38px 1fr auto; gap: 7px; align-items: center; }
+.pst-face { width: 38px; height: 38px; border-radius: 50%; background-color: var(--hs-pink-pale); background-size: cover; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ac); }
+.pst-name b { display: block; font: 800 15px/1.1 var(--round); }
+.pst-name small { display: block; font-size: 8.5px; font-weight: 800; color: color-mix(in srgb, var(--ac) 60%, var(--hs-ink)); white-space: nowrap; }
+.pst-name em { font-style: normal; font: 800 11px var(--round); color: var(--hs-pink-deep); }
+.pst-rank { padding: 0 4px; border-radius: 5px; background: var(--rc); color: #fff; font-style: normal; }
+.pst-slot { align-self: start; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pc); color: #000; font: 400 11px var(--display); font-style: normal; box-shadow: 0 0 0 1.5px #000; }
+.pst-owner { margin-top: 4px; font: 800 10px var(--round); color: var(--hs-pink-deep); }
+.pst-hp { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 4px; margin-top: 6px; font: 800 9px var(--round); color: var(--hs-ink-soft); }
+.pst-hp > i { display: block; height: 6px; border-radius: 3px; overflow: hidden; background: #f3e6ec; }
+.pst-hp > i > i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #ff9cc8, #ff4f9a); }
+.pst-hp b { font-size: 12px; color: var(--hs-ink); }
+.pst-hp.down > i > i { background: #d9cbd6; }
+.pst-radar { margin: 2px -4px 0; }
+.pst-ab small { font: 800 8px var(--round); letter-spacing: .14em; color: var(--hs-pink-deep); }
+.pst-ab div { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+.pst-ab span { padding: 0 5px; border-radius: 7px; background: #fff; box-shadow: inset 0 0 0 1px var(--hs-line-soft); font: 800 8px/16px var(--round); white-space: nowrap; }
+.pst-ab span.ult { background: linear-gradient(120deg, #fff4fb, #efe7ff); }
+.pst-ab span.none { color: var(--hs-ink-soft); }
 #game.menuopen #players, #game.menuopen .bossbar, #game.menuopen #energy, #game[data-state="TITLE"] #players, #game[data-state="TITLE"] .bossbar { visibility: hidden; }
 
 /* プレイ中の上部 HUD:背景は透明にして推しを隠さない(名前 → LOVE → 左に RALLY / 右に FEVER)。左下 SPECIAL は文字が切れない幅 */

@@ -2,6 +2,7 @@ import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { glowTexture, shadowTexture, ballTexture } from '../world/Textures.js';
 import { createFlight, stepFlight } from '../physics/BallPhysics.js';
+import { returnPathPoint } from '../return/AttackMotion.js';
 
 const TRAIL = 14;
 
@@ -167,7 +168,8 @@ export class BallController {
   /**
    * ボス→プレイヤー。t=1で catchPoint 到達、その後 lateDur かけて lateEnd までさらに迫る(遅れ判定用)。
    */
-  returnTo(start, catchPoint, lateEnd, duration, lateDur, ctrlOffset = null) {
+  returnTo(start, catchPoint, lateEnd, duration, lateDur, ctrlOffset = null, motion = null) {
+    this.motion = motion;   // 攻撃の球種の動き(AttackMotion。進み具合・左右のずれ・フェイント)。無ければ従来の直線的な返球
     this.mode = 'toPlayer';
     this.from = start.clone();
     this.to = catchPoint.clone();
@@ -237,14 +239,8 @@ export class BallController {
       case 'toPlayer': {
         this.t += dt;
         if (this.t <= this.dur) {
-          // わずかに加速(ease-in)して「迫ってくる」感覚を強める
-          const u = this.t / this.dur;
-          const k = u * (0.75 + 0.25 * u);
-          const a = 1 - k;
-          this.pos.set(0, 0, 0)
-            .addScaledVector(this.from, a * a)
-            .addScaledVector(this.ctrl, 2 * a * k)
-            .addScaledVector(this.to, k * k);
+          // ベジェ + 攻撃の球種(CURVE / LATE CURVE の左右のずれ・SPEED CHANGE・FEINT の停止と揺れ)。到達点ではずれ 0
+          returnPathPoint(this.pos, this.from, this.ctrl, this.to, this.t, this.dur, this.motion);
         } else {
           const k = Math.min(1, (this.t - this.dur) / this.lateDur);
           this.pos.lerpVectors(this.to, this.lateEnd, k);

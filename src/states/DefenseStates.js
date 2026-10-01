@@ -139,6 +139,13 @@ export class BossReturnState {
     g.ui.showPrompt('catch', g.turn.current.color);
     g.boss.view.playCharge();
     g.ball.hide();
+    // 攻撃の予備動作(tell):色の違う溜め + ボスが何度か溜め直す + 短い表示(FEINT など。必ず見切れるサイン)
+    const tell = plan.attack?.tell;
+    this.chargeColor = tell?.color ?? '#ff5fa2';
+    this.tellKicks = tell ? Math.max(0, (tell.chargeKicks ?? 1) - 1) : 0;
+    this.tellEvery = this.tellKicks ? plan.chargeTime / (this.tellKicks + 1) : 0;
+    this.tellNext = this.tellEvery;
+    if (tell?.label) { const s = g.player.toScreen(plan.spawn); g.ui.damageNumber(s.x, s.y - 30, tell.label, { color: tell.color, label: plan.attack.label }); }
   }
   update(dt) {
     const g = this.g;
@@ -146,10 +153,11 @@ export class BossReturnState {
     g.catchTarget.update(g.catchJudge.ringProgress(g.clock));
     // 溜めエフェクト
     this.chargeFx -= dt;
-    if (this.chargeFx <= 0) { this.chargeFx = 0.07; g.effects.burst(p.spawn, '#ff5fa2', 4, 3, 0.6); }
+    if (this.chargeFx <= 0) { this.chargeFx = 0.07; g.effects.burst(p.spawn, this.chargeColor, 4, 3, 0.6); }
     this.wait -= dt;
+    if (this.tellKicks > 0 && p.chargeTime - this.wait >= this.tellNext) { this.tellKicks--; this.tellNext += this.tellEvery; g.boss.view.playCharge(); g.effects.burst(p.spawn, this.chargeColor, 14, 6, 0.6); }
     if (this.wait > 0) return;
-    g.ball.returnTo(p.spawn, p.world, p.lateEnd, p.duration, catchWin('goodTime') + 0.02, p.ctrlOffset);
+    g.ball.returnTo(p.spawn, p.world, p.lateEnd, p.duration, catchWin('goodTime') + 0.02, p.ctrlOffset, p.motion);
     g.effects.burst(p.spawn, '#ff3d7f', 20, 10, 0.8);
     g.effects.shockwave(p.spawn, '#ff5fa2', 2.5, g.cam.camera);
     g.cam.shake(0.2);
@@ -164,6 +172,7 @@ export class PlayerDefenseState {
 
   enter(plan) {
     this.plan = plan;
+    this.events = (plan.motion?.events ?? []).map((e) => ({ ...e }));   // 攻撃の途中の変化(速度変化・曲がり始め・フェイント)の演出
     this.arrival = plan.arrival;
     this.result = null;
     this.impacted = false;
@@ -201,8 +210,25 @@ export class PlayerDefenseState {
     if (r !== Judge.MISS && g.clock >= this.arrival) this.impact();
   }
 
+  /** 攻撃の途中の変化を目で追えるように:加速 / 減速 / 曲がり始め / フェイントで止まる・再び来る */
+  motionFx() {
+    const g = this.g;
+    if (!this.events?.length || g.ball.mode !== 'toPlayer') return;
+    const t = g.ball.t;
+    while (this.events.length && t >= this.events[0].t) {
+      const e = this.events.shift(), pos = g.ball.pos.clone(), F = Config.enemyAttacks.fx?.[e.kind];
+      if (!F) continue;
+      g.effects.burst(pos, F.color, F.count ?? 14, F.speed ?? 6, F.life ?? 0.4);
+      if (F.shockwave) g.effects.shockwave(pos, F.color, F.shockwave, g.cam.camera);
+      if (F.boost) g.ball.pulseBoost(F.boost);
+      if (F.label) { const s = g.player.toScreen(pos); g.ui.damageNumber(s.x, s.y - 24, F.label, { color: F.color }); }
+      if (F.sound) g.audio[F.sound]?.();
+    }
+  }
+
   update() {
     const g = this.g;
+    this.motionFx();
     const now = g.clock;
     const judge = g.catchJudge;
     const prog = judge.ringProgress(now);
