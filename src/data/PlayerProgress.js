@@ -313,6 +313,11 @@ export class PlayerProgress {
     return (r?.[diff]?.clearCount ?? 0) > 0;
   }
   record(stageId, diff) { return this.data.records[stageId]?.[diff] ?? null; }
+  /** 難易度の解放:先頭(NORMAL)は最初から / ひとつ下の難易度をクリアで解放(この難易度以上をクリア済みなら解放のまま)*/
+  isDifficultyUnlocked(stageId, diff, order = ['NORMAL', 'HARD', 'HELL']) {
+    const i = order.indexOf(diff);
+    return i <= 0 || order.slice(i - 1).some((d) => this.isCleared(stageId, d));
+  }
 
   /** クリアを記録(ClearCount + ベスト値)。初回クリア報酬(仮)もここで1度だけ付与 → { record, firstClearGem } */
   markCleared(stageId, diff = 'NORMAL', stats = {}) {

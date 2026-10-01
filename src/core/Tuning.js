@@ -86,7 +86,6 @@ export const TUNING_SCHEMA = [
   { path: 'returnBall.baseDuration', label: 'ReturnSpeed(秒)', min: 0.6, max: 2.5, step: 0.05 },
   { path: 'profile.returnSpeed', label: 'ボス返球速度倍率', min: 0.5, max: 2, step: 0.05 },
   { path: 'profile.returnPower', label: 'ReturnPower', min: 0, max: 60, step: 1 },
-  { path: 'profile.curveChance', label: 'カーブ返球率', min: 0, max: 1, step: 0.05 },
   { path: 'profile.catchAreaSize', label: 'CatchAreaSize', min: 0.3, max: 1.3, step: 0.05 },
   { path: 'returnBall.catchArea.xMin', label: 'CatchArea X min', min: 0, max: 0.5, step: 0.01 },
   { path: 'returnBall.catchArea.xMax', label: 'CatchArea X max', min: 0.5, max: 1, step: 0.01 },

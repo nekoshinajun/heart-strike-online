@@ -51,6 +51,7 @@ export class PlayerAttackState {
       g.ui.placeHint(s.x, s.y);
       return;
     }
+    g.thrower.tick?.();   // 円運動のカーブ:回転を止めて2秒でストレートへ
     g.thrower.updatePreview();
   }
 

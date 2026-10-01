@@ -3,6 +3,9 @@ import { InputManager } from '../managers/InputManager.js';
 import { simulate } from '../physics/BallPhysics.js';
 import { PreSpinDetector } from '../throw/PreSpinDetector.js';
 import { effectLabel } from '../throw/BallEffects.js';
+import { RotationCurve } from '../throw/RotationCurve.js';
+
+const nowMs = () => performance.now();
 
 /** MaxChargeDistance(px)。画面高さ比で指定(ratio が null なら固定 px) */
 export function maxChargeDistancePx(viewH) {
@@ -31,7 +34,11 @@ export const ThrowPhase = Object.freeze({
 });
 
 /**
- * 投球操作:ボールに触る →(球質を仕込む)→ 下へ引いて POWER → 上へジェスチャー(AIM / SPIN)→ 離して投球。
+ * 投球操作(Config.throwInput.curveMode = 'rotate'):
+ *   ハートに触る → ハートの周りを回す(カーブ:時計回り = 右 / 反時計回り = 左。ハートは動かず、指に合わせて回る)
+ *   → 下へ引く(球速)→ 上へ弾いて離す(狙い)。離した時点のカーブ値で投げる。回転を止めて2秒でストレートに戻る
+ *   ハート中心の周り(ringRadius の内側)= カーブの入力。外へ出たら引く / 弾く(回している間に引き・弾きにならない)
+ * 'flick' の時は従来どおり:ボールに触る →(球質を仕込む)→ 下へ引いて POWER → 上へジェスチャー(AIM / SPIN)→ 離して投球。
  * 球質(PRE-SPIN / DRIVE):掴んでいる間に円を描く / 上下に素早く往復すると成立(PreSpinDetector)。
  *   成立したら、そこを起点に POWER の引きからやり直せる(同じタッチのまま引いて弾ける)。指を離して掴み直しても保持
  *   保持はこの手番の投球まで:投げたら必ずリセット(MISS でも)。次の手番(PLAYER_ATTACK の開始)でもリセット
@@ -46,6 +53,23 @@ export class ThrowController {
     this.drag = null;
     this.effects = {};        // 仕込んだ球質 { preSpin?: { type, dir, strength }, drive?: { type, strength } }
     this.detector = null;
+    this.curve = new RotationCurve(Config.throwInput.rotate);   // 円運動のカーブ入力
+  }
+  get rotateMode() { return Config.throwInput?.curveMode === 'rotate'; }
+  /** 今のカーブ入力(-1〜1。+ = 右)*/
+  get curveInput() { return this.rotateMode && this.grabbing ? this.curve.value : 0; }
+  /** ハート中心(画面)と画面半径 */
+  heartCenter() { const s = this.g.player.heldBallScreen(); return { x: s.x, y: s.y, r: s.r }; }
+  /** カーブ入力の表示(ハートの回転 + まわりの弧と表示)を今の値に */
+  showCurve() {
+    const g = this.g, c = this.heartCenter(), v = this.curve.value;
+    g.ball.setCurveRoll?.(this.grabbing ? this.curve.angle * (Config.throwInput.rotate.heartRollMul ?? 1) : 0);
+    g.ui.setCurveInput?.(this.grabbing ? v : null, c, this.curve.decayed);
+  }
+  /** 毎フレーム(PlayerAttackState.update):回転を止めて2秒たったらストレートへ */
+  tick() {
+    if (!this.rotateMode || !this.grabbing) return;
+    if (this.curve.update(nowMs())) { this.showCurve(); this.g.audio.whiff?.(); }
   }
 
   /** 仕込んだ球質(投球計算に渡す配列)*/
@@ -82,7 +106,9 @@ export class ThrowController {
     this.detector = Config.preSpin.enabled || Config.drive.enabled ? new PreSpinDetector(g.viewport.h) : null;
     this.detector?.reset(start);
     this.lastFed = start;
-    g.ball.grab(g.player.fingerToWorld(start.x, start.y));
+    this.lastCurveFed = start;
+    if (this.rotateMode) { this.curve.reset(nowMs()); g.ball.grab(g.player.holdAnchor()); this.showCurve(); }   // ハートは所定位置に固定(指では動かない)
+    else g.ball.grab(g.player.fingerToWorld(start.x, start.y));
     g.ui.setThrowType?.(g.turn.current.chara?.type);
     g.ui.setPowerGauge(this.power, false, { ...g.player.toScreen(g.ball.pos), r: g.player.heldBallScreen().r });
     return true;
@@ -103,9 +129,23 @@ export class ThrowController {
       }
       this.lastFed = d.samples[d.samples.length - 1];
     }
+    // 円運動のカーブ入力:ハートの周り(リングの内側)を回している間だけ。指の向き(atan2)の差を累積
+    if (this.rotateMode && this.phase === ThrowPhase.BALL_TOUCH) {
+      const c = this.heartCenter(), i = d.samples.lastIndexOf(this.lastCurveFed);
+      let changed = false;
+      for (const p of d.samples.slice(i + 1)) changed = this.curve.feed(p, c, c.r, nowMs()) || changed;
+      this.lastCurveFed = d.samples[d.samples.length - 1];
+      if (changed) this.showCurve();
+    }
     const s = this.origin;
     if (this.phase === ThrowPhase.BALL_TOUCH) {
-      if (cur.y - s.y >= P.chargeThreshold) { this.phase = ThrowPhase.POWER_CHARGE; this.charged = true; }
+      if (this.rotateMode) {
+        // リングの外へ:下なら引き始め(そこを起点に球速)/ 上なら弾き(ハート中心から)
+        const c = this.heartCenter(), ring = (Config.throwInput.rotate.ringRadius ?? 1.9) * c.r, dx = cur.x - c.x, dy = cur.y - c.y;
+        const leave = () => { if (this.curve.discardStraightTail(c.r)) this.showCurve(); };   // まっすぐ引いた / 弾いた分は回転に数えない
+        if (dy > ring && dy > Math.abs(dx)) { leave(); this.phase = ThrowPhase.POWER_CHARGE; this.charged = true; this.origin = cur; this.lowest = cur; }
+        else if (-dy > ring && -dy > Math.abs(dx)) { leave(); this.beginGesture(d.samples.length - 1, { x: c.x, y: c.y, t: cur.t }); }
+      } else if (cur.y - s.y >= P.chargeThreshold) { this.phase = ThrowPhase.POWER_CHARGE; this.charged = true; }
       else if (s.y - cur.y >= P.lockThreshold) this.beginGesture(d.samples.length - 1, s);
     }
     if (this.phase === ThrowPhase.POWER_CHARGE) {
@@ -125,7 +165,7 @@ export class ThrowController {
       for (const p of d.samples.slice(i + 1)) this.gesture.push(p);
       this.lastSample = d.samples[d.samples.length - 1];
     }
-    this.g.ball.setGrabTarget(this.g.player.fingerToWorld(cur.x, cur.y));
+    if (!this.rotateMode) this.g.ball.setGrabTarget(this.g.player.fingerToWorld(cur.x, cur.y));   // 回す方式ではハートは動かない
     // POWER は下へ引いている時だけ表示(ボールの左上)
     const bs = { ...this.g.player.toScreen(this.g.ball.pos), r: this.g.player.heldBallScreen().r };
     this.g.ui.setPowerGauge(this.power, this.phase === ThrowPhase.THROW_GESTURE, bs);
@@ -181,7 +221,10 @@ export class ThrowController {
     g.ui.setThrowType?.(null);
     const start = g.player.holdAnchor();
     this.detector = null;
-    const th = wasGesture ? g.player.computeThrow(this.gestureFlick(flick.end), this.power, start, this.effectList, g.throwRoute) : null;
+    const curveSpin = this.rotateMode ? this.curve.value * (Config.throwInput.rotate.maxSpin ?? 1) : null;   // 離した時点のカーブ値
+    g.ui.setCurveInput?.(null);
+    g.ball.setCurveRoll?.(0);
+    const th = wasGesture ? g.player.computeThrow(this.gestureFlick(flick.end), this.power, start, this.effectList, g.throwRoute, curveSpin) : null;
     if (th) th.start = start;
     if (!th) { g.ball.catchTo(g.player.holdAnchor, 0.2); this.phase = ThrowPhase.IDLE; return null; }   // 投げていない:仕込んだ球質はこの手番の間 保持
     this.phase = ThrowPhase.BALL_FLYING;
@@ -198,5 +241,8 @@ export class ThrowController {
     this.g.preview.hideLive();
     this.g.ui.setPowerGauge(null);
     this.g.ui.setThrowType?.(null);
+    this.curve.reset(nowMs());
+    this.g.ui.setCurveInput?.(null);
+    this.g.ball.setCurveRoll?.(0);
   }
 }

@@ -1,11 +1,13 @@
 import * as THREE from '../lib/three.js';
 import { Config, bossProfile, returnTier } from '../core/Config.js';
+import { pickAttack, fitMotion } from './AttackMotion.js';
 
 /**
  * ボスの返球計画。攻撃モーションに依存せず「どこへ・どの速さで・どう飛ばすか」だけを決める。
  *
  *  - Catch Position:CatchableArea(画面比)内からランダム。直前地点に近すぎる場合は再抽選(ON/OFF可)
- *  - ボス性能(bossProfiles):returnSpeed / returnPower / returnAccuracy / catchAreaSize / randomness / curveChance
+ *  - ボス性能(bossProfiles):returnSpeed / returnPower / returnAccuracy / catchAreaSize / randomness / attackStyle
+ *  - 攻撃の球種(Config.enemyAttacks → AttackMotion):STRAIGHT / CURVE / SPEED_CHANGE / LATE_CURVE / FEINT。難易度と敵の個性で抽選
  *  - RALLY による高速化(returnTiers)
  *  - modifiers:将来の拡張フック(フェイント・途中加速・マーカー表示時間短縮・範囲拡大 など)
  *      modifier(plan, ctx) => plan を配列に追加するだけで返球の性質を変えられる
@@ -19,6 +21,7 @@ export class ReturnBallController {
     this.gridIndex = 0;
     this.modifiers = [];
     this.random = Math.random;       // テスト時は差し替え可能
+    this.forceAttack = null;         // テスト / デバッグ用:攻撃 ID を固定
   }
 
   reset() { this.previousCatchPosition = null; this.gridIndex = 0; }
@@ -93,20 +96,29 @@ export class ReturnBallController {
       landWorld = this.player.screenToWorld(sx + Math.cos(a) * off, sy + Math.sin(a) * off, depth);
     }
 
-    // カーブ返球:ベジェ制御点を横へずらす(着弾点は変わらない)
-    let ctrlOffset = null;
-    if (this.random() < prof.curveChance) {
-      const side = this.random() < 0.5 ? -1 : 1;
-      ctrlOffset = new THREE.Vector3(side * (3 + this.random() * 3), 0, 0);
-    }
+    // 攻撃の球種:難易度の weight × 敵の個性で抽選 → 左右 → 動き(MULTI は共有 seed の乱数なので全員同じ)
+    const difficulty = Config.runtime?.difficulty ?? 'NORMAL';
+    const picked = this.forceAttack && (Config.enemyAttacks.patterns[this.forceAttack] || prof.attacks?.[this.forceAttack])
+      ? { id: this.forceAttack, def: Config.enemyAttacks.patterns[this.forceAttack] ?? prof.attacks[this.forceAttack] }
+      : pickAttack(this.random, difficulty, prof);
+    const side = this.random() < 0.5 ? -1 : 1;
+    // 画面からはみ出す曲がり方は逆側へ / 小さく(最後まで見えてキャッチできる。乱数は使わないので MULTI でも全員同じ)
+    const spawn = this.boss.spawnPoint();
+    //   判定は「基準の姿勢」のカメラ・ボスで行う(端末ごとのカメラの寄り / ボスの揺れのタイミングで結果が変わらない)
+    const restCam = this.player.cam.restCamera();
+    const restTo = this.player.screenToWorld(sx, sy, depth, new THREE.Vector3(), restCam);
+    const motion = fitMotion(picked.def, { duration, side, from: this.boss.restSpawnPoint(), to: restTo, toScreen: (p) => this.player.toScreen(p, restCam), viewport: this.viewport, margin: Config.enemyAttacks.screenMargin ?? 0.04 });
+    const attack = { id: picked.id, type: picked.def.type, label: picked.def.label ?? picked.id, side: motion.side, tell: picked.def.tell ?? null, difficulty };
+    const ctrlOffset = null;
 
     let plan = {
       screenN, world: landWorld, markerWorld: world, lateEnd,
-      spawn: this.boss.spawnPoint(),
+      spawn,
       chargeTime: R.chargeTime / Math.sqrt(speedMul),
-      duration,
-      markerLead: Math.min(R.markerLead / Math.sqrt(speedMul), duration * 0.9),
+      duration: motion.total,   // 到達までの秒(フェイントで止まる分も含む)
+      markerLead: Math.min(R.markerLead / Math.sqrt(speedMul), motion.total * 0.9),
       ctrlOffset,
+      attack, motion,
       power: prof.returnPower,
       speedMul,
     };

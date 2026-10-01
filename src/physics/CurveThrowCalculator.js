@@ -117,7 +117,8 @@ export class CurveThrowCalculator {
    * @param effects 投球前に仕込んだ球質(BallEffect の配列。PRE-SPIN / DRIVE …)
    * @param route   投球ルート('DIRECT' / 'CURVE'。プレイヤーの選択)
    */
-  compute(flick, power, start, effects = [], route = null) {
+  /** curveSpin … 円運動のカーブ入力(-1〜1 × maxSpin)。null なら従来どおり弾いた軌跡の形から */
+  compute(flick, power, start, effects = [], route = null, curveSpin = null) {
     const C = Config.curve;
     const h = this.viewport.h;
     const samples = flick.samples?.length ? flick.samples : [flick.start, flick.end];
@@ -127,8 +128,8 @@ export class CurveThrowCalculator {
     if (len / h < Config.aim.minGesture || cy > -4) return null;   // 上へ弾いていない
 
     // SPIN
-    const curve = C.enableCurveBall ? this.analyzeCurve(samples, a, b, flick.velocity, len) : null;
-    const throwSpin = curve?.spin ?? 0;
+    const curve = curveSpin == null && C.enableCurveBall ? this.analyzeCurve(samples, a, b, flick.velocity, len) : null;
+    const throwSpin = curveSpin != null ? curveSpin : curve?.spin ?? 0;
     // 球質の合成(ダメージには関係しない):
     //   最終カーブ = キャラクター性能(mods.curveMul:buildThrow で掛かる)× 投球ルート × 投球の SPIN × PRE-SPIN 補正 × 引っ張り量(Curve Resistance)
     //   引っ張り量 pull = 球速を決めた引きの割合(浅い = 遅い・曲がりやすい / 深い = 速い・まっすぐ。0 にはならない)
