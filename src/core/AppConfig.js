@@ -22,6 +22,13 @@ export const APP_CONFIG = {
     legacyRoster: ['minamo', 'hinoka', 'raimu', 'shizuku', 'akane', 'kohaku', 'kagura', 'nagi'],
   },
 
+  // ---- 開発・テスト用の所持数の調整(1回だけ。セーブに id を記録し、2回目以降の起動では何もしない)----
+  //   set.heartGem … 所持 HEART GEM(ダイヤ)をこの値にする(画面の表示ではなく所持データそのもの。その後のガチャ等の消費は普通に減る)
+  //   既存セーブにも、次の起動時に1回だけ適用される。もう一度配る時は id を変えた項目を足す
+  devGrants: [
+    { id: 'dev-gem-10000-20261001', set: { heartGem: 10000 } },
+  ],
+
   // ---- スターター(構造だけ。人数・キャラは未決定)----
   starter: {
     characters: [],            // 新規セーブで付与するキャラ ID(未決定のため空)
