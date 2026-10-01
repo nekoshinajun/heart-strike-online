@@ -185,6 +185,13 @@ export class BossController {
     this.hitRoot.updateMatrixWorld(true);
   }
 
+  /** 返球の発射位置・体が止まった姿勢(揺れ・溜めの動きに左右されない計算用。MULTI で全員同じ)*/
+  restSpawnPoint(out = new THREE.Vector3()) {
+    const body = this.view.anchors.body, parent = body.parent ?? this.root;
+    this.root.updateMatrixWorld(true);
+    return out.copy(this.spawnAnchor.position).applyMatrix4(parent.matrixWorld);   // 体の揺れ・のけぞり(body の動き)を除いた位置
+  }
+
   /** 部位の中心(ワールド) */
   partCenter(part, out = new THREE.Vector3()) {
     const c = this.parts.get(part)?.colliders[0];
