@@ -294,6 +294,31 @@ export const Config = {
       cloud: { radius: 1.2,  color: '#dfe6ff' },
       wall:  { w: 3.2, h: 2.4, d: 0.5, color: '#9b7bff' },
     },
+    /**
+     * ★ 2ルート同時配置(DualRoutePairs):1投ごとに Heart Gate のルートを左右2本、同時にフィールドへ出す。
+     *   プレイヤーはボタンでルートを選ばない。画面を見て「左 / 右どっちを通そう?」と決め、実際のフリックで狙う
+     *   → 投げた結果、通ったゲートが自動で決まる(どちらにも入らなくても投球は続き、ボスへの HIT / MISS は通常どおり)
+     *   ゲートの効果は従来のまま(GATE PASS → GATE CHAIN。ボスに当たった時だけ chainBonus)
+     *   left / right … { pattern: RoutePattern の ID, tx?: 狙い点の左右ずらし(world)}。各ルートは pattern の Gate / Energy を置く
+     *   obstacles … 障害物を置くルート('left' | 'right' | null)。障害物は両方のルートと全ゲートから離す
+     *   minGateGap … 左右のゲート中心の最小距離(world。奥行きが近いゲート同士)。足りなければ狙い点を左右へ広げる
+     *   ※ ゲートはハート玉より上(操作領域の外)に見える組み合わせだけ。床すれすれの LOW_ROUTE は今の目線の構図では
+     *     ハート玉の下に重なるのでペアに入れない
+     */
+    dualRoutes: {
+      minGateGap: 4.2,
+      pairs: {
+        CURVE_PAIR:     { left: { pattern: 'LEFT_CURVE' },               right: { pattern: 'RIGHT_CURVE' },             obstacles: null },
+        STRAIGHT_PAIR:  { left: { pattern: 'STRAIGHT_LINE', tx: -2.2 },  right: { pattern: 'STRAIGHT_LINE', tx: 2.2 },  obstacles: null },
+        CURVE_STRAIGHT: { left: { pattern: 'LEFT_CURVE' },               right: { pattern: 'STRAIGHT_LINE', tx: 2.4 },  obstacles: null },
+        STRAIGHT_CURVE: { left: { pattern: 'STRAIGHT_LINE', tx: -2.4 },  right: { pattern: 'RIGHT_CURVE' },             obstacles: null },
+        ARC_CURVE:      { left: { pattern: 'HIGH_ARC', tx: -2.2 },       right: { pattern: 'RIGHT_CURVE' },             obstacles: 'left' },
+        CHAIN_S:        { left: { pattern: 'GATE_CHAIN' },               right: { pattern: 'S_CURVE' },                 obstacles: null },
+        BANK_PAIR:      { left: { pattern: 'BANK_STARS', tx: -1.6 },     right: { pattern: 'RIGHT_CURVE' },             obstacles: 'left' },
+        WALL_PAIR:      { left: { pattern: 'LEFT_CURVE' },               right: { pattern: 'WALL_GAP', tx: 2.4 },       obstacles: 'right' },
+        DRIFT_PAIR:     { left: { pattern: 'STAR_DRIFT', tx: -2.2 },     right: { pattern: 'RIGHT_CURVE' },             obstacles: 'left' },
+      },
+    },
     shortPreview: { enabled: false, fraction: 0.16 },   // ★ 投球前の予測ライン(ハート玉の直後だけ。全軌道は見せない)
     energyColors: ['#3ee8ff', '#ff7ad9', '#b6ff5c', '#ffb13d'],
     /**

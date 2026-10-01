@@ -138,7 +138,7 @@ export class BallToBossState {
     // 50% 会話の回答の1投だけ、回答エリア(髪・顔・手・衣装)を部位より手前に足す
     g.ball.launch(th.velocity, th.curveAccel, g.affection.throwColliders(), strength, (result, flight) => {
       g.space.endThrow();
-      g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, flight });
+      g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, gateRoute: g.space.passedRoute, flight });
     }, th.start, g.space.obstacles.length ? g.space : null, th.drive ?? null);
     g.ball.flight.live = true;
     if (g.affection.answerMode) g.ball.flight.planeZ = g.boss.root.position.z;   // 回答の1投:絵の面を通った位置を記録
@@ -201,7 +201,7 @@ export class BossHitState {
 
     // 回答の1投:当たった場所 → リアクション(当たらなければ MISS)
     this.answer = g.affection.answerMode ? g.affection.resolveAnswer(result, flight) : null;
-    g.ui.setHitInfo(result);   // デバッグ:命中位置 / 部位
+    g.ui.setHitInfo(result, g.space.passedRoute);   // デバッグ:命中位置 / 部位 / 通ったゲートのルート
     if (result.type === 'hit') {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;

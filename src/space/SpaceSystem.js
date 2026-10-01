@@ -4,7 +4,7 @@ import { simulate } from '../physics/BallPhysics.js';
 import { glowTexture, shadowTexture } from '../world/Textures.js';
 import { heartGeometry } from '../controllers/BallController.js';
 
-const POOL = { gate: 4, star: 3, heart: 3, cloud: 3, wall: 3 };
+const POOL = { gate: 6, star: 3, heart: 3, cloud: 3, wall: 3 };   // gate:2ルート × 最大3
 
 /**
  * 3D 空間の攻略:RoutePatternData から Heart Energy / Heart Gate / 障害物 を3D配置する。
@@ -15,6 +15,9 @@ const POOL = { gate: 4, star: 3, heart: 3, cloud: 3, wall: 3 };
  *   guide は現在キャラのタイプ補正(STRAIGHT / CURVE)込みで計算するので、どのキャラでも攻略できる。
  * ステージごとの特徴は StageData.space(使うパターン・密度・Gate 数・障害物数・障害物の速さ)。
  *
+ * 2ルート同時配置(Config.space.dualRoutes):1投ごとに左右2本のルート(それぞれ RoutePattern の Gate / Energy)を同時に置く。
+ *   ルートはボタンで選ばない。投げた軌道がどちらのゲートを通ったかを自動で判定する(passedRoute)。
+ *   MULTI はサーバーが配った seed で同じペア・同じ位置(全クライアントが同じ投球を同じ物理で飛ばすので通過判定も一致)。
  * Heart Gate:通過で GATE PASS → GATE CHAIN。ボーナスは「最後にボスへ当たった時だけ」HEART に掛かる。
  * 障害物:当たると反射して飛行継続(POWER 減少)。その後ボスに当たれば BANK SHOT。
  */
@@ -27,6 +30,7 @@ export class SpaceSystem {
     this.chain = 0;
     this.collecting = false;
     this.pattern = null;
+    this.passedRoutes = [];
     this.buildPools();
   }
 
@@ -116,18 +120,26 @@ export class SpaceSystem {
     const oldRandom = Math.random;
     if (seed != null && g.online) { let x=(Number(seed)||1)>>>0; Math.random=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296}; }
     const list = sp.patterns?.length ? sp.patterns : Object.keys(Config.space.routePatterns);
-    this.spawnPattern(forcedPattern && Config.space.routePatterns[forcedPattern] ? forcedPattern : this.pickPattern(list));
+    const DR = Config.space.dualRoutes?.pairs ?? {};
+    // 2ルート:ステージで使えるパターンだけのペアから選ぶ(MULTI は seed の乱数で全員同じペア)
+    const pairs = Object.keys(DR).filter((k) => list.includes(DR[k].left.pattern) && list.includes(DR[k].right.pattern));
+    if (forcedPattern && DR[forcedPattern]) this.spawnDual(forcedPattern);
+    else if (pairs.length) this.spawnDual(this.pickPattern(pairs, DR, !g.online));
+    else this.spawnPattern(forcedPattern && Config.space.routePatterns[forcedPattern] ? forcedPattern : this.pickPattern(list));
     Math.random = oldRandom;
   }
 
   /** 難易度込みの重み付き抽選:tier:'hard' のルートは重み (1 + HighDifficultyRouteWeight)。
    *  HighDifficultyRouteWeight > 0 ならステージに無い hard ルートも候補に入る。同じルートの連続は避ける */
-  pickPattern(list) {
-    const R = Config.space.routePatterns, hw = this.diff.highRouteWeight ?? 0;
+  pickPattern(list, table = null, avoidRepeat = true) {
+    const P = Config.space.routePatterns, hw = this.diff.highRouteWeight ?? 0;
+    const R = table ?? P;
+    const hard = (k) => (table ? [R[k].left.pattern, R[k].right.pattern].some((id) => P[id]?.tier === 'hard') : R[k].tier === 'hard');
     const pool = [...list];
-    if (hw > 0) for (const [k, v] of Object.entries(R)) if (v.tier === 'hard' && !pool.includes(k)) pool.push(k);
-    const cand = pool.filter((k) => R[k] && (pool.length < 2 || k !== this.lastPatternId));
-    const w = cand.map((k) => (R[k].tier === 'hard' ? 1 + hw : 1));
+    if (hw > 0 && !table) for (const [k, v] of Object.entries(R)) if (v.tier === 'hard' && !pool.includes(k)) pool.push(k);
+    // 同じルートの連続は避ける(MULTI は全員の乱数を揃えるため、端末ごとの履歴は使わない)
+    const cand = pool.filter((k) => R[k] && (!avoidRepeat || pool.length < 2 || k !== this.lastPatternId));
+    const w = cand.map((k) => (hard(k) ? 1 + hw : 1));
     let r = Math.random() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < cand.length; i++) { r -= w[i]; if (r <= 0) return cand[i]; }
     return cand[cand.length - 1] ?? list[0];
@@ -136,54 +148,99 @@ export class SpaceSystem {
   /** 現在の DifficultyData */
   get diff() { return Config.difficulties?.[Config.runtime?.difficulty] ?? {}; }
 
-  /** RoutePatternData を配置(テストからも直接呼べる) */
+  /** RoutePatternData を1本だけ配置(テスト・デバッグ用。通常の投球は spawnDual の2ルート) */
   spawnPattern(id) {
-    const g = this.g, S = Config.space;
+    const S = Config.space;
     const pat = S.routePatterns[id];
     if (!pat) return;
     this.clear();
-    g.energy.clear();
+    this.g.energy.clear();
     this.pattern = { id, ...pat };
     this.lastPatternId = id;
-    const sp = this.stageSpace, D = this.diff;
-    const path = this.guidePath(pat.guide);
-    this.path = path;
-    const energies = [];
-    let gates = 0, obs = 0;
-    const pending = [];   // 障害物は Gate を置いた後に、基本ルートと Gate から離して置く
-    pat.points.forEach((pt, pi) => {
-      const at = this.depth(pt.at);
-      if (pt.type === 'Energy') {
-        const to = pt.to != null ? this.depth(pt.to) : at;
-        const n = Math.max(1, Math.round((pt.count ?? 1) * (sp.energyDensity ?? 1) * (D.energyDensity ?? 1)));
-        for (let k = 0; k < n; k++) {
-          const f = n === 1 ? at : at + (to - at) * (k / (n - 1));
-          const pos = this.place(path, f, pt);
-          // 難易度:Energy をルートから少しずらす(良いルートを通らないと取りにくい)
-          if (D.energyJitter) { const j = D.energyJitter * 4; pos.x += (Math.random() * 2 - 1) * j; pos.y = Math.max(0.6, pos.y + (Math.random() * 2 - 1) * j * 0.6); }
-          energies.push({ pos, color: pt.color ?? S.energyColors[pi % S.energyColors.length], route: `${id}#${pi}`, depth: f });
-        }
-      } else if (pt.type === 'Gate') {
-        if (gates >= (sp.gateCount ?? 3)) return;
-        gates++;
-        this.addGate(this.place(path, at, pt, 0.25), this.dirAt(path, at));   // Gate は基本ルートの上に置く(低い弾道でも中心がルートから外れない)
-      } else if (pt.type === 'Obstacle') {
-        if (obs >= Math.round((sp.obstacleCount ?? 3) * (D.obstacleCount ?? 1))) return;
-        obs++;
-        pending.push({ pt, pos: this.place(path, at, pt), f: at });
+    const route = { side: null, pat, path: this.guidePath(pat.guide) };
+    this.path = route.path;
+    this.placeRoutes([route], route);
+  }
+
+  /**
+   * 2ルートを同時に配置。左右のゲートが近すぎる(奥行きが近いのに minGateGap 未満)時は、狙い点を左右へ広げて組み直す。
+   * どちらのルートも「そのルートのお手本の1投」を実際の物理で飛ばした軌道の上に置くので、どちらも攻略できる。
+   */
+  spawnDual(id) {
+    const S = Config.space, D = S.dualRoutes, pair = D?.pairs?.[id];
+    if (!pair) return;
+    this.clear();
+    this.g.energy.clear();
+    this.pattern = { id, dual: true, label: id };
+    this.lastPatternId = id;
+    const gateCount = this.stageSpace.gateCount ?? 3;
+    const routes = ['left', 'right'].map((side) => ({ side, pat: S.routePatterns[pair[side].pattern], tx: pair[side].tx ?? 0, obstacles: pair.obstacles === side }));
+    for (let it = 0; it < 4; it++) {
+      for (const r of routes) {
+        r.path = this.guidePath({ ...r.pat.guide, tx: (r.pat.guide.tx ?? 0) + r.tx });
+        r.gatePts = r.pat.points.filter((p) => p.type === 'Gate').slice(0, gateCount).map((pt) => ({ pt, f: this.depth(pt.at), pos: this.place(r.path, this.depth(pt.at), pt, 0.25) }));
       }
-    });
-    // 難易度:追加の動く障害物(ルートの途中を横切る。止まった瞬間は必ず抜けられる振れ幅)
+      let need = 0, fAt = 0.5;
+      for (const a of routes[0].gatePts) for (const b of routes[1].gatePts) {
+        if (Math.abs(a.pos.z - b.pos.z) > 3) continue;
+        const short = D.minGateGap - (b.pos.x - a.pos.x);   // 右 − 左。交差していれば大きく広げる
+        if (short > need) { need = short; fAt = Math.min(a.f, b.f); }
+      }
+      if (need <= 0.01) break;
+      const d = (need / 2 + 0.05) / Math.max(0.2, fAt);   // ボス面での狙い点のずらし → ゲートの奥行き fAt では約 fAt 倍
+      routes[0].tx -= d; routes[1].tx += d;
+    }
+    this.routes = routes;
+    this.path = routes[0].path;
+    this.placeRoutes(routes, routes.find((r) => r.obstacles) ?? null);
+  }
+
+  /** ルートの Gate / Energy を置き、障害物(1本のルートから)を全ルート・全ゲートから離して置く */
+  placeRoutes(routes, obstacleRoute) {
+    const g = this.g, S = Config.space;
+    const sp = this.stageSpace, D = this.diff;
+    const energies = [];
+    const pending = [];   // 障害物は Gate を置いた後に、基本ルートと Gate から離して置く
+    let obs = 0;
     const cap = Math.round((sp.obstacleCount ?? 3) * (D.obstacleCount ?? 1));
+    for (const r of routes) {
+      const { pat, path } = r, tag = r.side ? `${r.side}:` : '';
+      let gates = 0;
+      pat.points.forEach((pt, pi) => {
+        const at = this.depth(pt.at);
+        if (pt.type === 'Energy') {
+          const to = pt.to != null ? this.depth(pt.to) : at;
+          const n = Math.max(1, Math.round((pt.count ?? 1) * (sp.energyDensity ?? 1) * (D.energyDensity ?? 1)));
+          for (let k = 0; k < n; k++) {
+            const f = n === 1 ? at : at + (to - at) * (k / (n - 1));
+            const pos = this.place(path, f, pt);
+            // 難易度:Energy をルートから少しずらす(良いルートを通らないと取りにくい)
+            if (D.energyJitter) { const j = D.energyJitter * 4; pos.x += (Math.random() * 2 - 1) * j; pos.y = Math.max(0.6, pos.y + (Math.random() * 2 - 1) * j * 0.6); }
+            energies.push({ pos, color: pt.color ?? S.energyColors[pi % S.energyColors.length], route: `${tag}${pat.label}#${pi}`, depth: f });
+          }
+        } else if (pt.type === 'Gate') {
+          if (gates >= (sp.gateCount ?? 3)) return;
+          gates++;
+          this.addGate(this.place(path, at, pt, 0.25), this.dirAt(path, at), r.side);   // Gate は基本ルートの上に置く(低い弾道でも中心がルートから外れない)
+        } else if (pt.type === 'Obstacle') {
+          if (r !== obstacleRoute || obs >= cap) return;
+          obs++;
+          pending.push({ pt, pos: this.place(path, at, pt), f: at });
+        }
+      });
+    }
+    // 難易度:追加の動く障害物(ルートの途中を横切る。止まった瞬間は必ず抜けられる振れ幅)
+    const path0 = (obstacleRoute ?? routes[0]).path;
     for (let k = 0; k < (D.extraMovers ?? 0) && obs < cap; k++) {
       const f = [0.5, 0.66, 0.38][k % 3];
       const pt = { type: 'Obstacle', shape: k % 2 ? 'heart' : 'star', at: f, dy: k % 2 ? -0.5 : 0.5,
         move: { axis: k % 2 ? 'y' : 'x', amp: 2.4, speed: 0.25 }, extra: true };
       if (!this.pool[pt.shape]?.some((o) => !o.busy)) break;
       obs++;
-      pending.push({ pt, pos: this.place(path, f, pt), f });
+      pending.push({ pt, pos: this.place(path0, f, pt), f });
     }
-    for (const o of pending) { this.keepClear(o, path); this.addObstacle(o.pt, o.pos, (sp.obstacleSpeed ?? 1) * (D.obstacleSpeed ?? 1)); }
+    const paths = routes.map((r) => r.path);
+    for (const o of pending) { if (this.keepClear(o, paths)) this.addObstacle(o.pt, o.pos, (sp.obstacleSpeed ?? 1) * (D.obstacleSpeed ?? 1)); }
     g.energy.placeAt(energies, 0.8);
   }
 
@@ -192,26 +249,31 @@ export class SpaceSystem {
    * Gate を正しく狙った投球は障害物に邪魔されない(障害物は空間の変化や、大きく外れた投球・BANK SHOT 用)。
    * 動く障害物は往復の範囲ごと離す。距離は難易度に依らず同じ(Gate の見た目の大きさではなく基準の半径で測る)
    */
-  keepClear(o, path) {
+  keepClear(o, paths) {
     const S = Config.space, O = S.obstacleShapes[o.pt.shape ?? 'star'];
     const rx = O.w ? O.w / 2 : O.radius, ry = O.h ? O.h / 2 : O.radius;
     const clear = S.obstacleClearance ?? 1.9;
     const mv = o.pt.move, A = mv?.amp ?? 0, alongX = !!mv && mv.axis !== 'y';
-    const ref = this.pointAt(path, o.f);
-    // 近くの Gate(奥行きが近いもの)はリングの外側 + 余白まで離す
-    const refs = [{ p: ref, r: clear }];
+    // 2ルートの両方の基本ルートから離す。近くの Gate(奥行きが近いもの)はリングの外側 + 余白まで離す
+    const refs = (Array.isArray(paths) ? paths : [paths]).map((path) => ({ p: this.pointAt(path, o.f), r: clear }));
     for (const gt of this.gates) if (Math.abs(gt.pos.z - o.pos.z) < 2.5) refs.push({ p: gt.pos, r: S.gate.radius + clear * 0.8 });
     const nearest = (p) => {
       const dx = Math.max(0, Math.abs(o.pos.x - p.x) - (alongX ? A : 0) - rx);
       const dy = Math.max(0, Math.abs(o.pos.y - p.y) - (!alongX && mv ? A : 0) - ry);
       return Math.hypot(dx, dy);
     };
-    for (const { p, r } of refs) {
-      if (nearest(p) >= r) continue;
-      const side = Math.sign(o.pos.x - p.x) || (this.sideFlip = -(this.sideFlip || 1));
-      o.pos.x = p.x + side * (r + rx + (alongX ? A : 0));
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const { p, r } of refs) {
+        if (nearest(p) >= r) continue;
+        const side = Math.sign(o.pos.x - p.x) || (this.sideFlip = -(this.sideFlip || 1));
+        o.pos.x = p.x + side * (r + rx + (alongX ? A : 0));
+        moved = true;
+      }
+      if (!moved) { o.cleared = true; return true; }
     }
-    o.cleared = true;
+    o.cleared = refs.every(({ p, r }) => nearest(p) >= r);
+    return o.cleared;   // 2本のルートの間に置き場所が無ければ置かない(どちらのルートも邪魔しない)
   }
 
   depth(v) { return typeof v === 'string' ? Config.space.layers[v] ?? 0.5 : v ?? 0.5; }
@@ -259,7 +321,7 @@ export class SpaceSystem {
     return p;
   }
 
-  addGate(pos, dir) {
+  addGate(pos, dir, route = null) {
     const slot = this.pool.gate.find((s) => !s.busy);
     if (!slot) return;
     slot.busy = true;
@@ -267,7 +329,7 @@ export class SpaceSystem {
     slot.group.position.copy(pos);
     slot.group.lookAt(pos.clone().add(dir));   // リング面を飛行方向へ向ける
     slot.shadow.visible = true;
-    this.gates.push({ slot, pos: pos.clone(), normal: dir.clone(), passed: false, index: this.gates.length, pulse: 0 });
+    this.gates.push({ slot, pos: pos.clone(), normal: dir.clone(), passed: false, index: this.gates.length, pulse: 0, route });
     this.setGateColor(this.gates.at(-1), '#ff7ab8');
   }
 
@@ -302,6 +364,8 @@ export class SpaceSystem {
     this.collecting = false;
     this.chain = 0;
     this.pattern = null;
+    this.routes = null;
+    this.passedRoutes = [];
   }
 
   // ---------------- 投球中 ----------------
@@ -309,9 +373,12 @@ export class SpaceSystem {
   beginThrow() {
     this.collecting = true;
     this.chain = 0;
+    this.passedRoutes = [];
     for (const gt of this.gates) { gt.passed = false; this.setGateColor(gt, '#ff7ab8'); }
   }
   endThrow() { this.collecting = false; }
+  /** この投球で通ったルート('left' / 'right'。最初に通ったゲートのルート。どちらも通らなければ null)*/
+  get passedRoute() { return this.passedRoutes[0] ?? null; }
 
   /** Gate の大きさ = Config.space.gate.radius × DifficultyData.GateSizeMultiplier */
   get gateScale() { return Config.runtime?.gateSize ?? 1; }
@@ -339,6 +406,7 @@ export class SpaceSystem {
     gt.passed = true;
     gt.pulse = 1;
     this.chain++;
+    if (gt.route && !this.passedRoutes.includes(gt.route)) this.passedRoutes.push(gt.route);
     if (g.stats) g.stats.maxGateChain = Math.max(g.stats.maxGateChain ?? 0, this.chain);
     this.setGateColor(gt, '#ffd23e');
     g.effects.burst(gt.pos, '#ffd23e', 16, 5, 0.4);
@@ -346,7 +414,7 @@ export class SpaceSystem {
     g.audio.rallyUp();
     g.ball.pulseBoost(0.6);
     const s = g.player.toScreen(gt.pos);
-    g.ui.damageNumber(s.x, s.y, this.chain > 1 ? `CHAIN ${this.chain}` : 'GATE', { color: '#ffd23e', label: this.chain > 1 ? `GATE CHAIN ×${this.chainMul}` : 'GATE PASS!' });
+    g.ui.damageNumber(s.x, s.y, this.chain > 1 ? `CHAIN ${this.chain}` : 'GATE', { color: '#ffd23e', label: this.chain > 1 ? `GATE CHAIN ×${this.chainMul}` : gt.route ? `${gt.route === 'left' ? 'LEFT' : 'RIGHT'} GATE PASS!` : 'GATE PASS!' });
     g.stats.gates = (g.stats.gates ?? 0) + 1;
   }
 

@@ -209,14 +209,14 @@ export class UIManager {
     el.innerHTML = this.lastThrowHTML;
   }
   /** 命中した位置(デバッグ):実際に Collider に当たった座標と部位 */
-  setHitInfo(result) {
+  setHitInfo(result, gateRoute = null) {
     const el = this.el.throwInfo;
     if (!el) return;
     const f = (v) => Number(v).toFixed(2);
     const hit = result?.type === 'hit' && result.point
       ? `Hit position <b>${f(result.point.x)} / ${f(result.point.y)} / ${f(result.point.z)}</b> ・ Hit part <b>${String(result.part ?? '').toUpperCase()}</b>`
       : `Hit <b>MISS</b>(${result?.type ?? '-'})`;
-    el.innerHTML = `${this.lastThrowHTML ?? ''}<br>${hit}`;
+    el.innerHTML = `${this.lastThrowHTML ?? ''}<br>${hit} ・ Gate <b>${gateRoute ? gateRoute.toUpperCase() : 'NONE'}</b>`;
   }
 
   /** ハートに仕込んだ球質の表示(投げるまで残る)。null で消す */
