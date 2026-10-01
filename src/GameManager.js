@@ -28,6 +28,7 @@ import { STAGES } from './data/GameData.js';
 import { battleSlot } from './audio/BgmTracks.js';
 import { HitMarker } from './world/HitMarker.js';
 import { heroineByStage, GIFTS } from './data/RomanceData.js';
+import { shopOfStage } from './data/ShopData.js';
 import { CLEAR_PRESENT } from './data/GrowthData.js';
 import { throwModifiers } from './data/BattleCalc.js';
 import { MenuFlow } from './screens/MenuFlow.js';
@@ -346,8 +347,10 @@ export class GameManager {
     this.router.go('game');   // FLOW:Game 中は Bottom Navigation を出さない
     // バトル BGM(SOLO / MULTI 共通)。再戦でも最初から。画面を離れたら App.onRoute が止める
     safe('AUDIO', () => { this.audio.unlock(); this.audio.startBgm(battleSlot(this.difficulty), { restart: true }); });
-    Log.info('STAGE', `start ${stage.id} ${this.difficulty}`);
     this.setDifficulty(this.difficulty);   // 調整パネルでの変更もここで反映
+    // 攻略の内容:お店 / キャスト / SOLO・MULTI / 難易度(インゲームはこれを見る。MULTI はルームのステージ・難易度から全員同じ値)
+    this.capture = { shopId: shopOfStage(stage.id)?.id ?? null, castId: heroineByStage(stage.id)?.id ?? null, stageId: stage.id, mode: this.online ? 'multi' : 'solo', difficulty: this.difficulty };
+    Log.info('STAGE', `start ${JSON.stringify(this.capture)}`);
     this.prepareStage(stage);
     // ボスの攻撃ボイス:前のバトルのボイスを止め、このステージのボイスを先読み(最初の反撃で待たない)
     this.lastAttackVoiceId = null;
@@ -378,7 +381,9 @@ export class GameManager {
     safe('AUDIO', () => { this.audio.stopBgm(); this.audio.voice.stop(); });
     this.prepareStage(this.stage ?? STAGES[0]);
     this.sm.change(GameState.TITLE);
-    this.router.go(to);
+    // 攻略へ戻る時は、遊んだキャストの攻略画面(戻るでお店 → お店を選ぶ)
+    if (to === 'stage' && this.app?.openCapture) this.app.openCapture(this.stage?.id);
+    else this.router.go(to);
   }
 
   /**
