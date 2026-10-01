@@ -1,4 +1,5 @@
 import { CHARACTERS } from '../data/GameData.js';
+import { GIFTS } from '../data/RomanceData.js';
 import { Config } from '../core/Config.js';
 import { TUNING_SCHEMA, getValue, setValue, resetTuning, currentOverrides, saveColliders, resetColliders } from '../core/Tuning.js';
 
@@ -37,6 +38,9 @@ export class InspectorPanel {
     document.getElementById('inspRestart').addEventListener('click', () => { this.close(); g.restart(); });
     // Debug 専用:HEART GEM を付与(製品 UI には出さない。調整パネルは Debug UI からのみ開ける)
     document.getElementById('inspGem').addEventListener('click', () => { g.app.progress.addGem(3000); g.app.toast('HEART GEM +3000(Debug)'); });
+    // Debug 専用:アビリティ変更アイテム / プレゼント(入手経路はまだ無い・テスト用)
+    document.getElementById('inspReconnect')?.addEventListener('click', () => { g.app.progress.addAbilityResetItems(1); g.app.toast('リコネクトハート +1(Debug)'); });
+    document.getElementById('inspPresents')?.addEventListener('click', () => { for (const gi of GIFTS) g.app.progress.addItem(gi.id, 5); g.app.toast('プレゼント 各+5(Debug)'); });
     document.getElementById('inspSize').addEventListener('click', () => this.el.classList.toggle('tall'));
     for (const b of this.el.querySelectorAll('[data-tab]')) b.addEventListener('click', () => { this.tab = b.dataset.tab; this.build(); });
     this.build();

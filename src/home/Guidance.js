@@ -1,5 +1,5 @@
 import { Config, difficultyData } from '../core/Config.js';
-import { STAGES, ATTRIBUTES, characterById, stageById, LEVELING } from '../data/GameData.js';
+import { STAGES, ATTRIBUTES, characterById, stageById } from '../data/GameData.js';
 import { DEFAULT_HOME_DIALOGUE, DEFAULT_GUIDANCE_LINES, STYLE_GUIDANCE_LINES } from '../data/CharacterVoice.js';
 
 /**
@@ -122,8 +122,8 @@ export const GUIDANCE_RULES = [
   {
     id: 'level_up_near', event: 'LEVEL_UP_NEAR', category: 'PROGRESS',
     when: (c) => {
-      const id = c.p.party.find((x) => { const ch = c.p.character(x); return ch.nextExp && ch.exp / ch.nextExp >= Config.home.levelUpNearRatio; });
-      return id ? { key: `lv:${id}:${c.p.character(id).level}`, params: { chara: characterById(id).name }, destination: { screen: 'detail', id } } : null;
+      const id = c.p.party.find((x) => { const ch = c.p.character(x); return !ch.maxLevel && ch.expNeed && ch.expInto / ch.expNeed >= Config.home.levelUpNearRatio; });
+      return id ? { key: `lv:${id}:${c.p.character(id).level}`, params: { chara: characterById(id).name }, destination: { screen: 'trainChar', id } } : null;
     },
   },
   {
@@ -262,4 +262,3 @@ export class DialogueResolver {
     return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
   }
 }
-export { LEVELING };

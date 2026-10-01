@@ -704,6 +704,63 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .tg-item img { width: 28px; height: 28px; object-fit: contain; }
 .tg-rank { position: absolute; left: 6px; top: 4px; padding: 0 5px; border-radius: 5px; background: var(--gk, var(--hs-pink)); color: #fff; font-style: normal; font-size: 9px; font-weight: 800; }
 .tc-detail { display: block; margin: 14px auto 0; }
+/* ---- 育成:親密度 Lv / ステータス / STAMINA / アビリティ ---- */
+.tc-aff { position: absolute; right: 14px; bottom: 34px; padding: 6px 12px 4px; border-radius: 16px; border: 2px solid #fff; background: linear-gradient(135deg, #ff8cc0, #c08bff); color: #fff; text-align: center; box-shadow: 0 8px 20px rgba(255,95,162,.35); line-height: 1; }
+.tc-aff small { display: block; font: 800 9px var(--round); letter-spacing: .18em; opacity: .9; }
+.tc-aff b { font: 800 24px var(--round); }
+.tc-aff em { display: block; font-style: normal; font-size: 10px; font-weight: 800; }
+.tc-stats4 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 10px; }
+.tc-stat { display: grid; grid-template-columns: 62px 1fr 26px; gap: 6px; align-items: center; font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); letter-spacing: .04em; }
+.tc-stat b { text-align: right; font-size: 14px; color: var(--hs-ink); }
+.tc-sbar { display: block; height: 6px; border-radius: 3px; overflow: hidden; background: var(--hs-pink-pale); }
+.tc-sbar i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #ffb3d6, #ff5fa2); }
+.tc-stat[data-stat="defence"] .tc-sbar i { background: linear-gradient(90deg, #a8e6ff, #3ec3ff); }
+.tc-stat[data-stat="control"] .tc-sbar i { background: linear-gradient(90deg, #c9f7c2, #42d47a); }
+.tc-stat[data-stat="curve"] .tc-sbar i { background: linear-gradient(90deg, #e2d1ff, #9b6cff); }
+.tc-bar.stam i { background: linear-gradient(90deg, #ffe08a, #ffb02e); }
+.tc-stam.tired .tc-bar.stam i { background: #d9cbd6; }
+.tc-stam.tired small b { color: #b07a96; }
+.tc-stamnote { margin: 4px 0 0; font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+.tc-stam.tired + .tc-stamnote { color: #b0507f; }
+.stam { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; color: #b07800; white-space: nowrap; }
+.stam i { position: relative; display: inline-block; width: 28px; height: 4px; border-radius: 2px; background: #f1e6c6; overflow: hidden; }
+.stam i::after { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--k)); background: #ffb02e; }
+.stam.tired { color: #b0507f; }
+.stam.tired i::after { background: #d9cbd6; }
+.ccard .stam { display: flex; justify-content: center; margin-top: 2px; }
+.tr-info .stam { grid-column: 1 / -1; }
+.tc-ability { position: relative; margin-top: 12px; padding: 12px 14px; border-radius: 18px; border: 1px solid var(--hs-line-soft); background: var(--hs-panel); box-shadow: var(--hs-shadow); }
+.tc-ability header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.tc-ability header b { color: var(--hs-pink-deep); letter-spacing: .08em; }
+.tc-ability header span { font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+.ab-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ab-row { display: grid; grid-template-columns: 50px 1fr auto; gap: 8px; align-items: start; padding: 8px 10px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1px var(--hs-line-soft); }
+.ab-row.locked { background: #f6f1f4; color: #b9a8b3; }
+.ab-row.new { box-shadow: inset 0 0 0 2px var(--hs-pink); }
+.ab-row.ult { background: linear-gradient(120deg, #fff4fb, #efe7ff 60%, #fff6dc); box-shadow: inset 0 0 0 1.5px rgba(214,88,180,.45); }
+.ab-lv { font: 800 12px var(--round); color: var(--hs-pink-deep); padding-top: 2px; }
+.ab-main b { display: block; font-size: 13px; }
+.ab-main small { display: block; font-size: 9px; font-weight: 800; letter-spacing: .14em; color: #b0507f; }
+.ab-main p { margin: 2px 0 0; font-size: 10px; font-weight: 700; color: var(--hs-ink-soft); }
+.ab-pick { color: var(--hs-pink-deep); }
+.ab-cands { display: grid; gap: 5px; margin-top: 6px; }
+.ab-cand { display: grid; text-align: left; gap: 1px; padding: 7px 10px; border-radius: 12px; border: 1px solid var(--hs-line-soft); background: linear-gradient(180deg, #fff, var(--hs-pink-pale)); color: var(--hs-ink); }
+.ab-cand b { font-size: 12px; } .ab-cand small { font-size: 10px; font-weight: 700; color: var(--hs-ink-soft); letter-spacing: 0; }
+.ab-cand em { font-style: normal; font-size: 10px; font-weight: 800; color: var(--hs-pink-deep); }
+.ab-cand.cur { border-color: var(--hs-pink); }
+.ab-cand:disabled { opacity: .55; }
+.ab-change { align-self: center; min-height: 32px; padding: 0 10px; border-radius: 16px; border: 1px solid var(--hs-line); background: #fff; color: var(--hs-pink-deep); font: 800 11px var(--round); }
+.ab-burst { position: absolute; left: 16px; right: 16px; top: 40%; z-index: 3; padding: 12px; overflow: hidden; text-align: center; border-radius: 18px; border: 2px solid #fff; background: linear-gradient(135deg, #fff, #ffe6f2); box-shadow: var(--hs-shadow-lg); animation: popin .6s cubic-bezier(.2,1.6,.4,1) both; }
+.ab-burst small, .ability-unlock small { display: block; font: 800 11px var(--round); letter-spacing: .18em; color: var(--hs-pink-deep); }
+.ab-burst b { display: block; font-size: 18px; }
+.ability-unlock { position: relative; overflow: hidden; margin: 8px 0 10px; padding: 14px 14px 12px; text-align: center; border-radius: 20px; border: 2px solid #fff; background: linear-gradient(135deg, #fff, #ffe3f0); box-shadow: var(--hs-shadow-lg); }
+.ability-unlock b { display: block; font-size: 20px; }
+.ability-unlock p { margin: 2px 0 8px; font-size: 12px; font-weight: 800; color: var(--hs-ink-soft); }
+.expstam { font-size: 10px; font-weight: 800; color: #b07800; }
+.expstam em, .tiredx { font-style: normal; color: #b0507f; }
+.tg-exp { font-size: 9px; font-weight: 800; color: var(--hs-pink-deep); }
+.rpresent small { display: block; font-size: 10px; color: var(--hs-ink-soft); }
+
 /* ---- コレクション:仲間 / 攻略対象 ---- */
 .col-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 10px; padding: 5px; border-radius: 18px; border: 1px solid var(--hs-line-soft); background: rgba(255,255,255,.7); }
 .col-tabs button { min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--hs-ink-soft); font-weight: 800; font-size: 14px; }
@@ -1170,7 +1227,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
     <div id="inspector" class="inspector" hidden role="dialog" aria-label="調整パネル">
       <div class="ihead"><div><b>調整パネル</b><span>変更はこのブラウザに保存されます</span></div>
-        <div class="itabs"><button type="button" data-tab="params" aria-pressed="true">パラメータ</button><button type="button" data-tab="colliders" aria-pressed="false">Collider</button><button type="button" id="inspSize" title="パネルの高さ切替">↕</button><button type="button" id="inspGem" title="Debug 専用">GEM+</button></div></div>
+        <div class="itabs"><button type="button" data-tab="params" aria-pressed="true">パラメータ</button><button type="button" data-tab="colliders" aria-pressed="false">Collider</button><button type="button" id="inspSize" title="パネルの高さ切替">↕</button><button type="button" id="inspGem" title="Debug 専用">GEM+</button><button type="button" id="inspReconnect">リコネクト+1</button><button type="button" id="inspPresents">プレゼント+5</button></div></div>
       <div id="inspBody" class="ibody"></div>
       <div id="inspNote" class="inote" hidden>部位HP・Boss HP は次のゲームから反映 <button id="inspRestart" type="button">今すぐ再スタート</button></div>
       <div class="ifoot">

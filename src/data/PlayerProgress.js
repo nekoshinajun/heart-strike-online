@@ -1,15 +1,21 @@
-import { CHARACTERS, DEFAULT_PARTY, LEVELING, LEGACY_CHARACTER_IDS, STAGES, characterById } from './GameData.js';
+import { CHARACTERS, DEFAULT_PARTY, LEGACY_CHARACTER_IDS, STAGES, characterById } from './GameData.js';
 import { Config } from '../core/Config.js';
-import { HEROINES, REWARD_VOICE_SLOTS, rewardUnlock, INTIMACY, heroineById, heroineByStage, giftById } from './RomanceData.js';
+import { HEROINES, REWARD_VOICE_SLOTS, rewardUnlock, heroineById, heroineByStage, giftById, giftExp } from './RomanceData.js';
+import { STAMINA, ABILITY_RESET_ITEM, STAT_KEYS } from './GrowthData.js';
+import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, statsAt, activeAbilities, abilitySlots, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
 import { storage, Log } from '../app/Platform.js';
 
 /**
  * PlayerProgress v2(保存キー heart-strike-progress-v2)
- *   characters[id] = { owned, level, exp, obtainedAt, firstHomeSetAt, intimacy, bonus }   ← 固定 Character ID(表示名は使わない)
- *       intimacy … 親密度ポイント / bonus … プレゼント等による能力の上乗せ { atk, def }
+ *   characters[id] = { owned, affectionLevel, affectionExp, stamina, lastStaminaUpdate, selectedAbilities, obtainedAt, firstHomeSetAt, … }
+ *       ← 固定 Character ID(表示名は使わない)。親密度 = レベル(AFFECTION Lv.1〜100)
+ *       affectionExp … 累計の親密度 EXP(Lv はここから計算。affectionLevel は表示・確認用に同じ値を保存)
+ *       stamina / lastStaminaUpdate … キャラごとの STAMINA と最後に更新した時刻(アプリを閉じている間の回復はここから計算)
+ *       selectedAbilities … { '10': abilityId, … }(Lv10〜90 で選んだアビリティ)
+ *       legacyGrowth … 旧セーブの { level, exp, intimacy }(移行の記録。使わない)
+ *   inventory = { presents: { giftId: 所持数 }, abilityResetItems: 数 }(旧 items はここへ移す)
  *   heroines[heroineId] = { voiceUnlocked: { voiceId: 解放時刻 }, voiceSeen: { voiceId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)のクリア報酬ボイス
  *       (旧 asmrUnlocked / asmrSeen は読み込み時に voiceUnlocked / voiceSeen へ移す)
- *   items[giftId] = 所持数(プレゼント)
  *   party[4] / favoriteCharacterId
  *   records[stageId][NORMAL|HARD|HELL] = { clearCount, bestRally, bestGateChain, bestHeartPerThrow, firstClearRewarded }
  *   cleared[](旧形式・互換用)/ wallet.heartGem / flags / seen / missions / presents / gacha / home / stats
@@ -31,7 +37,31 @@ export class ProgressRepository {
 }
 
 const now = () => Date.now();
-const charEntry = (o = {}) => ({ owned: false, level: 1, exp: 0, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null, intimacy: 0, ...o, bonus: { atk: 0, def: 0, ...(o.bonus ?? {}) } });
+// 旧仕様(キャラ Lv1〜50:次の Lv まで 100 + 50×(Lv−1))。移行の計算だけに使う
+const legacyNextExp = (lv) => 100 + (lv - 1) * 50;
+/** 旧セーブのキャラ Lv / EXP と親密度ポイントを、親密度 EXP(累計)へ移す:旧レベルまでに使った EXP + 今の EXP + 親密度ポイント */
+export function legacyAffectionExp(level, exp, intimacy) {
+  const lv = Math.max(1, Math.min(50, Math.floor(Number(level) || 1)));
+  let total = 0;
+  for (let l = 1; l < lv; l++) total += legacyNextExp(l);
+  return Math.min(maxAffectionExp(), total + Math.max(0, Math.floor(Number(exp) || 0)) + Math.max(0, Math.floor(Number(intimacy) || 0)));
+}
+/** 味方キャラの保存枠(欠けを埋める・旧フィールドは移す。何度呼んでも同じ)*/
+const charEntry = (o = {}) => {
+  const { level, exp, intimacy, bonus, ...rest } = o;
+  const hasLegacy = !Number.isFinite(rest.affectionExp) && (level != null || exp != null || intimacy != null);
+  const affectionExp = Number.isFinite(rest.affectionExp) ? Math.min(maxAffectionExp(), Math.max(0, Math.floor(rest.affectionExp))) : hasLegacy ? legacyAffectionExp(level, exp, intimacy) : 0;
+  return {
+    owned: false, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null,
+    ...rest,
+    affectionExp,
+    affectionLevel: levelFromExp(affectionExp),
+    stamina: Number.isFinite(rest.stamina) ? Math.max(0, Math.min(STAMINA.max, rest.stamina)) : STAMINA.max,
+    lastStaminaUpdate: Number.isFinite(rest.lastStaminaUpdate) ? rest.lastStaminaUpdate : now(),
+    selectedAbilities: rest.selectedAbilities && typeof rest.selectedAbilities === 'object' ? { ...rest.selectedAbilities } : {},
+    ...(hasLegacy ? { legacyGrowth: { level: level ?? null, exp: exp ?? null, intimacy: intimacy ?? null } } : {}),
+  };
+};
 const heroineEntry = ({ asmrUnlocked, asmrSeen, ...o } = {}) => ({ ...o, voiceUnlocked: { ...(asmrUnlocked ?? {}), ...(o.voiceUnlocked ?? {}) }, voiceSeen: { ...(asmrSeen ?? {}), ...(o.voiceSeen ?? {}) } });
 const num = (v) => (Number.isFinite(v) ? v : 0);   // 未決定(null)の数値は 0 として扱う
 /** 今のコンテンツ(新 Stage / 新 Difficulty の検出用)*/
@@ -48,7 +78,7 @@ function blankSave() {
     party: [...DEFAULT_PARTY],
     favoriteCharacterId: null,
     heroines: {},
-    items: {},
+    inventory: { presents: {}, abilityResetItems: 0 },
     records: {},
     cleared: [],
     wallet: { heartGem: 10000 },       // 新規セーブの初期 HEART GEM(既存セーブの所持数は変えない)
@@ -83,11 +113,11 @@ export function migrateV1(d1) {
   const t = now();
   for (const c of CHARACTERS) {
     const o = chars[c.id] ?? {};
-    const lv = Number.isFinite(o.level) ? Math.max(1, Math.min(LEVELING.maxLevel, Math.floor(o.level))) : 1;
+    const lv = Number.isFinite(o.level) ? Math.max(1, Math.min(50, Math.floor(o.level))) : 1;
     const exp = Number.isFinite(o.exp) ? Math.max(0, Math.floor(o.exp)) : 0;
     // v23 で使えていたキャラ(= legacyRoster)は所持扱いで移行。取り上げない
     const usable = Config.ownership.legacyRoster.includes(c.id);
-    d.characters[c.id] = charEntry({ owned: usable, level: lv, exp, obtainedAt: usable ? t : null, obtainedVia: usable ? 'legacy' : null, introducedAt: usable ? t : null });
+    d.characters[c.id] = charEntry({ owned: usable, level: lv, exp, obtainedAt: usable ? t : null, obtainedVia: usable ? 'legacy' : null, introducedAt: usable ? t : null });   // 旧 Lv / EXP → 親密度 EXP
   }
   let party = Array.isArray(d1.party) ? d1.party.map((id) => LEGACY_CHARACTER_IDS[id] ?? id) : null;
   if (!party || party.length !== 4 || party.some((id) => !characterById(id)) || new Set(party).size !== 4) party = [...DEFAULT_PARTY];
@@ -139,22 +169,19 @@ export function normalizeV2(d) {
   d.knownContent = [...known];
   for (const c of CHARACTERS) d.characters[c.id] = charEntry(d.characters[c.id] ?? {});
   for (const h of HEROINES) d.heroines[h.id] = heroineEntry(d.heroines[h.id] ?? {});
-  if (!d.items || typeof d.items !== 'object' || Array.isArray(d.items)) d.items = {};
+  // インベントリ:旧 items(プレゼントの所持数)を inventory.presents へ移す
+  const inv = d.inventory && typeof d.inventory === 'object' && !Array.isArray(d.inventory) ? d.inventory : {};
+  const presents = { ...(d.items && typeof d.items === 'object' && !Array.isArray(d.items) ? d.items : {}), ...(inv.presents && typeof inv.presents === 'object' ? inv.presents : {}) };
+  d.inventory = { ...inv, presents, abilityResetItems: Math.max(0, Math.floor(Number(inv.abilityResetItems) || 0)) };
+  delete d.items;
   if (!Array.isArray(d.party) || d.party.length !== 4 || d.party.some((id) => !characterById(id))) d.party = [...DEFAULT_PARTY];
   d.wallet.heartGem = Math.max(0, Math.floor(Number(d.wallet.heartGem) || 0));
   d.version = 2;
   return d;
 }
 
-/** 親密度ポイント → レベル(INTIMACY.levels が未決定なら null)*/
-export function intimacyLevel(points) {
-  const t = INTIMACY.levels;
-  if (!Array.isArray(t) || !t.length) return null;
-  const p = num(points);
-  let lv = 0;
-  for (let i = 0; i < t.length; i++) if (p >= t[i]) lv = i + 1;
-  return lv;
-}
+const ABILITY_DEF = (id) => { const a = ABILITY_BY_ID(id); return a ? { name: a.name, desc: a.desc, effects: a.effects, ultimate: !!a.ultimate } : {}; };
+const ULT_DEF = (charId) => ULT_FOR(charId);
 
 export class PlayerProgress {
   constructor(repo = new ProgressRepository()) {
@@ -306,76 +333,163 @@ export class PlayerProgress {
   get gem() { return this.data.wallet.heartGem; }
   addGem(n) { this.data.wallet.heartGem = Math.max(0, this.data.wallet.heartGem + Math.floor(n)); this.save(); }
 
-  // ---------------- キャラクター(マスター + 進行度)----------------
-  character(id) {
+  // ---------------- キャラクター(マスター + 育成)----------------
+  /**
+   * 表示・戦闘用のキャラ情報(マスター + 親密度 Lv + ステータス + アビリティ + STAMINA)
+   *   affectionLevel(= level)/ affectionExp(累計)/ expInto・expNeed(今の Lv の中の進み)/ maxLevel
+   *   stats { attack, defence, control, curve }(アビリティの加算込み)/ abilities(有効なもの)
+   *   stamina(自然回復を反映した今の値。保存は spend / recover の時)/ tired(STAMINA 0:獲得 EXP ×10%)
+   */
+  character(id, at = now()) {
     const base = characterById(id);
     const p = this.data.characters[id] ?? charEntry();
-    const lv = p.level;
+    const prog = affectionProgress(p.affectionExp);
+    const abilities = activeAbilities(id, prog.level, p.selectedAbilities);
+    const st = recoverStamina(p.stamina, p.lastStaminaUpdate, at);
     return {
       ...base,
       owned: p.owned,
-      level: lv,
-      exp: p.exp,
-      nextExp: lv >= LEVELING.maxLevel ? 0 : LEVELING.nextExp(lv),
-      atk: base.atk + LEVELING.growth.atk * (lv - 1) + num(p.bonus?.atk),
-      def: base.def + LEVELING.growth.def * (lv - 1) + num(p.bonus?.def),
-      intimacy: num(p.intimacy),
-      intimacyLevel: intimacyLevel(p.intimacy),
+      affectionLevel: prog.level, level: prog.level,
+      affectionExp: prog.total, expInto: prog.into, expNeed: prog.need, maxLevel: prog.max,
+      stats: statsAt(id, prog.level, abilities),
+      abilities,
+      selectedAbilities: { ...p.selectedAbilities },
+      stamina: st.stamina, staminaMax: STAMINA.max, tired: st.stamina <= 0,
     };
   }
 
-  addExp(id, amount) {
-    const before = this.character(id);
+  /**
+   * 親密度 EXP を足す(Lv100 で止まる)→ { before, after, gained, levelUps, newAbilitySlots: [Lv…], ultimate }
+   *   newAbilitySlots … このレベルアップで新しく選べるようになったアビリティの枠(Lv10〜90)
+   */
+  addAffectionExp(id, amount, { save = true } = {}) {
     const p = this.data.characters[id];
-    p.exp += amount;
-    let levelUps = 0;
-    while (p.level < LEVELING.maxLevel && p.exp >= LEVELING.nextExp(p.level)) {
-      p.exp -= LEVELING.nextExp(p.level);
-      p.level++;
-      levelUps++;
-    }
-    if (p.level >= LEVELING.maxLevel) p.exp = 0;
-    this.save();
-    return { before, after: this.character(id), levelUps, gained: amount };
+    if (!p) return null;
+    const before = this.character(id);
+    p.affectionExp = Math.min(maxAffectionExp(), Math.max(0, p.affectionExp + Math.max(0, Math.floor(Number(amount) || 0))));
+    p.affectionLevel = levelFromExp(p.affectionExp);
+    const after = this.character(id);
+    const slots = Object.keys(abilitySlots(id)).map(Number);
+    const newAbilitySlots = slots.filter((lv) => before.level < lv && after.level >= lv);
+    if (save) this.save();
+    return { before, after, gained: after.affectionExp - before.affectionExp, levelUps: after.level - before.level, newAbilitySlots, ultimate: before.level < 100 && after.level >= 100 };
+  }
+  /** 旧 API の互換(EXP = 親密度 EXP)*/
+  addExp(id, amount) { return this.addAffectionExp(id, amount); }
+
+  // ---------------- STAMINA(キャラごと)----------------
+  /** 自然回復を保存に反映(画面を開いた時など)。値を返す */
+  recoverStamina(id, at = now()) {
+    const p = this.data.characters[id];
+    if (!p) return 0;
+    const r = recoverStamina(p.stamina, p.lastStaminaUpdate, at);
+    p.stamina = r.stamina; p.lastStaminaUpdate = r.last;
+    return p.stamina;
+  }
+  /** STAMINA を減らす(0 未満にしない)*/
+  spendStamina(id, amount, at = now()) {
+    const p = this.data.characters[id];
+    if (!p) return null;
+    const before = this.recoverStamina(id, at);
+    p.stamina = Math.max(0, before - Math.max(0, amount));
+    if (before >= STAMINA.max) p.lastStaminaUpdate = at;   // 満タンから減らした時は、ここから回復の時間を数える
+    return { before, after: p.stamina };
   }
 
-  // ---------------- 親密度(味方の女の子)----------------
-  addIntimacy(id, amount) {
-    const p = this.data.characters[id];
-    if (!p || !this.isOwned(id)) return null;
-    const before = this.character(id);
-    p.intimacy = Math.max(0, num(p.intimacy) + Math.floor(num(amount)));
+  /**
+   * 攻略の結果(クリア / 敗北):参加した味方に親密度 EXP + STAMINA 消費
+   *   EXP は出撃時の STAMINA で決める(0 なら ×10%)。STAMINA 0 でも出撃でき、戦闘の強さは変わらない
+   *   → [{ id, base, gained, tired, stamina: { before, after }, …addAffectionExp の結果 }]
+   */
+  battleRewards(result, difficulty, ids, at = now()) {
+    const R = battleReward(result, difficulty);
+    const out = [];
+    for (const id of ids) {
+      if (!this.data.characters[id]) continue;
+      const before = this.recoverStamina(id, at);
+      const exp = expAfterStamina(R.exp, before);
+      const r = this.addAffectionExp(id, exp, { save: false });
+      const st = this.spendStamina(id, R.cost, at);
+      out.push({ id, base: R.exp, tired: before <= 0, ...r, stamina: st, after: this.character(id, at) });
+    }
     this.save();
-    return { before, after: this.character(id) };
+    return out;
+  }
+
+  // ---------------- アビリティ ----------------
+  get abilityResetItems() { return this.data.inventory.abilityResetItems; }
+  addAbilityResetItems(n = 1) { this.data.inventory.abilityResetItems = Math.max(0, this.abilityResetItems + Math.floor(Number(n) || 0)); this.save(); return this.abilityResetItems; }
+  /** Lv の枠の状態 → [{ level, candidates: [ability…], selected, unlocked, ultimate }] */
+  abilityBoard(id) {
+    const ch = this.character(id), sel = ch.selectedAbilities;
+    const rows = Object.entries(abilitySlots(id)).map(([lv, ids]) => ({
+      level: Number(lv), unlocked: ch.level >= Number(lv), selected: sel[lv] ?? null,
+      candidates: ids.map((x) => ({ id: x, ...ABILITY_DEF(x) })).filter((x) => x.name),
+    })).sort((a, b) => a.level - b.level);
+    const ult = ULT_DEF(id);
+    if (ult) rows.push({ level: 100, unlocked: ch.level >= 100, selected: ult.id, candidates: [ult], ultimate: true });
+    return rows;
+  }
+  /**
+   * アビリティを選ぶ。まだ選んでいない枠は無料 / 選択済みの枠を変える時は ABILITY_RESET_ITEM を1つ使う
+   *   → { ok, reason?: 'locked' | 'invalid' | 'same' | 'noItem', changed, itemsLeft }
+   */
+  selectAbility(id, level, abilityId) {
+    const p = this.data.characters[id];
+    if (!p || !this.isOwned(id)) return { ok: false, reason: 'invalid' };
+    const lv = String(level), ids = abilitySlots(id)[lv];
+    if (!ids || !ids.includes(abilityId)) return { ok: false, reason: 'invalid' };
+    if (levelFromExp(p.affectionExp) < Number(lv)) return { ok: false, reason: 'locked' };
+    const cur = p.selectedAbilities[lv];
+    if (cur === abilityId) return { ok: false, reason: 'same' };
+    if (cur) {
+      if (this.abilityResetItems < 1) return { ok: false, reason: 'noItem' };
+      this.data.inventory.abilityResetItems -= 1;
+    }
+    p.selectedAbilities[lv] = abilityId;
+    this.save();
+    return { ok: true, changed: !!cur, itemsLeft: this.abilityResetItems };
+  }
+
+  // ---------------- MULTI:自分のキャラの戦闘データ(他プレイヤーへ送る)----------------
+  /** 戦闘で使う値だけ(Lv / ステータス / 有効なアビリティの ID)*/
+  combatProfile(id) {
+    const ch = this.character(id);
+    return { characterId: id, level: ch.level, stats: { ...ch.stats }, abilities: ch.abilities.map((a) => a.id) };
+  }
+  /** 他プレイヤーのキャラ:マスター + そのプレイヤーの育成(profile)。自分のセーブは使わない */
+  characterFromProfile(id, profile) {
+    const base = characterById(id) ?? characterById(DEFAULT_PARTY[0]);
+    const lv = Math.max(1, Math.min(100, Math.floor(Number(profile?.level) || 1)));
+    const stats = {};
+    for (const k of STAT_KEYS) stats[k] = Math.max(0, Math.min(100, Math.round(Number(profile?.stats?.[k] ?? statsAt(base.id, lv)[k]))));
+    const abilities = (Array.isArray(profile?.abilities) ? profile.abilities : []).map((x) => (ABILITY_DEF(x).name ? { id: x, ...ABILITY_DEF(x) } : null)).filter(Boolean);
+    return { ...base, owned: true, affectionLevel: lv, level: lv, stats, abilities, stamina: STAMINA.max, staminaMax: STAMINA.max, tired: false, remote: true };
   }
 
   // ---------------- プレゼント(所持数 / 渡す)----------------
-  itemCount(giftId) { return Math.max(0, Math.floor(num(this.data.items[giftId]))); }
+  itemCount(giftId) { return Math.max(0, Math.floor(num(this.data.inventory.presents[giftId]))); }
   addItem(giftId, n = 1) {
     if (!giftById(giftId)) return false;
-    this.data.items[giftId] = this.itemCount(giftId) + Math.floor(num(n));
+    this.data.inventory.presents[giftId] = this.itemCount(giftId) + Math.floor(num(n));
     this.save();
     return true;
   }
   /**
-   * 味方の女の子にプレゼントを1つ渡す。効果(GIFTS.effect)が未決定(null)の項目は上がらない
-   * → { gift, levelUps, gainedExp, gainedIntimacy, reaction, before, after } / 渡せない時は null
+   * 味方の女の子にプレゼントを1つ渡す → 親密度 EXP(ランクの EXP。好物なら ×1.5)
+   *   → { gift, gainedExp, levelUps, newAbilitySlots, reaction, before, after } / 渡せない時は null
    */
   giveGift(characterId, giftId) {
     const gift = giftById(giftId), p = this.data.characters[characterId];
     if (!gift || !p || !this.isOwned(characterId) || this.itemCount(giftId) < 1) return null;
-    const before = this.character(characterId);
-    this.data.items[giftId] = this.itemCount(giftId) - 1;
-    const e = gift.effect ?? {};
-    p.intimacy = Math.max(0, num(p.intimacy) + Math.floor(num(e.intimacy)));
-    p.bonus = { atk: num(p.bonus?.atk) + Math.floor(num(e.atk)), def: num(p.bonus?.def) + Math.floor(num(e.def)) };
-    const exp = Math.floor(num(e.exp));
-    const levelUps = exp > 0 ? this.addExp(characterId, exp).levelUps : 0;
+    this.data.inventory.presents[giftId] = this.itemCount(giftId) - 1;
+    const exp = giftExp(gift, characterById(characterId));
+    const r = this.addAffectionExp(characterId, exp, { save: false });
     this.save();
     const R = gift.reactions ?? {};
     const lines = R.byCharacter?.[characterId]?.length ? R.byCharacter[characterId] : (Array.isArray(R) ? R : R.default ?? []);
     const reaction = lines.length ? lines[Math.floor(Math.random() * lines.length)] : null;
-    return { gift, levelUps, gainedExp: exp, gainedIntimacy: Math.floor(num(e.intimacy)), reaction, before, after: this.character(characterId) };
+    return { gift, gainedExp: r.gained, levelUps: r.levelUps, newAbilitySlots: r.newAbilitySlots, ultimate: r.ultimate, reaction, before: r.before, after: r.after };
   }
 
   // ---------------- クリア報酬ボイス(攻略対象のみ。NORMAL / HARD = ボイス、HELL = ASMR)----------------

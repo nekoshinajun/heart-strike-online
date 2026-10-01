@@ -80,6 +80,6 @@ export class GameOverState {
   }
   update(dt) {
     this.wait -= dt;
-    if (this.wait <= 0 && !this.shown) { this.shown = true; this.g.router.go('over', { stage: this.g.stage, stats: resultStats(this.g) }); }
+    if (this.wait <= 0 && !this.shown) { this.shown = true; const growth = this.g.onStageDefeat(); this.g.router.go('over', { stage: this.g.stage, stats: resultStats(this.g), growth }); }
   }
 }

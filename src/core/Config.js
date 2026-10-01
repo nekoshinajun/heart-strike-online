@@ -23,9 +23,7 @@ export const Config = {
 
   // ---- キャラクター性能・属性(data/BattleCalc.js が参照)----
   battle: {
-    atkBase: 50,            // ★ Attack 倍率 = ATK / atkBase(ATK 100 → ×2.0)
-    defBase: 100,           // ★ DEF がこの値で等倍。高いほどキャッチ時のペナルティが減る
-    defMin: 0.4, defMax: 1.6,
+    // ATTACK / DEFENCE の効き(ステータス 0〜100 → 倍率)は GrowthData.STAT_EFFECTS
     attributeMul: { advantage: 1.3, neutral: 1.0, disadvantage: 0.7 },
     bossAttackMul: 3.0,      // ★ ボス返球の基礎ダメージ倍率(v25 の 2.0 × 1.5)。難易度 damageTaken とは別に掛ける。PERFECT は常に 0
     // ボス攻撃フェーズの前のボイス(BOSS_TAUNT)。ボイスの中身は RomanceData の attackVoices
@@ -158,7 +156,8 @@ export const Config = {
     maxSpeed: 53,          // ★ Power 100% の初速
     // HEART(ダメージ)は球速・引っ張り量で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
     //   旧仕様の POWER 倍率(0.8〜1.5)の中間あたりにして、ステージの HEART 量とのバランスを大きく崩さない(★ 仮)
-    heartFlat: 1.15,
+    //   旧 ATK 倍率(ATK÷50:平均 ×2.0 前後)を新しい ATTACK 倍率(50 = ×1.0)へ置き換えた分もここで引き継ぐ(1.15 × 2.0)
+    heartFlat: 2.3,
     maxPullDown: 0.14,     // 引いた時にボールが下がれる量(画面高さ比・見た目)(旧 0.1)
   },
   aim: {

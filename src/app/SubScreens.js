@@ -1,8 +1,10 @@
 import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById } from '../data/GameData.js';
-import { HEROINES, GIFTS, INTIMACY, heroineById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
+import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
+import { STAT_KEYS, STAT_LABELS, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
+import { staminaNextMs } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
-import { cardHTML } from '../screens/MenuFlow.js';
+import { cardHTML, staminaHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
 import { Haptic } from './Platform.js';
 import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from './Roles.js';
@@ -21,11 +23,11 @@ const fmtTime = (sec) => (Number.isFinite(sec) ? `${Math.floor(sec / 60)}:${Stri
  */
 export const TRAINING_FEATURES = [
   // 将来の育成(限界突破 / Skill / 衣装 / 親愛度)はここに1件足し、CHARACTER DETAIL の DETAIL_SECTIONS に表示を足す
-  { id: 'level', label: 'レベル', ready: true },
+  { id: 'level', label: '親密度 Lv(= レベル)', ready: true },
+  { id: 'ability', label: 'アビリティ', ready: true },
   { id: 'limitBreak', label: '限界突破', ready: false },
   { id: 'skill', label: 'スキル', ready: false },
   { id: 'costume', label: '衣装', ready: false },
-  { id: 'intimacy', label: '親密度', ready: false },
 ];
 
 export class AppScreens {
@@ -53,60 +55,96 @@ export class AppScreens {
   }
 
   // ---------------- 育成(TAB_ROOT):仲間の女の子を選ぶ ----------------
-  intimacyHTML(ch) {
-    return ch.intimacyLevel == null ? `♡ 親密度EXP <b>${ch.intimacy}</b>` : `♡ 親密度 Lv.<b>${ch.intimacyLevel}</b>`;
-  }
   showTraining() {
     this.frame('training', '育成');
     const ids = this.p.ownedIds;
     this.body.innerHTML = `
-      <p class="as-lead">${roleTag('ally')} 仲間の女の子を育てて、もっと仲良くなろう</p>
+      <p class="as-lead">${roleTag('ally')} 一緒に攻略に行くほど仲良くなって強くなる(親密度 = レベル)。STAMINA が減った子の代わりに、ほかの子も連れていこう</p>
       <div class="tr-grid">${ids.map((id) => {
         const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
         return `<button type="button" class="tr-card" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
           <span class="tr-art"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false"></span>
           <span class="tr-rank">${r.id}</span><span class="tr-attr">${a.icon}</span>
-          <span class="tr-info"><b>${esc(ch.name)}</b><span>Lv.${ch.level}</span><em>${this.intimacyHTML(ch)}</em></span>
+          <span class="tr-info"><b>${esc(ch.name)}</b><span>♡ AFFECTION Lv.${ch.level}</span>${staminaHTML(ch, 'sm')}</span>
         </button>`;
       }).join('')}</div>`;
     for (const b of this.body.querySelectorAll('[data-id]')) b.addEventListener('click', () => this.app.router.go('trainChar', { id: b.dataset.id }));
   }
 
-  // ---------------- 仲間の育成画面(SUB):大きく表示 + 親密度 + プレゼント(ASMR は無い)----------------
-  showTrainChar({ id } = {}, keepScroll = false) {
+  // ---------------- 仲間の育成画面(SUB):大きく表示 + 親密度 Lv + ステータス + STAMINA + アビリティ + プレゼント ----------------
+  showTrainChar({ id, focus } = {}, keepScroll = false) {
     if (!id || !this.p.isOwned(id)) { this.app.router.back(); return; }
     this.trainId = id;
     const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
     const top = this.body.scrollTop;
     this.frame('trainChar', '育成', { back: true });
-    const expRatio = ch.nextExp ? Math.min(1, ch.exp / ch.nextExp) : 1;
-    const lv = INTIMACY.levels;
-    let intiBar = '';
-    if (Array.isArray(lv) && lv.length && ch.intimacyLevel != null) {
-      const cur = lv[ch.intimacyLevel - 1] ?? 0, next = lv[ch.intimacyLevel];
-      intiBar = next == null ? '<span class="tc-max">MAX</span>' : `<i class="tc-bar"><i style="transform:scaleX(${Math.min(1, (ch.intimacy - cur) / (next - cur))})"></i></i><small>次の Lv まで ${next - ch.intimacy}</small>`;
-    }
+    const expRatio = ch.maxLevel ? 1 : ch.expNeed ? Math.min(1, ch.expInto / ch.expNeed) : 1;
+    const pd = this.p.data.characters[id];
+    const nextMs = staminaNextMs(ch.stamina, pd.lastStaminaUpdate);
+    const nextTxt = nextMs == null ? '満タン' : `あと ${Math.ceil(nextMs / 60000)} 分で +5`;
+    const stats = STAT_KEYS.map((k) => `<div class="tc-stat" data-stat="${k}"><span>${STAT_LABELS[k]}</span><i class="tc-sbar"><i style="transform:scaleX(${ch.stats[k] / 100})"></i></i><b>${ch.stats[k]}</b></div>`).join('');
     this.body.innerHTML = `
       <section class="tc-hero" style="--ac:${a.color};--rc:${r.color}">
         <img src="${artUrl(ch, 'cutout')}" alt="${esc(ch.name)}" draggable="false">
         <div class="tc-bubble" hidden></div>
         <div class="tc-tags">${roleTag('ally')}<span class="tc-rank">${r.id}</span></div>
+        <div class="tc-aff"><small>AFFECTION</small><b>Lv.${ch.level}</b>${ch.maxLevel ? '<em>MAX</em>' : ''}</div>
       </section>
       <section class="tc-card">
-        <div class="tc-name"><b>${esc(ch.name)}</b><span>Lv.${ch.level}</span><em>${a.icon} ${a.label} / ${t.label}</em></div>
-        <div class="tc-row tc-inti"><span>${this.intimacyHTML(ch)}</span>${intiBar}</div>
-        <div class="tc-row"><span>EXP</span><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.nextExp ? `${ch.exp} / ${ch.nextExp}` : 'MAX'}</small></div>
-        <div class="tc-stats"><span>ATK <b>${ch.atk}</b></span><span>DEF <b>${ch.def}</b></span></div>
+        <div class="tc-name"><b>${esc(ch.name)}</b><em>${a.icon} ${a.label} / ${t.label}</em></div>
+        <div class="tc-row"><span>♡ EXP</span><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `${ch.expInto} / ${ch.expNeed}`}</small></div>
+        <div class="tc-stats4">${stats}</div>
+        <div class="tc-row tc-stam${ch.tired ? ' tired' : ''}"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b> / ${ch.staminaMax}</small></div>
+        <p class="tc-stamnote">${ch.tired ? '疲労中:出撃はできます(強さもそのまま)。獲得 EXP ×10%' : '攻略に参加すると減ります。0 でも出撃できます(獲得 EXP ×10%)'} ・ ${nextTxt}</p>
       </section>
+      ${this.abilityBoardHTML(id)}
       <section class="tc-gifts">
-        <header><b>🎁 プレゼントを渡す</b><span>仲良くなると、もっと頼りになる</span></header>
-        <div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id), rk = giftRank(g); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<span>${esc(giftName(g))}</span>${rk ? `<em class="tg-rank">${esc(rk.label)}</em>` : ''}<b>×${n}</b></button>`; }).join('')}</div>
-        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません。ガチャを引くと毎回1個もらえます</p>' : ''}
+        <header><b>🎁 プレゼントを渡す</b><span>渡すと親密度 EXP がもらえる</span></header>
+        <div class="tg-list">${GIFTS.map((g) => { const n = this.p.itemCount(g.id), rk = giftRank(g); return `<button type="button" class="tg-item" data-gift="${g.id}" ${n ? '' : 'disabled'}${rk?.color ? ` style="--gk:${rk.color}"` : ''}>${g.image ? `<img src="${esc(g.image)}" alt="">` : `<i>${giftIcon(g)}</i>`}<span>${esc(giftName(g))}</span>${rk ? `<em class="tg-rank">${esc(rk.label)}</em>` : ''}<small class="tg-exp">+${giftExp(g, ch)}</small><b>×${n}</b></button>`; }).join('')}</div>
+        ${GIFTS.every((g) => !this.p.itemCount(g.id)) ? '<p class="as-note">プレゼントはまだ持っていません。ガチャのおまけや攻略のクリア報酬でもらえます</p>' : ''}
       </section>
       <button type="button" class="tc-detail r-btn ghost" data-act="detail">プロフィールを見る</button>`;
     if (keepScroll) this.body.scrollTop = top;
     for (const b of this.body.querySelectorAll('[data-gift]')) b.addEventListener('click', () => this.giveGift(b.dataset.gift));
     this.body.querySelector('[data-act="detail"]').addEventListener('click', () => this.app.router.go('detail', { id }));
+    this.wireAbilityBoard(id);
+    if (focus === 'ability' && !keepScroll) this.body.querySelector('.tc-ability')?.scrollIntoView({ block: 'start' });
+  }
+
+  /** アビリティ:Lv10〜90 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)*/
+  abilityBoardHTML(id) {
+    const rows = this.p.abilityBoard(id), items = this.p.abilityResetItems, I = ABILITY_RESET_ITEM;
+    const open = this.abilityOpen ?? null;
+    const rowHTML = (row) => {
+      const sel = row.candidates.find((c) => c.id === row.selected);
+      if (row.ultimate) {
+        return `<li class="ab-row ult${row.unlocked ? '' : ' locked'}" data-lv="100"><span class="ab-lv">Lv.100</span>
+          <div class="ab-main"><small>ULTIMATE</small><b>${row.unlocked ? esc(sel.name) : '？？？'}</b><p>${row.unlocked ? esc(sel.desc) : 'Lv.100 で解放(キャラ固有)'}</p></div></li>`;
+      }
+      if (!row.unlocked) return `<li class="ab-row locked" data-lv="${row.level}"><span class="ab-lv">Lv.${row.level}</span><div class="ab-main"><b>🔒</b><p>Lv.${row.level} で解放</p></div></li>`;
+      const choosing = !sel || open === row.level;
+      const cands = choosing ? `<div class="ab-cands">${row.candidates.map((c) => {
+        const isCur = c.id === row.selected;
+        return `<button type="button" class="ab-cand${isCur ? ' cur' : ''}" data-lv="${row.level}" data-ab="${c.id}" ${isCur || (sel && items < 1) ? 'disabled' : ''}><b>${esc(c.name)}</b><small>${esc(c.desc)}</small>${sel && !isCur ? `<em>${I.icon} ×1 で変更</em>` : ''}${isCur ? '<em>選択中</em>' : ''}</button>`;
+      }).join('')}</div>` : '';
+      return `<li class="ab-row${sel ? ' set' : ' new'}" data-lv="${row.level}"><span class="ab-lv">Lv.${row.level}</span>
+        <div class="ab-main">${sel ? `<b>${esc(sel.name)}</b><p>${esc(sel.desc)}</p>` : '<b class="ab-pick">NEW ♡ 1つ選んでね</b>'}${cands}</div>
+        ${sel ? `<button type="button" class="ab-change" data-lv="${row.level}">${open === row.level ? 'やめる' : '変更'}</button>` : ''}</li>`;
+    };
+    return `<section class="tc-ability">
+      <header><b>✦ ABILITY</b><span>${I.icon} ${esc(I.name)} ×<b class="ab-items">${items}</b></span></header>
+      <ul class="ab-list">${rows.map(rowHTML).join('')}</ul></section>`;
+  }
+  wireAbilityBoard(id) {
+    for (const b of this.body.querySelectorAll('.ab-change')) b.addEventListener('click', () => { const lv = Number(b.dataset.lv); this.abilityOpen = this.abilityOpen === lv ? null : lv; this.showTrainChar({ id }, true); });
+    for (const b of this.body.querySelectorAll('.ab-cand')) b.addEventListener('click', () => {
+      const r = this.p.selectAbility(id, Number(b.dataset.lv), b.dataset.ab);
+      if (!r.ok) { this.app.toast?.(r.reason === 'noItem' ? `${ABILITY_RESET_ITEM.name}が足りません` : 'このアビリティは選べません'); return; }
+      this.abilityOpen = null;
+      Haptic.light?.();
+      this.app.toast?.(r.changed ? `アビリティを変更しました(${ABILITY_RESET_ITEM.name} 残り ${r.itemsLeft})` : 'アビリティを習得しました♡');
+      this.showTrainChar({ id }, true);
+    });
   }
   giveGift(giftId) {
     const r = this.p.giveGift(this.trainId, giftId);
@@ -114,12 +152,25 @@ export class AppScreens {
     Haptic.light();
     this.showTrainChar({ id: this.trainId }, true);
     const line = r.reaction ?? GIFT_FALLBACK_LINES[Math.floor(Math.random() * GIFT_FALLBACK_LINES.length)];
-    const gains = [r.gainedIntimacy > 0 ? `♡ 親密度EXP +${r.gainedIntimacy}` : '', r.gainedExp > 0 ? `EXP +${r.gainedExp}` : '', r.levelUps > 0 ? 'LEVEL UP!' : ''].filter(Boolean).join(' ・ ');
+    const gains = [r.gainedExp > 0 ? `♡ 親密度EXP +${r.gainedExp}` : '', r.levelUps > 0 ? `LEVEL UP! Lv.${r.after.level}` : ''].filter(Boolean).join(' ・ ');
     const bub = this.body.querySelector('.tc-bubble');
     bub.innerHTML = `<p>${esc(line)}</p>${gains ? `<small>${gains}</small>` : ''}`;
     bub.hidden = false; bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in');
     const img = this.body.querySelector('.tc-hero img'); img.classList.remove('react'); void img.offsetWidth; img.classList.add('react');
     clearTimeout(this.bubTimer); this.bubTimer = setTimeout(() => { bub.hidden = true; }, 3200);
+    if (r.newAbilitySlots?.length || r.ultimate) this.showAbilityUnlock(r);
+  }
+  /** レベルアップで Lv10 ごとのアビリティが解放された時のお祝い(NEW ABILITY UNLOCKED ♡)*/
+  showAbilityUnlock(r) {
+    const host = this.body.querySelector('.tc-hero');
+    if (!host) return;
+    host.querySelector('.ab-burst')?.remove();
+    const el = document.createElement('div');
+    el.className = 'ab-burst';
+    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.filter((lv) => lv < 100).map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
+    host.appendChild(el);
+    this.app.audio?.loveMax?.();
+    setTimeout(() => el.remove(), 2600);
   }
 
   // ---------------- コレクション(TAB_ROOT):仲間 / 攻略対象 ----------------

@@ -5,7 +5,8 @@ import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { devInput, storage, Haptic } from '../app/Platform.js';
 import { artUrl } from '../data/CharacterArt.js';
-import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById } from '../data/RomanceData.js';
+import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById, giftById, giftIcon, giftName } from '../data/RomanceData.js';
+import { STAT_LABELS, BATTLE_EXP, STAMINA } from '../data/GrowthData.js';
 import { roleTag, clearChips, voiceStatus, rewardLabel } from '../app/Roles.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
@@ -32,7 +33,14 @@ function attrTag(id) {
   return `<span class="attr" style="--ac:${a.color}">${a.icon} ${a.label}</span>`;
 }
 
-/** キャラクターカード(ランク・画像・名前・属性・タイプ・Lv・ATK・DEF) */
+/** STAMINA の小さな表示(0 は「疲労中 EXP×10%」。出撃はできる)*/
+export function staminaHTML(ch, cls = '') {
+  if (ch.staminaMax == null || ch.remote) return '';
+  const k = Math.max(0, Math.min(1, ch.stamina / ch.staminaMax));
+  return `<span class="stam ${ch.tired ? 'tired' : ''} ${cls}" title="STAMINA ${ch.stamina} / ${ch.staminaMax}"><i style="--k:${k}"></i><b>${ch.tired ? '疲労中 EXP×10%' : `STA ${ch.stamina}`}</b></span>`;
+}
+
+/** キャラクターカード(ランク・画像・名前・属性・タイプ・親密度 Lv・ATTACK・DEFENCE・STAMINA) */
 export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
   const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
   const ps = portraitStyle(ch);
@@ -44,7 +52,8 @@ export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
     ${img}
     <div class="cname">${esc(ch.name)}</div>
     <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${t.label}</span></div>
-    <div class="cstat"><span>Lv.${ch.level}</span><span>ATK ${ch.atk}</span><span>DEF ${ch.def}</span></div>
+    <div class="cstat"><span>♡Lv.${ch.level}</span><span>ATK ${ch.stats?.attack ?? '-'}</span><span>DEF ${ch.stats?.defence ?? '-'}</span></div>
+    ${staminaHTML(ch)}
   </div>`;
 }
 
@@ -236,7 +245,7 @@ export class MenuFlow {
         <div class="dhead"><span class="dlabel">${D.label}</span><span class="dja">${esc(D.ja)}</span>${id === this.recommended ? '<em class="rec">おすすめ</em>' : ''}${r?.clearCount ? '<em>CLEAR</em>' : ''}${D.locked ? '<em class="lock">🔒 LOCKED</em>' : ''}</div>
         <div class="ddesc">${esc(D.desc)}</div>
         <div class="dnote">${esc(D.note ?? '')}</div>
-        <div class="dstats"><span>HEART <b>${heart.toLocaleString()}</b></span><span>返球 <b>${pct(D.returnSpeed)}</b></span><span>Gate <b>${pct(D.gateSize)}</b></span><span>被ダメ <b>${pct(D.damageTaken)}</b></span><span>EXP <b>+${Math.round(st.exp * D.exp)}</b></span></div>
+        <div class="dstats"><span>HEART <b>${heart.toLocaleString()}</b></span><span>返球 <b>${pct(D.returnSpeed)}</b></span><span>Gate <b>${pct(D.gateSize)}</b></span><span>被ダメ <b>${pct(D.damageTaken)}</b></span><span>親密度EXP <b>+${BATTLE_EXP.clear[D.id] ?? '-'}</b></span><span>STAMINA <b>-${STAMINA.cost[D.id] ?? '-'}</b></span></div>
         ${r ? `<div class="drec">CLEAR ${r.clearCount} / BEST RALLY ${r.bestRally} / GATE CHAIN ${r.bestGateChain} / BEST HEART ${r.bestHeartPerThrow.toLocaleString()}</div>` : ''}
       </button>`;
     }).join('')}</div>
@@ -440,31 +449,52 @@ export class MenuFlow {
    */
   showResult(res) {
     this.frame('result', '攻略成功！', `STAGE ${res.stage.no}:${res.stage.boss.name} をメロメロにした♡`, { primary: 'ステージ選択', back: this.g.online ? null : 'もう一度', home: 'HOME' });
-    const D = res.difficulty ?? difficultyData('NORMAL'), exp = res.exp ?? res.stage.exp, rec = res.record;
+    const D = res.difficulty ?? difficultyData('NORMAL'), rec = res.record;
     this.body.innerHTML = `
       <div class="rhead">STAGE ${String(res.stage.no).padStart(2, '0')} ${diffChip(D.id, 'big')}</div>
       <div class="clearlogo">LOVE MAX♡</div>
       ${this.voiceUnlockHTML(rec)}
-      <div class="expgain">EXP <b>+${exp}</b>${D.exp !== 1 ? `<small>(${res.stage.exp} × ${D.exp})</small>` : ''}</div>
+      ${this.abilityUnlockHTML(res.growth)}
       ${rec?.firstClearGem ? `<div class="fcgem">初回クリア報酬 <b>♦ +${rec.firstClearGem}</b></div>` : ''}
+      ${res.presents?.length ? `<div class="fcgem rpresent">クリア報酬 ${res.presents.map((id) => { const gi = giftById(id); return `<b>${giftIcon(gi)} ${esc(giftName(gi))}</b>`; }).join(' ')} <small>育成で渡すと親密度 EXP</small></div>` : ''}
       ${rec ? `<div class="drec r">${D.label} CLEAR ${rec.clearCount} / BEST RALLY ${rec.bestRally} / GATE CHAIN ${rec.bestGateChain} / BEST HEART ${rec.bestHeartPerThrow.toLocaleString()}</div>` : ''}
-      <div class="exprows">${res.results.map((r, i) => {
-        const a = r.after;
-        return `<div class="exprow" data-i="${i}">
-          ${cardHTML(a, { compact: true })}
-          <div class="expinfo">
-            <div class="expname">${esc(a.name)} <span class="lv">Lv.<b>${r.before.level}</b></span><em class="lvup" hidden>LEVEL UP!</em></div>
-            <div class="expbar"><i></i></div>
-            <div class="expnum"><span>+${r.gained} EXP</span><span class="expnext"></span></div>
-            <div class="growth" hidden>ATK +${a.atk - r.before.atk} / DEF +${a.def - r.before.def}</div>
-          </div>
-        </div>`;
-      }).join('')}</div>
+      ${this.growthRowsHTML(res.growth)}
       <div class="rstats">${res.stats.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>`;
-    this.animateExp(res.results);
+    this.animateExp(res.growth);
+    this.wireAbilityGo();
     for (const b of this.body.querySelectorAll('[data-asmr-go]')) b.addEventListener('click', () => this.router.go('heroine', { id: b.dataset.asmrGo }));
     this.focus();
   }
+
+  /** 参加した味方の育成(親密度 Lv・EXP バー・STAMINA)。MULTI は自分のキャラだけ */
+  growthRowsHTML(growth = []) {
+    if (!growth.length) return '';
+    return `<div class="exprows">${growth.map((r, i) => {
+      const a = r.after, b = r.before;
+      const ups = Object.keys(a.stats).filter((k) => a.stats[k] !== b.stats[k]).map((k) => `${STAT_LABELS[k]} +${a.stats[k] - b.stats[k]}`).join(' / ');
+      return `<div class="exprow" data-i="${i}">
+        ${cardHTML(a, { compact: true })}
+        <div class="expinfo">
+          <div class="expname">${esc(a.name)} <span class="lv">AFFECTION Lv.<b>${b.level}</b></span><em class="lvup" hidden>LEVEL UP!</em></div>
+          <div class="expbar"><i></i></div>
+          <div class="expnum"><span>+${r.gained} EXP${r.tired ? ' <em class="tiredx">疲労中 ×10%</em>' : ''}</span><span class="expnext"></span></div>
+          <div class="expstam">STAMINA ${r.stamina.before} → <b>${r.stamina.after}</b> / ${a.staminaMax}${r.stamina.after <= 0 ? ' <em>疲労中(次は EXP×10%)</em>' : ''}</div>
+          <div class="growth" hidden>${ups || '成長'}</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  /** Lv10 ごとのアビリティ解放(NEW ABILITY UNLOCKED ♡)。Lv100 は ULTIMATE */
+  abilityUnlockHTML(growth = []) {
+    const list = growth.filter((r) => r.newAbilitySlots?.length || r.ultimate);
+    if (!list.length) return '';
+    return list.map((r) => `<section class="ability-unlock"><div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div>
+      <small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${esc(r.after.name)}</b>
+      <p>${[...(r.newAbilitySlots ?? []).filter((lv) => lv < 100).map((lv) => `Lv.${lv} のアビリティを選べます`), r.ultimate ? `ULTIMATE「${esc(r.after.abilities.find((x) => x.ultimate)?.name ?? '')}」` : ''].filter(Boolean).join(' / ')}</p>
+      <button type="button" class="r-btn" data-ability-go="${esc(r.id)}">♡ アビリティを選ぶ</button></section>`).join('');
+  }
+  wireAbilityGo() { for (const b of this.body.querySelectorAll('[data-ability-go]')) b.addEventListener('click', () => this.router.go('trainChar', { id: b.dataset.abilityGo, focus: 'ability' })); }
 
   /** クリア報酬ボイスが解放された時のご褒美(リザルトの一番上)。解放が無ければ何も出さない。HELL の ASMR は「ASMR」と分かる表示 */
   voiceUnlockHTML(rec) {
@@ -483,17 +513,19 @@ export class MenuFlow {
     }).join('');
   }
 
-  animateExp(results) {
+  animateExp(results = []) {
     const rows = this.body.querySelectorAll('.exprow');
     results.forEach((r, i) => {
       const row = rows[i];
+      if (!row) return;
       const bar = row.querySelector('.expbar i');
       const next = row.querySelector('.expnext');
       const lv = row.querySelector('.lv b');
-      const ratio = (c) => (c.nextExp ? Math.min(1, c.exp / c.nextExp) : 1);
+      const ratio = (c) => (c.maxLevel ? 1 : c.expNeed ? Math.min(1, c.expInto / c.expNeed) : 1);
+      const label = (c) => (c.maxLevel ? 'MAX' : `${c.expInto} / ${c.expNeed}`);
       const set = (v, anim) => { bar.style.transition = anim ? 'transform 500ms ease-out' : 'none'; bar.style.transform = `scaleX(${v})`; };
       set(ratio(r.before), false);
-      next.textContent = r.before.nextExp ? `${r.before.exp} / ${r.before.nextExp}` : 'MAX';
+      next.textContent = label(r.before);
       const t0 = 350 + i * 180;
       if (r.levelUps > 0) {
         setTimeout(() => set(1, true), t0);
@@ -504,23 +536,27 @@ export class MenuFlow {
           row.querySelector('.growth').hidden = false;
           set(0, false);
           requestAnimationFrame(() => requestAnimationFrame(() => set(ratio(r.after), true)));
-          next.textContent = r.after.nextExp ? `${r.after.exp} / ${r.after.nextExp}` : 'MAX';
+          next.textContent = label(r.after);
           this.g.audio?.rallyUp?.();
         }, t0 + 550);
       } else {
-        setTimeout(() => { set(ratio(r.after), true); next.textContent = r.after.nextExp ? `${r.after.exp} / ${r.after.nextExp}` : 'MAX'; }, t0);
+        setTimeout(() => { set(ratio(r.after), true); next.textContent = label(r.after); }, t0);
       }
     });
   }
 
   // ---------------- GAME OVER ----------------
-  showGameOver(stage, stats) {
+  showGameOver(stage, stats, growth = []) {
     this.frame('over', 'もう一度デート', `STAGE ${stage.no}:${stage.boss.name}`, { primary: this.g.online ? 'ステージ選択' : 'もう一度', back: this.g.online ? null : 'ステージ選択', home: 'HOME', diff: this.g.difficulty });
     this.body.innerHTML = `
       <div class="clearlogo over">TRY AGAIN</div>
-      <div class="menuhint">みんなメロメロにされちゃった… EXP は攻略成功でもらえます</div>
+      <div class="menuhint">みんなメロメロにされちゃった… 敗北でも、参加した仲間は親密度 EXP を少しもらえます</div>
+      ${this.abilityUnlockHTML(growth)}
+      ${this.growthRowsHTML(growth)}
       <div class="rstats">${stats.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
 `;
+    this.animateExp(growth);
+    this.wireAbilityGo();
     this.focus();
   }
 }
