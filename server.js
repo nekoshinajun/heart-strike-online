@@ -38,7 +38,9 @@ function finishCatchRound(r){
   if(first>=0)r.currentIndex=first;
   r.phase='WAIT_THROW';r.field=makeField();send(r,'CATCH_ROUND',{results:r.catchResults||{},nextPlayerId:r.players[r.currentIndex]?.id,nextField:r.field,eventId:id(),serverTime:now()});return true;
 }
-function pub(r){return {code:r.code,status:r.status,hostId:r.hostId,currentIndex:r.currentIndex,seq:r.seq,field:r.field||null,visibility:r.visibility||'private',stageId:r.stageId||null,difficulty:r.difficulty||'NORMAL',players:r.players.map(p=>({id:p.id,name:p.name,characterId:p.characterId,ready:p.ready,connected:p.connected,slot:p.slot,alive:p.alive!==false,hp:Number.isFinite(p.hp)?p.hp:100,maxHp:100}))};}
+/** 育成の戦闘データ(各プレイヤーが自分のセーブから送る):Lv / ステータス / アビリティ ID だけ */
+function cleanProfile(x){const n=(v,a,b)=>Math.max(a,Math.min(b,Math.round(Number(v)||0)));const st=x&&typeof x.stats==='object'?x.stats:{};return {level:n(x?.level,1,100),stats:{attack:n(st.attack,0,100),defence:n(st.defence,0,100),control:n(st.control,0,100),curve:n(st.curve,0,100)},abilities:(Array.isArray(x?.abilities)?x.abilities:[]).filter(a=>typeof a==='string'&&a.length<=40).slice(0,12)};}
+function pub(r){return {code:r.code,status:r.status,hostId:r.hostId,currentIndex:r.currentIndex,seq:r.seq,field:r.field||null,visibility:r.visibility||'private',stageId:r.stageId||null,difficulty:r.difficulty||'NORMAL',players:r.players.map(p=>({id:p.id,name:p.name,characterId:p.characterId,ready:p.ready,connected:p.connected,slot:p.slot,profile:p.profile||null,alive:p.alive!==false,hp:Number.isFinite(p.hp)?p.hp:100,maxHp:100}))};}
 function send(room,type,data={}){room.seq++;const msg=`event: message\ndata: ${JSON.stringify({type,seq:room.seq,room:pub(room),...data})}\n\n`;for(const p of room.players){const set=clients.get(p.id);if(set)for(const res of set){try{res.write(msg)}catch{}}}}
 function json(res,status,obj){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(obj));}
 async function body(req){let s='';for await(const c of req){s+=c;if(s.length>1e6)throw Error('too large')}return s?JSON.parse(s):{};}
@@ -65,8 +67,8 @@ const server=http.createServer(async(req,res)=>{try{
      r.touched=now();send(r,'PLAYER_LEFT',{playerId:leavingId,newHostId:r.hostId});
      return json(res,200,{ok:true});
    }
-   if(b.action==='READY'){p.ready=!!b.ready;send(r,'PLAYER_READY');return json(res,200,{ok:true});}
-   if(b.action==='CHARACTER'){if(r.status!=='LOBBY')return json(res,409,{error:'IN_GAME'});p.characterId=b.characterId;send(r,'PLAYER_CHARACTER');return json(res,200,{ok:true});}
+   if(b.action==='READY'){p.ready=!!b.ready;if(b.profile)p.profile=cleanProfile(b.profile);send(r,'PLAYER_READY');return json(res,200,{ok:true});}
+   if(b.action==='CHARACTER'){if(r.status!=='LOBBY')return json(res,409,{error:'IN_GAME'});p.characterId=b.characterId;p.profile=null;send(r,'PLAYER_CHARACTER');return json(res,200,{ok:true});}
    if(b.action==='START'){if(p.id!==r.hostId)return json(res,403,{error:'HOST_ONLY'});if(r.players.length<2||!r.players.every(x=>x.ready))return json(res,409,{error:'NEED_2_TO_4_READY'});r.status='PLAYING';r.currentIndex=0;r.phase='WAIT_THROW';r.phaseThrown=[];r.field=makeField();r.talk50Triggered=false;r.lastThrowPlayerId=null;const openingMs=Math.max(0,Math.min(10000,Math.round(Number(b.openingMs)||4000)));r.battleStartAt=now()+openingMs;/* バトル開始演出(ボス紹介)の長さ:全員同じ。この時刻までは投球を受け付けない */send(r,'GAME_START',{turnPlayerId:r.players[0].id,field:r.field,openingMs});return json(res,200,{ok:true});}
    if(b.action==='THROW'){if(r.status!=='PLAYING'||r.phase!=='WAIT_THROW'||r.players[r.currentIndex]?.id!==p.id)return json(res,409,{error:'NOT_YOUR_TURN'});if(now()<(r.battleStartAt||0))return json(res,409,{error:'NOT_STARTED'});const turnPlayerId=p.id;r.lastThrowPlayerId=turnPlayerId;(r.phaseThrown||(r.phaseThrown=[])).push(turnPlayerId);
      const n=nextUnthrown(r);let phaseEnd=false;

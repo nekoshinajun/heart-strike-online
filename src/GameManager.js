@@ -27,7 +27,8 @@ import { OpeningState } from './states/OpeningState.js';
 import { STAGES } from './data/GameData.js';
 import { battleSlot } from './audio/BgmTracks.js';
 import { HitMarker } from './world/HitMarker.js';
-import { heroineByStage } from './data/RomanceData.js';
+import { heroineByStage, GIFTS } from './data/RomanceData.js';
+import { CLEAR_PRESENT } from './data/GrowthData.js';
 import { throwModifiers } from './data/BattleCalc.js';
 import { MenuFlow } from './screens/MenuFlow.js';
 import { SpecialCutIn } from './screens/SpecialCutIn.js';
@@ -334,7 +335,7 @@ export class GameManager {
 
   /** 手番キャラの性能を投球へ反映(タイプ補正)。攻撃・防御の数値は各ステートが turn.current.chara から読む */
   applyCharacter(p) {
-    this.player.thrower.mods = throwModifiers(p.chara?.type);
+    this.player.thrower.mods = throwModifiers(p.chara);   // タイプの球速 + CURVE / CONTROL ステータス + アビリティ
     this.ball.setStyle(p.color, this.turn.tierLevel);
   }
 
@@ -360,6 +361,7 @@ export class GameManager {
     // ボスの攻撃ボイス:前のバトルのボイスを止め、このステージのボイスを先読み(最初の反撃で待たない)
     this.lastAttackVoiceId = null;
     this.hitMarker.clear();
+    this.growthDone = false;   // このバトルの育成(クリア / 敗北)はまだ
     safe('AUDIO', () => { this.audio.voice.stop(); this.audio.voice.preload(this.attackVoices().map((v) => v.src)); });
     this.partyOrder = party;
     this.turn.reset(party);
@@ -389,17 +391,54 @@ export class GameManager {
     this.router.go(to);
   }
 
-  /** クリア:参加4人に EXP(ステージ EXP × 難易度倍率)→ Stage × Difficulty の記録 → RESULT 画面 */
+  /**
+   * 育成に入るキャラ:SOLO = 参加した4人 / MULTI = 自分のキャラだけ(他のプレイヤーの育成データには触れない)
+   */
+  growthMembers() {
+    if (this.online) {
+      const o = this.online, i = o.room?.players?.findIndex((p) => p.id === o.playerId) ?? -1;
+      const c = this.partyOrder?.[i];
+      return c && !c.remote && this.progress.isOwned(c.id) ? [c.id] : [];
+    }
+    return (this.partyOrder ?? []).map((c) => c.id).filter((id) => this.progress.isOwned(id));
+  }
+
+  /** 1回のバトルの育成(親密度 EXP + STAMINA)。クリア / 敗北で1度だけ */
+  battleGrowth(result) {
+    if (this.growthDone) return null;
+    this.growthDone = true;
+    return this.progress.battleRewards(result, this.difficulty, this.growthMembers());
+  }
+
+  /** クリア報酬のプレゼント(確率は GrowthData.CLEAR_PRESENT。GIFTS の drop の重みで1つ)*/
+  rollClearPresent() {
+    const C = CLEAR_PRESENT, chance = C.chance[this.difficulty] ?? 0;
+    const out = [];
+    for (let k = 0; k < C.count; k++) {
+      if (Math.random() >= chance) continue;
+      const pool = GIFTS.filter((g) => g.drop?.enabled !== false);
+      const total = pool.reduce((a, g) => a + (Number.isFinite(g.drop?.weight) ? g.drop.weight : 1), 0);
+      let r = Math.random() * total, pick = pool[0];
+      for (const g of pool) { r -= Number.isFinite(g.drop?.weight) ? g.drop.weight : 1; if (r <= 0) { pick = g; break; } }
+      if (pick && this.progress.addItem(pick.id, 1)) out.push(pick.id);
+    }
+    return out;
+  }
+
+  /** クリア:記録 → 参加した味方に親密度 EXP / STAMINA 消費 → プレゼント → RESULT 画面 */
   onStageClear(stats) {
     const stage = this.stage;
     const D = difficultyData(this.difficulty);
     const s = this.stats;
     const record = this.progress.markCleared(stage.id, D.id, { maxRally: this.turn.maxRally, maxGateChain: s.maxGateChain, bestHit: s.bestHit });
-    const exp = Math.round(stage.exp * D.exp);
-    const results = this.partyOrder.map((c) => this.progress.addExp(c.id, exp));
-    this.lastResult = { stage, results, stats, difficulty: D, exp, record };
+    const growth = this.battleGrowth('clear') ?? [];
+    const presents = this.rollClearPresent();
+    this.lastResult = { stage, growth, presents, stats, difficulty: D, record };
     this.router.go('result', { res: this.lastResult });
   }
+
+  /** 敗北:参加した味方に親密度 EXP(少し)/ STAMINA 消費 */
+  onStageDefeat() { return this.battleGrowth('defeat') ?? []; }
 
   /** 調整パネルの「再スタート」:プレイ中なら同じステージをやり直し */
   restart() {

@@ -133,7 +133,7 @@ export class GachaService {
     // COMMITTED:GEM 消費 / キャラ付与 / 結果 / pendingReveal を同じ 1回の保存で
     d.wallet.heartGem -= cost;
     for (const it of items) this.p.grant(it.characterId, result.createdAt, 'gacha');
-    for (const it of items) if (it.present) d.items[it.present.giftId] = this.p.itemCount(it.present.giftId) + 1;   // プレゼントを所持品へ
+    for (const it of items) if (it.present) d.inventory.presents[it.present.giftId] = this.p.itemCount(it.present.giftId) + 1;   // プレゼントを所持品へ
     d.gacha.transactions.push(result);
     if (d.gacha.transactions.length > Config.gacha.keepTransactions) d.gacha.transactions.splice(0, d.gacha.transactions.length - Config.gacha.keepTransactions);
     d.gacha.pending = txId;

@@ -1,3 +1,5 @@
+import { FAVORITE_GIFT_MUL } from './GrowthData.js';
+
 // 恋愛まわりのマスターデータ(攻略対象 / ボイス / 親密度 / プレゼント)。
 // ★ 数値・タイトル・音声ファイル・解放条件はまだ決まっていない。決まったらここのデータを書き換えるだけでよい。
 //    未決定の値は null / 空配列のままにしておく(勝手に仮の数値を入れない)。
@@ -66,20 +68,16 @@ export const HEROINES = [
 export const rewardUnlock = (difficulty) => ({ type: 'clear', difficulty });
 
 /**
- * 親密度(味方の女の子)。保存は「ポイント」で持ち、レベルは下の表から計算する
- *   levels … 各レベルに必要な累計ポイント(昇順)。例:[0, 100, 300] → 0pt で Lv.1 / 100pt で Lv.2 / 300pt で Lv.3
- *            未決定の間は null(レベル表示なし・ポイントだけ貯まる)
+ * プレゼントのランク:渡した時の親密度 EXP(exp)。★ 数値・ランク・排出率はすべて仮。ここを書き換えるだけで変わる
+ *   1件の形:{ id, label, order, color, exp }
+ *   ※ 親密度 = キャラのレベル(GrowthData.AFFECTION)
  */
-export const INTIMACY = {
-  levels: null,
-};
-
-/**
- * プレゼントのランク(名称・並び・色は未決定。決まったらここに足すだけ)
- *   1件の形:{ id: 'r1', label: '…', order: 1, color: '#…' }
- *   空の間は「ランクなし」として扱い、画面にもランクを出さない
- */
-export const GIFT_RANKS = [];
+export const GIFT_RANKS = [
+  { id: 'N', label: 'N', order: 1, color: '#9aa6b8', exp: 50 },     // ★ 仮
+  { id: 'R', label: 'R', order: 2, color: '#5aa8ff', exp: 100 },
+  { id: 'SR', label: 'SR', order: 3, color: '#c27cff', exp: 250 },
+  { id: 'SSR', label: 'SSR', order: 4, color: '#ffb02e', exp: 750 },
+];
 
 /** プレゼントの種類(6種)。同じ種類でランク違いを作る時は GIFTS に別 ID で足し、type を同じにする */
 export const GIFT_TYPES = [
@@ -95,24 +93,28 @@ export const GIFT_TYPES = [
  * プレゼント(味方の女の子に渡すアイテム。ガチャで毎回1個もらえる)
  *   id        … プレゼント ID(保存データの所持数のキー)
  *   type      … 種類(GIFT_TYPES の id)。名前・アイコンは省略時に種類から引く
- *   rank      … ランク(GIFT_RANKS の id)。未決定は null
- *   effect    … 渡した時の効果。未決定は null(上がらない)
- *                 intimacy … 親密度 EXP / atk・def … 能力の上乗せ / exp … キャラの EXP(任意)
+ *   rank      … ランク(GIFT_RANKS の id)。親密度 EXP はランクの exp
+ *   effect    … 渡した時の効果 { exp }:親密度 EXP をランクとは別に決める時だけ(null = ランクの exp)
  *   reactions … 受け取った時のセリフ { default: [...], byCharacter: { minamo: [...] } }。未登録は空
  *   icon / image … 表示(image は画像 URL。null の間は icon の絵文字)
  *   drop      … ガチャでの排出設定 { enabled, weight }。weight が未決定(null)の間は他と同じ重み
  */
-// 親密度 EXP:1個で +100(全種共通の仕様)。ランク・種類ごとに変える時は GIFTS の各 effect.intimacy を書き換える
-const GIFT_INTIMACY_EXP = 100;
-const noEffect = () => ({ intimacy: GIFT_INTIMACY_EXP, atk: null, def: null, exp: null });
+// 今の6種はすべて R(+100 親密度 EXP。これまでの仕様と同じ)。ランク違いを足す時は別 ID で GIFTS に足す
+const noEffect = () => ({ exp: null });
 const noReactions = () => ({ default: [], byCharacter: {} });
-const gift = (type) => ({ id: type, type, rank: null, effect: noEffect(), reactions: noReactions(), icon: null, image: null, drop: { enabled: true, weight: null } });
+const gift = (type, rank = 'R') => ({ id: type, type, rank, effect: noEffect(), reactions: noReactions(), icon: null, image: null, drop: { enabled: true, weight: null } });
 export const GIFTS = GIFT_TYPES.map((t) => gift(t.id));
 
 export const giftType = (g) => GIFT_TYPES.find((t) => t.id === g?.type) ?? null;
 export const giftName = (g) => g?.name ?? giftType(g)?.name ?? g?.id ?? '';
 export const giftIcon = (g) => g?.icon ?? giftType(g)?.icon ?? '🎁';
 export const giftRank = (g) => (g?.rank ? GIFT_RANKS.find((r) => r.id === g.rank) ?? null : null);
+/** 渡した時の親密度 EXP:effect.exp(個別)→ ランクの exp。好物(キャラデータの favoriteGiftTypes)なら × FAVORITE_GIFT_MUL */
+export function giftExp(g, chara = null) {
+  const base = Number.isFinite(g?.effect?.exp) ? g.effect.exp : giftRank(g)?.exp ?? 0;
+  const fav = Array.isArray(chara?.favoriteGiftTypes) && chara.favoriteGiftTypes.includes(g?.type);
+  return Math.round(base * (fav ? FAVORITE_GIFT_MUL : 1));
+}
 
 /**
  * 攻略補助アイテム(攻略前に持ち込む)。まだ実装しない:空の間は攻略画面に欄を出さない

@@ -2,23 +2,18 @@ import { CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
 import { artUrl, isPlaceholderArt } from '../data/CharacterArt.js';
 import { storage } from '../app/Platform.js';
 import { roleTag } from '../app/Roles.js';
+import { STAT_KEYS, STAT_LABELS } from '../data/GrowthData.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
 /**
- * キャラクター特徴(★)。既存パラメータ(ATK / DEF / タイプの補正値)から表示用に換算するだけで、ゲーム性能は増やさない
+ * キャラクター特徴(★5段階):ステータス ATTACK / DEFENCE / CONTROL / CURVE(0〜100)を ★ に換算して見せるだけ
  */
 export function characterTraits(ch) {
-  const t = TYPES[ch.type] ?? TYPES.STRAIGHT;
-  const s5 = (x) => clamp(Math.round(x), 1, 5);
-  return [
-    { id: 'power', label: 'HEART POWER', note: 'ATK', value: s5(1 + (4 * (ch.atk - 75)) / 50) },
-    { id: 'straight', label: 'STRAIGHT', note: '球速', value: s5(2 + ((t.straightPowerMul - 0.8) / 0.4) * 3) },
-    { id: 'curve', label: 'CURVE', note: '曲がり', value: s5(2 + ((t.curveMul - 0.6) / 0.9) * 3) },
-    { id: 'catch', label: 'CATCH GUARD', note: 'DEF', value: s5(1 + (4 * (ch.def - 80)) / 45) },
-  ];
+  const s5 = (v) => clamp(Math.round((Number(v) || 0) / 20), 1, 5);
+  return STAT_KEYS.map((k) => ({ id: k, label: STAT_LABELS[k], value: s5(ch.stats?.[k]) }));
 }
 
 /**
@@ -29,9 +24,10 @@ export const DETAIL_SECTIONS = [
   {
     id: 'status',
     render: (ch) => {
-      const ratio = ch.nextExp ? clamp(ch.exp / ch.nextExp, 0, 1) : 1;
-      return `<div class="cd-stat"><span class="cd-lv">Lv.<b>${ch.level}</b></span><span>ATK <b>${ch.atk}</b></span><span>DEF <b>${ch.def}</b></span></div>
-        <div class="cd-exp"><span>EXP</span><div class="cd-expbar"><i style="transform:scaleX(${ratio})"></i></div><b>${ch.nextExp ? `${ch.exp} / ${ch.nextExp}` : 'MAX'}</b></div>`;
+      const ratio = ch.maxLevel ? 1 : ch.expNeed ? clamp(ch.expInto / ch.expNeed, 0, 1) : 0;
+      const st = ch.stats ?? {};
+      return `<div class="cd-stat"><span class="cd-lv">♡ AFFECTION Lv.<b>${ch.level}</b></span>${STAT_KEYS.map((k) => `<span>${STAT_LABELS[k].slice(0, 3)} <b>${st[k] ?? '-'}</b></span>`).join('')}</div>
+        <div class="cd-exp"><span>EXP</span><div class="cd-expbar"><i style="transform:scaleX(${ratio})"></i></div><b>${ch.maxLevel ? 'MAX' : `${ch.expInto ?? 0} / ${ch.expNeed ?? 0}`}</b></div>`;
     },
   },
   {

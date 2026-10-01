@@ -108,7 +108,7 @@ export class AffectionSystem {
   }
 
   /** 投球の当たり判定は通常どおり(回答エリアは Collider にしない)。止まった姿勢の判定用 Collider(全員で同じ結果)*/
-  throwColliders() { return this.g.boss.hitColliders; }
+  throwColliders() { return this.g.boss.hitPlane; }
 
   /**
    * 回答の1投が「絵のどこを通ったか」→ 回答エリア。

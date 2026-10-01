@@ -84,7 +84,7 @@ export class App {
     R.register('chars', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p, c) => { if (!same('chars', c)) M.showCharacterSelect(); } });
     R.register('game', { kind: KIND.FLOW, layer: null, battle: true, resetTo: 'stage', show: () => M.hide() });   // battle:インゲーム(下部メニュー非表示・バトル BGM)
     R.register('result', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showResult(p.res ?? g.lastResult) });
-    R.register('over', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showGameOver(p.stage ?? g.stage, p.stats ?? []) });
+    R.register('over', { kind: KIND.FLOW, layer: 'menu', opaque: true, show: (p) => M.showGameOver(p.stage ?? g.stage, p.stats ?? [], p.growth ?? []) });
   }
 
   showGameUnavailable() {

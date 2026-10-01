@@ -3,6 +3,7 @@ import { GameState } from '../core/StateMachine.js';
 import { Config } from '../core/Config.js';
 import { simulate } from '../physics/BallPhysics.js';
 import { heartMultiplier } from '../data/BattleCalc.js';
+import { abilityMul } from '../data/Growth.js';
 import { powerStrength } from '../controllers/ThrowController.js';
 
 /** PendingSpecialThrowData:指を離した瞬間の投球情報を複製して保存(POWER / AIM / SPIN / 初速 / カーブ) */
@@ -19,7 +20,7 @@ function freezeThrow(th) {
   };
 }
 
-const MISS_LABEL = { short: 'TOO WEAK', over: 'TOO HIGH', wide: 'WIDE' };
+const MISS_LABEL = { short: 'TOO WEAK', over: 'TOO HIGH', wide: 'WIDE', low: 'TOO LOW' };
 
 /**
  * PLAYER_ATTACK:画面下のボールを指で掴み → 追従 → 離した瞬間のフリックで投げる(ThrowController)
@@ -129,7 +130,7 @@ export class BallToBossState {
     const strength = special ? 1 : powerStrength(th.power);
 
     // 実際の飛行と同じ計算(練習用に軌道を残す/カメラの追従先)
-    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.hitColliders, 0.03, null, th.drive ?? null);
+    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.hitPlane, 0.03, null, th.drive ?? null);
     if (Config.debug.showLastTrajectory && Config.debug.showTrajectoryPreview) g.preview.showGhost(sim.points);
     else g.preview.hideGhost();
 
@@ -204,14 +205,16 @@ export class BossHitState {
     if (result.type === 'hit') {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
-      // HeartGain = BaseHeart(部位) × Attack(ATK) × Attribute × Rally × Energy × Special(球速・引っ張り量では変えない)
+      // HeartGain = BaseHeart(部位) × Attack(ATTACK) × Attribute × Rally × Energy × Special × Ability(球速・引っ張り量では変えない)
       const ch = g.turn.current.chara;
       const orbs = g.energy.throwCount;
       const bonusTable = Config.energy.throwBonus;
       const energyMul = bonusTable[Math.min(orbs, bonusTable.length - 1)];
       const sMul = special ? special.heartMul : 1;
+      // アビリティ(条件つき):投げた子のアビリティ × この投球の内容(引っ張り量・SPIN・球質・SPECIAL・FEVER・Energy)
+      const abilityHeart = abilityMul(ch?.abilities, 'heart', { pull: th.pull, throwSpin: th.throwSpin ?? th.spin, effects: th.effects, special: !!special, fever: g.fever.active, energy: orbs });
       const hm = heartMultiplier({
-        atk: ch?.atk ?? 50, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
+        attack: ch?.stats?.attack ?? 50, ability: abilityHeart, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
         rally: mul, energy: energyMul, special: sMul, fever: g.fever.heartMul,
         // 3D 空間:GATE CHAIN / BANK SHOT は「ボスに当たった時だけ」
         gate: Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)],

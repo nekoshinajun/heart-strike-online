@@ -1,6 +1,7 @@
 import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { applyBallEffects, throwFeel } from '../throw/BallEffects.js';
+import { abilityMul } from '../data/Growth.js';
 
 /**
  * 投球パラメータの計算。POWER / AIM / SPIN を分離して扱う。自動エイム・乱数なし。
@@ -25,7 +26,8 @@ export class CurveThrowCalculator {
     this.viewport = viewport;
     this.holdScreen = null;   // 構え位置の画面座標(AIMの起点)。PlayerController が設定
     // キャラクター(タイプ)による補正。入力(POWER/AIM/SPIN)とは独立に掛かる。手番ごとに差し替える
-    this.mods = { speedMul: 1, curveMul: 1 };
+    this.mods = { speedMul: 1, curveMul: 1, controlError: 0, abilities: [] };
+    this.rng = Math.random;   // CONTROL の誤差に使う乱数(テストでは差し替えられる)
   }
 
   /** カメラ基準の水平前方・右(右 = fwd × up = ワールド +X = 画面右) */
@@ -134,16 +136,29 @@ export class CurveThrowCalculator {
     const pull = THREE.MathUtils.clamp((power - m) / Math.max(1e-6, 1 - m), 0, 1);
     const feel = throwFeel(route ?? Config.throwRoute.default, pull);
     const fx = applyBallEffects(effects, throwSpin, feel);
+    // アビリティ(条件つき):カーブ / DRIVE の効き(例:PRE-SPIN を仕込んだカーブ ×1.15、DRIVE の沈み ×1.2)
+    const actx = { pull, throwSpin, effects };
+    const ab = this.mods.abilities ?? [];
     const lim = C.maxSpin * Math.max(1, Config.preSpin.sameDirMul) * 2;
-    const spin = THREE.MathUtils.clamp(fx.spin * feel.curveScale, -lim, lim);
+    const spin = THREE.MathUtils.clamp(fx.spin * feel.curveScale * abilityMul(ab, 'curve', actx), -lim, lim);
+    const driveSink = fx.driveSink * abilityMul(ab, 'drive', actx);
     // AIM(弦の向きと長さ)
     const aim = this.aimTarget(cx / len, cy / len, len);
-    const th = this.buildThrow(start, aim.world, power, spin, fx.driveSink);
+    // CONTROL:狙った点から小さくずれる(キャラの性能。半径 controlError の円の中。0 なら入力どおり)
+    //   ずれは初速に含まれるので、MULTI でも全員に同じ投球として届く
+    const ctl = Math.max(0, this.mods.controlError ?? 0);
+    const controlOffset = { x: 0, y: 0 };
+    if (ctl > 0) {
+      const r = ctl * Math.sqrt(this.rng()), t = this.rng() * Math.PI * 2;
+      controlOffset.x = r * Math.cos(t); controlOffset.y = r * Math.sin(t);
+      aim.world.x += controlOffset.x; aim.world.y += controlOffset.y;
+    }
+    const th = this.buildThrow(start, aim.world, power, spin, driveSink);
     return {
       ...th,
       power, spin, throwSpin, aim, pull, route: feel.route, feel,
       effects: (effects ?? []).map((e) => ({ ...e })),
-      driveSink: fx.driveSink,
+      driveSink, controlOffset, controlError: ctl,
       direction: th.velocity.clone().normalize(),
       curveStrength: Math.abs(spin) * C.shift * this.mods.curveMul,   // 最終的に適用された曲がり量(units)
       curveDir: spin > 0 ? 'right' : spin < 0 ? 'left' : 'straight',

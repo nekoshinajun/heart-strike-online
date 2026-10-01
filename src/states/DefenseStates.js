@@ -189,7 +189,7 @@ export class PlayerDefenseState {
     const g = this.g;
     this.result = r;
     if (g.online) g.ui.hideCatchNotice();
-    if (g.online && !g.online.isDown()) { const d=g.catchJudge.detail; const p=g.turn.current; const damage=Math.round(DefenseCalculator.penalty(r, this.plan.power, p.chara?.def ?? BattleTuning.defBase) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1)); g.online.sendCatch((d?.dt ?? 1) * 1000, r, damage); }
+    if (g.online && !g.online.isDown()) { const d=g.catchJudge.detail; const p=g.turn.current; const damage=Math.round(DefenseCalculator.penalty(r, this.plan.power, p.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1)); g.online.sendCatch((d?.dt ?? 1) * 1000, r, damage); }
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], g.catchJudge.describe());
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
@@ -229,7 +229,7 @@ export class PlayerDefenseState {
     const pos = g.ball.pos.clone();
     // Defense:判定ごとのペナルティを DEF で軽減(DefenseCalculator は差し替え可能)
     // 難易度:PERFECT は常に 0。GREAT / GOOD / MISS の被ダメージだけ DifficultyData.damageTaken 倍
-    const damageFor = (pl) => Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara?.def ?? BattleTuning.defBase) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
+    const damageFor = (pl) => Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
 
     if (r !== Judge.MISS) g.ui.tutorialDone('catch');
     if (r === Judge.PERFECT) {

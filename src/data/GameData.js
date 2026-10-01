@@ -43,7 +43,7 @@ export const TYPES = {
  */
 export const CHARACTERS = [
   {
-    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT', atk: 125, def: 90,
+    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT',
     art: { portrait: 'minamo', fullBody: 'minamo', specialCutIn: 'minamo', cutout: 'minamo_cut' },
     portraitFocus: { x: 0.48, y: 0.21, zoom: 3.0 },
     cutIn: { faceX: 0.47, faceY: 0.18, x: 0.5, y: 0.34, scale: 1.9, rot: -6 },
@@ -51,7 +51,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'hinoka', rank: 'SR', name: 'ヒノカ', attribute: 'FIRE', type: 'STRAIGHT', atk: 105, def: 110,
+    id: 'hinoka', rank: 'SR', name: 'ヒノカ', attribute: 'FIRE', type: 'STRAIGHT',
     art: { portrait: 'hinoka', fullBody: 'hinoka', specialCutIn: 'hinoka', cutout: 'hinoka_cut' },
     portraitFocus: { x: 0.45, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.43, faceY: 0.15, x: 0.5, y: 0.34, scale: 1.9, rot: 5 },
@@ -59,7 +59,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'raimu', rank: 'SSR', name: 'ライム', attribute: 'THUNDER', type: 'CURVE', atk: 100, def: 85,
+    id: 'raimu', rank: 'SSR', name: 'ライム', attribute: 'THUNDER', type: 'CURVE',
     art: { portrait: 'raimu', fullBody: 'raimu', specialCutIn: 'raimu', cutout: 'raimu_cut' },
     portraitFocus: { x: 0.55, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.17, x: 0.5, y: 0.34, scale: 1.9, rot: -5 },
@@ -67,7 +67,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'shizuku', rank: 'SR', name: 'シズク', attribute: 'WATER', type: 'CURVE', atk: 90, def: 120,
+    id: 'shizuku', rank: 'SR', name: 'シズク', attribute: 'WATER', type: 'CURVE',
     art: { portrait: 'shizuku', fullBody: 'shizuku', specialCutIn: 'shizuku', cutout: 'shizuku_cut' },
     portraitFocus: { x: 0.43, y: 0.23, zoom: 3.0 },
     cutIn: { faceX: 0.40, faceY: 0.2, x: 0.5, y: 0.34, scale: 1.9, rot: 4 },
@@ -75,7 +75,7 @@ export const CHARACTERS = [
     detail: { x: 0.52, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'akane', rank: 'R', name: 'アカネ', attribute: 'FIRE', type: 'CURVE', atk: 80, def: 80,
+    id: 'akane', rank: 'R', name: 'アカネ', attribute: 'FIRE', type: 'CURVE',
     art: { portrait: 'akane', fullBody: 'akane', specialCutIn: 'akane', cutout: 'akane_cut' },
     portraitFocus: { x: 0.53, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.52, faceY: 0.15, x: 0.5, y: 0.34, scale: 1.9, rot: -4 },
@@ -84,7 +84,7 @@ export const CHARACTERS = [
   },
   // ---- 追加キャラ(画像は未登録:art を空にしておくと仮のシルエットで表示。画像キーを入れるだけで差し替わる)----
   {
-    id: 'kohaku', rank: 'SR', name: 'コハク', attribute: 'THUNDER', type: 'STRAIGHT', atk: 112, def: 95,
+    id: 'kohaku', rank: 'SR', name: 'コハク', attribute: 'THUNDER', type: 'STRAIGHT',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: -4 },
@@ -92,7 +92,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'kagura', rank: 'SSR', name: 'カグラ', attribute: 'FIRE', type: 'CURVE', atk: 118, def: 88,
+    id: 'kagura', rank: 'SSR', name: 'カグラ', attribute: 'FIRE', type: 'CURVE',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: 5 },
@@ -100,7 +100,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'nagi', rank: 'R', name: 'ナギ', attribute: 'WATER', type: 'STRAIGHT', atk: 86, def: 108,
+    id: 'nagi', rank: 'R', name: 'ナギ', attribute: 'WATER', type: 'STRAIGHT',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: -3 },
@@ -152,16 +152,7 @@ export const STAGES = [
   },
 ];
 
-/**
- * 成長(★ 調整可)
- *   nextExp(level) … そのレベルから次へ必要な EXP
- *   growth         … 1レベルごとの上昇量
- */
-export const LEVELING = {
-  maxLevel: 50,
-  nextExp: (lv) => 100 + (lv - 1) * 50,
-  growth: { atk: 3, def: 2 },
-};
+// 成長(親密度 Lv・ステータス・アビリティ・STAMINA)は GrowthData.js
 
 export const characterById = (id) => CHARACTERS.find((c) => c.id === id);
 export const stageById = (id) => STAGES.find((s) => s.id === id);

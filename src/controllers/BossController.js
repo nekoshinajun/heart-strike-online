@@ -11,6 +11,94 @@ import { BossView2D } from '../boss/BossView2D.js';
  *   head / chest / stomach / rightArm / leftArm / rightLeg / leftLeg(左右はキャラクター自身の左右)
  * 位置・サイズは Config.colliderLayouts のデータで決まる(画像差し替え時はレイアウトを切り替えて調整)。
  */
+const _v = new THREE.Vector3(), _m = new THREE.Matrix4();
+
+/**
+ * ボスの命中判定 = 2D の「攻撃面」(Hit Plane)
+ *   ボス(2D のイラスト)の表示面を1枚の平面として扱い、ハートの軌道がその面を通った瞬間の X / Y で HIT / MISS と部位を確定する
+ *   → 画面で見て重なっていれば当たり。奥行き(厚み)による「奥へ飛びすぎて MISS」は無い。面を通った後に判定し直さない
+ *   部位:各部位の Collider を面に投影した形(円 / 回転した四角)に入っているか。複数なら中心に近い方
+ *   部位の間のすき間:イラストの不透明な部分(アルファ)なら HIT とし、いちばん近い部位にする(見た目でキャラに重なっているのに MISS にしない)
+ *   判定は止まった姿勢(hitRoot)で行うので、MULTI の全員で同じ結果になる
+ */
+class BossHitPlane {
+  constructor(boss) { this.boss = boss; this.isHitPlane = true; this.alphaCache = new WeakMap(); }
+  /** 攻撃面のワールド Z(止まった姿勢のイラストの面)*/
+  get z() { return this.boss.hitRoot.matrixWorld.elements[14]; }
+  /** 線分 prev → pos が面を通ったら、その点で判定 → result / null(まだ通っていない)*/
+  resolve(prev, pos) {
+    const z = this.z;
+    if (!(prev.z > z && pos.z <= z)) return null;
+    const k = (prev.z - z) / (prev.z - pos.z);
+    return this.judge(prev.clone().lerp(pos, k));
+  }
+  /** 面の上の点 P(ワールド)→ { type: 'hit', part, point, object } / MISS { type: 'wide' | 'over' | 'low', point } */
+  judge(P) {
+    const B = this.boss, local = B.hitRoot.worldToLocal(P.clone());
+    let best = null;
+    for (const c of B.hitColliders) {
+      const d = this.inside(c, local);
+      if (d != null && (!best || d < best.d)) best = { c, d };
+    }
+    if (!best && this.onSilhouette(local)) {
+      // 部位の間のすき間でも、イラストに重なっていれば HIT(いちばん近い部位)
+      for (const c of B.hitColliders) { const d = this.distance(c, local); if (!best || d < best.d) best = { c, d }; }
+    }
+    if (best) return { type: 'hit', part: best.c.userData.part, point: P.clone(), object: best.c };
+    // MISS:どちらへ外れたか(左右 / 上 / 下)
+    const bb = this.bounds();
+    const type = local.y > bb.maxY ? 'over' : local.y < bb.minY ? 'low' : 'wide';
+    return { type, point: P.clone() };
+  }
+  /** 面に投影した部位の形の中なら「中心からの近さ(0 = 中心 / 1 = 端)」、外なら null */
+  inside(c, p) {
+    const g = c.geometry.parameters, dx = p.x - c.position.x, dy = p.y - c.position.y;
+    if (g.radius != null) { const d = Math.hypot(dx, dy) / g.radius; return d <= 1 ? d : null; }
+    const r = -c.rotation.z, x = dx * Math.cos(r) - dy * Math.sin(r), y = dx * Math.sin(r) + dy * Math.cos(r);
+    const ax = Math.abs(x) / (g.width / 2), ay = Math.abs(y) / (g.height / 2);
+    return ax <= 1 && ay <= 1 ? Math.max(ax, ay) : null;
+  }
+  /** 部位の形の外側までの距離(すき間の HIT で、いちばん近い部位を選ぶ)*/
+  distance(c, p) {
+    const g = c.geometry.parameters, dx = p.x - c.position.x, dy = p.y - c.position.y;
+    if (g.radius != null) return Math.max(0, Math.hypot(dx, dy) - g.radius);
+    const r = -c.rotation.z, x = dx * Math.cos(r) - dy * Math.sin(r), y = dx * Math.sin(r) + dy * Math.cos(r);
+    return Math.hypot(Math.max(0, Math.abs(x) - g.width / 2), Math.max(0, Math.abs(y) - g.height / 2));
+  }
+  bounds() {
+    let minY = Infinity, maxY = -Infinity;
+    for (const c of this.boss.hitColliders) {
+      const g = c.geometry.parameters, e = g.radius ?? Math.max(g.width, g.height) / 2;
+      minY = Math.min(minY, c.position.y - e); maxY = Math.max(maxY, c.position.y + e);
+    }
+    return { minY, maxY };
+  }
+  /** イラストの不透明な部分か(画像のアルファ。イラストが無い / 読めない時は false = 部位の形だけで判定)*/
+  onSilhouette(p) {
+    const mesh = this.boss.view.imageMesh, img = mesh?.material?.map?.image;
+    if (!mesh || !img || !(img.width > 0)) return false;
+    let a = this.alphaCache.get(img);
+    if (!a) {
+      try {
+        const W = 160, H = Math.max(1, Math.round((W * img.height) / img.width));
+        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, W, H);
+        a = { W, H, data: cx.getImageData(0, 0, W, H).data };
+      } catch { a = { W: 0 }; }
+      this.alphaCache.set(img, a);
+    }
+    if (!a.W) return false;
+    // 体(colliderRoot と同じ座標)→ 板ポリのローカル(止まった姿勢では体の中の位置そのまま)
+    _m.copy(mesh.matrix).invert();
+    _v.set(p.x, p.y, 0).applyMatrix4(_m);
+    const g = mesh.geometry; g.computeBoundingBox();
+    const bb = g.boundingBox, u = (_v.x - bb.min.x) / (bb.max.x - bb.min.x), v = (_v.y - bb.min.y) / (bb.max.y - bb.min.y);
+    if (u < 0 || u > 1 || v < 0 || v > 1) return false;
+    const ix = Math.min(a.W - 1, Math.floor(u * a.W)), iy = Math.min(a.H - 1, Math.floor((1 - v) * a.H));
+    return a.data[(iy * a.W + ix) * 4 + 3] > 96;
+  }
+}
+
 export class BossController {
   constructor(scene) {
     this.maxHeart = Config.boss.maxHeart;   // ステージの Heart Capacity(GameManager.prepareStage が設定)
@@ -43,6 +131,7 @@ export class BossController {
     scene.add(this.hitRoot);
     this.hitColliders = [];
     this.hitMat = new THREE.MeshBasicMaterial({ visible: false });
+    this.hitPlane = new BossHitPlane(this);   // 投球の命中判定(2D の攻撃面)
     // 返球の発射点(胸の前。レイアウトに追従)
     this.spawnAnchor = new THREE.Object3D();
     this.view.anchors.body.add(this.spawnAnchor);
