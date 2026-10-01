@@ -51,7 +51,7 @@ const voiceDir = (heroineId) => `assets/voice/${heroineId}`;
 const attackVoices = (heroineId, files) => files.map((f, i) => ({ id: `${heroineId}_attack_${String(i + 1).padStart(2, '0')}`, src: `${voiceDir(heroineId)}/${f}`, text: null }));
 export const HEROINES = [
   {
-    id: 'lilith', stageId: 'stage01', cv: null, collab: null, playableCharacterId: null, profile: null, line: null,
+    id: 'lilith', roman: 'Lilith', stageId: 'stage01', cv: null, collab: null, playableCharacterId: null, profile: null, line: 'あなたのハート、ちゃんと届くかな？',
     attackVoices: attackVoices('lilith', ['riris_voice_01.mp3', 'riris_voice_02.mp3', 'riris_voice_03.mp3', 'riris_voice_04.mp3', 'riris_voice_05.mp3']),
     rewardVoices: {
       // ★ 仮設定(開発中の動作確認用):NORMAL クリアで ASMR1.mp3 を解放。本番では NORMAL 用の通常ボイスに差し替える
@@ -60,12 +60,8 @@ export const HEROINES = [
       HELL: null,   // 本番:{ id: 'lilith_hell', type: 'asmr', title, src, durationSec }
     },
   },
-  { id: 'siren', stageId: 'stage02', cv: null, collab: null, playableCharacterId: null, profile: null, line: null, attackVoices: [], rewardVoices: { NORMAL: null, HARD: null, HELL: null } },
-  {
-    id: 'milk', stageId: 'stage03', cv: null, collab: null, playableCharacterId: null, profile: null, line: null,
-    attackVoices: attackVoices('milk', ['milk_voice_01.mp3', 'milk_voice_02.mp3', 'milk_voice_03.mp3', 'milk_voice_04.mp3', 'milk_voice_05.mp3']),
-    rewardVoices: { NORMAL: null, HARD: null, HELL: null },
-  },
+  { id: 'siren', roman: 'Siren', stageId: 'stage02', cv: null, collab: null, playableCharacterId: null, profile: null, line: 'もっと、深く…知りたい…？', attackVoices: [], rewardVoices: { NORMAL: null, HARD: null, HELL: null } },
+  { id: 'milk', roman: 'Milk', stageId: 'stage03', cv: null, collab: null, playableCharacterId: null, profile: null, line: null, attackVoices: attackVoices('milk', ['milk_voice_01.mp3', 'milk_voice_02.mp3', 'milk_voice_03.mp3', 'milk_voice_04.mp3', 'milk_voice_05.mp3']), rewardVoices: { NORMAL: null, HARD: null, HELL: null } },
 ];
 
 /** その難易度の報酬ボイスの解放条件(その攻略対象のステージをその難易度でクリア)*/
