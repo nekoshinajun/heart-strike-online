@@ -176,8 +176,8 @@ export class UIManager {
     p.dataset.type = type;
     p.style.setProperty('--pc', playerColor);
     const text = {
-      flick: ['FLICK!', '下へ引く量で球速(浅い=よく曲がる・深い=まっすぐ)→ 上へ弾いて投げる'],
-      grab: ['THROW!', '下へ引くほど強く、上へ弾いた長さで高さ'],
+      flick: ['FLICK!', '下へ引く量で球速 → 上へ弾いて投げる'],
+      grab: ['THROW!', '浅く=よく曲がる・深く=まっすぐ／弾く長さで高さ'],
       catch: ['CATCH!', 'リングが重なる瞬間にタップ'],
     }[type];
     this.el.promptMain.textContent = text[0];

@@ -23,7 +23,7 @@ export class OpeningState {
     this.step = 0;
     this.started = false;
     g.ui.showPrompt(null);
-    g.ball.hold(g.player.holdAnchor);
+    g.ball.hide();   // 紹介中はハートを出さない(カメラを寄せるので手前に大きく映る)。BATTLE START で構える
     g.cam.reset();
     const st = g.stage, h = heroineByStage(st?.id), D = difficultyData(g.difficulty);
     const profile = h?.profile ?? st?.concept ?? null;
@@ -56,6 +56,7 @@ export class OpeningState {
     if (t >= this.fadeAt + O.fadeSec && !this.started) {
       this.started = true;
       el.hidden = true;
+      g.ball.hold(g.player.holdAnchor);
       g.ui.showTurn(g.turn.current, 'BATTLE START');
     }
     if (t >= this.total) g.sm.change(GameState.PLAYER_ATTACK);
