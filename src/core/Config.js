@@ -186,6 +186,28 @@ export const Config = {
     rampTime: 0.001,       // 横力の立ち上がり(0に近いほど解析どおりの軌道)
   },
 
+  // ---- 投球前のカーブ入力:固定したハートの周りを指で回す(src/throw/RotationCurve.js)----
+  //   ハートは動かない。ハートの周り(ringRadius の内側)を回す → カーブ / 下へ外へ引く → 球速 / 上へ外へ弾いて離す → 投球(狙い)
+  //   時計回り = 右カーブ・反時計回り = 左カーブ。回した角度で弱 → 強(1周しなくてよい)。CURVE / CONTROL ステータスとの連動はそのまま
+  throwInput: {
+    curveMode: 'rotate',     // 'rotate'(円運動)| 'flick'(旧:弾いた軌跡の形でカーブ)
+    rotate: {
+      minRadius: 0.35,       // ★ ハート中心からこの距離(ハートの画面半径に対する比)未満の点は角度を取らない(中心のぶれで回転しない)
+      ringRadius: 1.9,       // ★ この内側で回す = カーブ。外へ出たら引く(下)/ 弾く(上)
+      deadDeg: 10,           // ★ これ未満の回転はストレート
+      fullDeg: 240,          // ★ この回転で最大のカーブ(1周しなくてよい)
+      exponent: 0.8,         // ★ 回転量 → カーブ量の伸び方(1 = 比例。小さいほど少しの回転でもよく曲がる)
+      maxDeg: 540,           // 累積の上限
+      maxStepDeg: 120,       // 1サンプルでこれ以上の角度差は数えない(中心をまたいだ時の飛び)
+      noiseDeg: 0.4,         // これ未満の角度差は回転として扱わない(指の震え)
+      straightRatio: 0.08,   // 引き始め / 弾き始めの直前の「まっすぐな動き」の判定(直線からのずれ ÷ 区間の長さ)。円弧はこれより大きい
+      straightMinLen: 1.0,   // この長さ(ハート半径比)以上のまっすぐな動きの間に増えた回転は取り消す
+      decaySec: 2.0,         // ★ 回転を止めてからこの秒数でストレートへ戻る(その間に回せばリセット)
+      maxSpin: 1.0,          // カーブ入力 1 のときの SPIN(Config.curve.maxSpin と同じ尺度)
+      heartRollMul: 1.0,     // ハートの見た目の回転(指の回転角 × この値)
+    },
+  },
+
   // ---- 投球ルート(★ 今はプレイヤーの操作に出さない:基本操作は「狙う・引く・投げる」だけ)----
   //   球速と直進性は下へ引く量だけで連続的に変わる(浅い = 曲がりやすい CURVE 寄り / 深い = まっすぐ DIRECT 寄り)
   //   DIRECT / CURVE のデータは将来の拡張用に残す(選択 UI は無い)
@@ -542,6 +564,37 @@ export const Config = {
 
   // ---- ボス返球 ----
   // 返球プロファイル:攻撃モーション無しでもボスごとの個性を出すためのデータ
+  // ---- 敵の攻撃(返球の球種)。難易度差は「全体を速くする」のではなく、攻撃の種類・組み合わせ・変化量で作る ----
+  //   各攻撃:type / curve / speed / speedChange / changeTiming / feint / tell / weight{ NORMAL, HARD, HELL }(src/return/AttackMotion.js)
+  //   敵ごとの個性は bossProfiles[].attackStyle(倍率)/ attacks(その敵だけの攻撃)。★ 数値はすべて仮(バランス調整用)
+  enemyAttacks: {
+    samples: 120,           // 動きの計算の細かさ
+    // 途中の変化の演出(色・粒・表示・音)。加速 / 減速 / 曲がり始め / フェイントで止まる・再び来る
+    fx: {
+      speedUp:   { color: '#ffd23e', count: 16, speed: 7, life: 0.4, boost: 0.8, sound: 'incoming' },
+      speedDown: { color: '#7cc8ff', count: 12, speed: 4, life: 0.5, boost: 0.4 },
+      lateCurve: { color: '#3ee8ff', count: 14, speed: 6, life: 0.35, boost: 0.5 },
+      feintStop: { color: '#b07cff', count: 18, speed: 5, life: 0.5, boost: 1, label: '!?' },
+      feintGo:   { color: '#ff5fa2', count: 18, speed: 8, life: 0.4, boost: 1, shockwave: 2, sound: 'bossSwing' },
+    },
+    speedBlend: 0.1,        // 速度変化のなめらかさ(進み具合の幅)。瞬間的に速さが変わらない(瞬間移動に見えない)
+    screenMargin: 0.1,      // 返球の軌道は画面の端からこの割合より内側(はみ出す曲がり方は逆側へ / 小さく)。ボスへ寄ったカメラが戻る途中の分も見込む
+    patterns: {
+      // NORMAL「敵の攻撃を覚える」:STRAIGHT 中心・CURVE 少なめ・弱い SPEED CHANGE
+      STRAIGHT:          { type: 'STRAIGHT', label: 'STRAIGHT', curve: 0, speed: 1, weight: { NORMAL: 72, HARD: 24, HELL: 8 } },
+      CURVE:             { type: 'CURVE', label: 'CURVE', curve: 2.4, speed: 1, weight: { NORMAL: 18, HARD: 22, HELL: 12 } },
+      SPEED_SOFT:        { type: 'SPEED_CHANGE', label: 'SPEED UP', speedChange: 1.35, changeTiming: 0.5, weight: { NORMAL: 10 } },
+      // HARD「軌道を見て判断する」:CURVE / SPEED CHANGE / LATE CURVE を混ぜる
+      SPEED_UP:          { type: 'SPEED_CHANGE', label: 'SPEED UP', speedChange: 1.9, changeTiming: 0.45, weight: { HARD: 14, HELL: 9 } },
+      SPEED_DOWN:        { type: 'SPEED_CHANGE', label: 'SLOW DOWN', speedChange: 0.6, changeTiming: 0.5, weight: { HARD: 10, HELL: 8 } },
+      LATE_CURVE:        { type: 'LATE_CURVE', label: 'LATE CURVE', curve: 2.2, changeTiming: 0.6, weight: { HARD: 18, HELL: 9 } },
+      // HELL「敵の攻撃を見切る」:FEINT・強い LATE CURVE・SPEED CHANGE との組み合わせ
+      LATE_CURVE_STRONG: { type: 'LATE_CURVE', label: 'LATE CURVE+', curve: 3.4, changeTiming: 0.68, weight: { HELL: 12 } },
+      LATE_CURVE_SPEED:  { type: 'LATE_CURVE', label: 'LATE CURVE × SPEED', curve: 2.8, changeTiming: 0.62, speedChange: 1.6, weight: { HELL: 12 } },
+      FEINT:             { type: 'FEINT', label: 'FEINT', feint: { at: 0.3, pause: 0.38, shake: 0.12 }, tell: { color: '#b07cff', label: '!?', chargeKicks: 2 }, weight: { HELL: 15 } },
+      FEINT_CURVE:       { type: 'FEINT', label: 'FEINT CURVE', curve: 2.0, feint: { at: 0.28, pause: 0.32, shake: 0.12 }, tell: { color: '#b07cff', label: '!?', chargeKicks: 2 }, weight: { HELL: 10 } },
+    },
+  },
   bossProfiles: {
     lulu: {
       returnSpeed: 1.0,     // ★ 返球速度倍率
@@ -549,7 +602,8 @@ export const Config = {
       returnAccuracy: 1.0,  // 1=マーカー通りに着弾 / 小さいほど着弾がマーカーからズレる
       catchAreaSize: 1.0,   // ★ CatchableArea の広さ倍率
       randomness: 1.0,      // 1=完全ランダム / 0=3x3グリッドを順に巡回
-      curveChance: 0.0,     // ★ 返球がカーブする確率(0〜1)
+      // 攻撃の個性:Config.enemyAttacks の出やすさに掛ける倍率({ 攻撃 ID または type: 倍率 })。attacks で敵だけの攻撃を足せる
+      attackStyle: {},
       // 投球ごとに出す Energy ルートの組み合わせ(順番に巡回)。ボスごとに変更できる
       energyArrangements: [
         ['center', 'curveRtoL', 'high'],
@@ -561,7 +615,8 @@ export const Config = {
     },
     // STAGE 01 リリス(FIRE / CURVE):標準。たまにカーブ返球
     lilith: {
-      returnSpeed: 1.0, returnPower: 20, returnAccuracy: 1.0, catchAreaSize: 1.0, randomness: 1.0, curveChance: 0.15,
+      returnSpeed: 1.0, returnPower: 20, returnAccuracy: 1.0, catchAreaSize: 1.0, randomness: 1.0,
+      attackStyle: { CURVE: 1.3, LATE_CURVE: 1.2 },   // ★ 仮:カーブ寄り(以前のカーブ返球 15% の名残)
       energyArrangements: [
         ['center', 'curveRtoL', 'high'],
         ['center', 'curveLtoR', 'low'],
@@ -572,7 +627,8 @@ export const Config = {
     },
     // STAGE 02 セイレーン(WATER / STRAIGHT):返球が少し速い・まっすぐ
     siren: {
-      returnSpeed: 1.15, returnPower: 22, returnAccuracy: 1.0, catchAreaSize: 1.05, randomness: 1.0, curveChance: 0.0,
+      returnSpeed: 1.15, returnPower: 22, returnAccuracy: 1.0, catchAreaSize: 1.05, randomness: 1.0,
+      attackStyle: { STRAIGHT: 1.3, SPEED_CHANGE: 1.3, CURVE: 0.6 },   // ★ 仮:まっすぐ + 速度変化寄り
       energyArrangements: [
         ['center', 'high', 'low'],
         ['left', 'curveLtoR', 'center'],
