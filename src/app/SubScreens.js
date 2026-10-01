@@ -280,7 +280,7 @@ export class AppScreens {
         <div class="hc-list">${HEROINES.map((h) => {
           const st = stageById(h.stageId);
           return `<button type="button" class="hc-card" data-heroine="${h.id}">
-            <span class="hc-art" style="background-image:url('${this.app.bossThumb(st)}')"></span>
+            <span class="hc-art" style="background-image:url('${this.app.bossThumb(st)}');${this.app.bossFocus(st)}"></span>
             <span class="hc-main"><small>STAGE ${st.no}</small><b>${esc(st.boss.name)}</b>${clearChips(this.p, st.id, Config.difficultyOrder)}${voiceStatus(this.p, h)}</span>
           </button>`;
         }).join('')}</div>`;
@@ -309,7 +309,7 @@ export class AppScreens {
       </li>`;
     };
     this.body.innerHTML = `
-      <section class="hr-hero" style="background-image:url('${this.app.bossThumb(st)}')">
+      <section class="hr-hero" style="background-image:url('${this.app.bossThumb(st)}');${this.app.bossFocus(st)}">
         <div class="hr-tags">${roleTag('heroine')}</div>
         <div class="hr-name"><small>STAGE ${st.no} ・ ${esc(st.name)}</small><b>${esc(st.boss.name)}</b>${h.cv ? `<span>CV ${esc(h.cv)}</span>` : ''}</div>
       </section>

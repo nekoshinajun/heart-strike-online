@@ -61,6 +61,17 @@ export const Config = {
       rightLeg: { shape: "box", x: -1.72, y: 6.4, z: 0.3, w: 2.23, h: 7.73, d: 1.6, rot: -23 },
       leftLeg: { shape: "box", x: 1.15, y: 5.58, z: 0.3, w: 1.99, h: 6.56, d: 1.6, rot: 14 },
     },
+    // みるく(寝そべりポーズ・正方形 1024x1024 を高さ12で表示・y +7.6 = 顔がリリスと同じ高さ。画像の下端はフェード)
+    //   手前の腕・猫の手・腰・しっぽ。画像の割合 (u, v) → x = (u - 0.5) × 12 / y = (1 - v) × 12 + 7.6
+    milk: {
+      head:     { shape: 'sphere', x: -0.84, y: 14.32, z: 0.3, r: 1.73 },
+      chest:    { shape: 'box', x: 0.36,  y: 10.84, z: 0.3, w: 2.76, h: 2.04, d: 1.6, rot: 0 },
+      stomach:  { shape: 'box', x: 0.84,  y: 9.4,   z: 0.3, w: 1.92, h: 1.2, d: 1.6, rot: 0 },
+      rightArm: { shape: 'box', x: -3.0,  y: 11.2,  z: 0.3, w: 2.64, h: 3.6, d: 1.6, rot: 0 },
+      leftArm:  { shape: 'box', x: 3.36,  y: 8.92,  z: 0.3, w: 4.32, h: 1.92, d: 1.6, rot: 12 },
+      rightLeg: { shape: 'box', x: 4.68,  y: 12.16, z: 0.3, w: 2.04, h: 2.4, d: 1.6, rot: 0 },
+      leftLeg:  { shape: 'box', x: 4.8,   y: 16.0,  z: 0.3, w: 1.68, h: 3.6, d: 1.6, rot: 0 },
+    },
     // 内蔵の仮イラスト(立ち姿)
     lulu: {
       head:     { shape: 'sphere', x: 0,     y: 15.5,  z: 0.3, r: 1.75 },
@@ -85,6 +96,7 @@ export const Config = {
   // 画像ボスの表示サイズ(★ レイアウトごと。高さ=ワールド単位、y=上下オフセット)
   bossImage: {
     demon: { height: 18, y: 0 },
+    milk: { height: 12, y: 7.6 },
     image: { height: 19, y: 0 },
   },
   partHeart: {

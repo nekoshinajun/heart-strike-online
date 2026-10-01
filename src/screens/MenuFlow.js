@@ -8,7 +8,7 @@ import { CAPTURE_SUPPORT_ITEMS, heroineByStage, heroineById, giftById, giftIcon,
 import { STAT_LABELS } from '../data/GrowthData.js';
 import { roleTag, rewardLabel } from '../app/Roles.js';
 import { shopOfStage, castsOf } from '../data/ShopData.js';
-import { showShopMap, showShop, capTop, castArt, castLine } from './CaptureScreens.js';
+import { showShopMap, showShop, capTop, castArt, castArtData, faceCrop, castLine } from './CaptureScreens.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
 const LONG_PRESS_MOVE = 10;  // これ以上指が動いたら長押しをやめる(スクロールを邪魔しない)
@@ -218,7 +218,7 @@ export class MenuFlow {
     this.body.innerHTML = `
       <div class="sg" style="--boss:url('${bossArt(selected)}')">
         <div class="sg-bg"></div>
-        <img class="sg-art" src="${bossArt(selected)}" alt="${esc(selected.boss.name)}">
+        <img class="sg-art" src="${bossArt(selected)}" alt="${esc(selected.boss.name)}" style="--ax:${castArtData(selected).stage.x * 100}%;--ah:${castArtData(selected).stage.h}">
         <div class="sg-fx" aria-hidden="true"><i></i><i></i><i></i></div>
         ${capTop(true)}
         <div class="sg-modes" role="tablist">
@@ -237,7 +237,7 @@ export class MenuFlow {
           <p class="sg-note" hidden></p>
         </section>
         <button type="button" class="capture-start sg-start" data-act="start"><span class="h">♡</span><span class="t"><b>挑戦する</b><small>START</small></span><em class="sub"></em></button>
-        <div class="sg-strip cast-strip">${mates.map((s) => `<button type="button" class="cast-tab${s === selected ? ' sel' : ''}" data-act="stage" data-id="${s.id}" style="background-image:url('${bossArt(s)}')"><i>${String(s.no).padStart(2, '0')}</i><span>${esc(s.boss.name)}</span>${status(s)}</button>`).join('')}${soon.map((no) => `<button type="button" class="cast-tab locked" disabled><i>${String(no).padStart(2, '0')}</i><b class="lk" aria-hidden="true"></b><span>???</span><em class="st lock">LOCK</em></button>`).join('')}</div>
+        <div class="sg-strip cast-strip">${mates.map((s) => `<button type="button" class="cast-tab face-crop${s === selected ? ' sel' : ''}" data-act="stage" data-id="${s.id}">${faceCrop(s)}<i>${String(s.no).padStart(2, '0')}</i><span>${esc(s.boss.name)}</span>${status(s)}</button>`).join('')}${soon.map((no) => `<button type="button" class="cast-tab locked" disabled><i>${String(no).padStart(2, '0')}</i><b class="lk" aria-hidden="true"></b><span>???</span><em class="st lock">LOCK</em></button>`).join('')}</div>
         ${support}
       </div>`;
     for (const b of this.body.querySelectorAll('[data-mode]')) b.addEventListener('click', () => this.setPlayMode(b.dataset.mode));
@@ -247,7 +247,9 @@ export class MenuFlow {
     this.body.querySelector('[data-act="start"]')?.addEventListener('click', () => this.startStage());
     this.setPlayMode(this.playMode, { quiet: true });
     this.selectDiff(this.diff, { quiet: true });
-    this.body.querySelector('.cast-tab.sel')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
+    // 選んだキャストを一覧の中央へ(scrollIntoView は画面全体まで動かすので、一覧だけをスクロール)
+    const strip = this.body.querySelector('.sg-strip'), tab = strip?.querySelector('.cast-tab.sel');
+    if (strip && tab) strip.scrollLeft = tab.offsetLeft - (strip.clientWidth - tab.offsetWidth) / 2;
     this.focus(this.body.querySelector('.sg-start'));
   }
 

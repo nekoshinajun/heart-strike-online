@@ -183,7 +183,7 @@ export class GameManager {
   }
   useLayout(name) {
     if (name === 'lulu') return this.useBuiltinBoss();
-    if (name === 'demon') return this.loadBundledImage('demon');
+    if (BOSS_IMAGES[name]) return this.loadBundledImage(name);
   }
   /** 同梱画像(data URI)を読み込んでボスにする */
   loadBundledImage(name) {

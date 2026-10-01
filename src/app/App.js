@@ -1,6 +1,7 @@
 import { Config } from '../core/Config.js';
 import { STAGES, characterById } from '../data/GameData.js';
 import { shopOfStage } from '../data/ShopData.js';
+import { castArtData } from '../screens/CaptureScreens.js';
 import { artUrl } from '../data/CharacterArt.js';
 import '../data/CharacterVoice.js';
 import { PlayerProgress } from '../data/PlayerProgress.js';
@@ -173,6 +174,8 @@ export class App {
   }
 
   bossThumb(stage) { return BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? ''; }
+  /** サムネイルを顔に合わせる CSS 変数(GameData の boss.art.face)*/
+  bossFocus(stage) { const f = castArtData(stage).face; return `--fu:${f.u};--fv:${f.v}`; }
 
   toast(text) {
     const t = this.toastEl;

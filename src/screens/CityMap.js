@@ -396,7 +396,7 @@ export class CityMap {
     this.markers.innerHTML = this.shops.map((s) => {
       const geo = this.shopGeo.get(s.id), open = this.isOpen(s);
       return `<button type="button" class="cm-pin ${s.map.label === 'right' ? 'r' : 'l'}${open ? '' : ' locked'}" data-shop="${s.id}" style="left:${geo.x}px;top:${geo.top}px;--ac:${s.theme.accent};--gl:${s.theme.glow}">
-        <span class="cm-face" style="${this.portraitStyle?.(s) ?? ''}">${open ? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
+        <span class="cm-face face-crop">${open ? this.portrait?.(s) ?? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
         <span class="cm-plate"><b>${s.name}</b><small>${s.ja}</small></span>${s.badge ? `<em class="cm-new">${s.badge}</em>` : ''}<i class="cm-heart" aria-hidden="true">♥</i></button>`;
     }).join('');
     this.pins = [...this.markers.querySelectorAll('[data-shop]')];

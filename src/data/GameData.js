@@ -119,6 +119,8 @@ export const DEFAULT_PARTY = ['minamo', 'hinoka', 'raimu', 'shizuku'];
 /**
  * ステージ(StageData)
  *   boss.image … 同梱画像キー(assets/bossImages.js)/ boss.layout … 当たり判定レイアウト
+ *   boss.art   … 画像の見せ方(省略時はリリスの画像と同じ構図):face = 顔の位置と幅(画像の割合 u / v / w。カードやアイコンは顔を中心に切り抜く)
+ *                stage = 攻略画面の立ち絵(x = 横位置 translateX の割合 / h = 高さの倍率)
  *   boss.profile … 返球プロファイル(Config.bossProfiles)
  *   boss.affection … 好感度の表情・会話イベントの設定(data/BossAffection.js のキー)
  *   space … 3D 空間の特徴:patterns(使う RoutePattern。重複で出やすさ)/ energyDensity / gateCount / obstacleCount / obstacleSpeed
@@ -142,8 +144,9 @@ export const STAGES = [
   },
   {
     id: 'stage03', no: '03', name: '甘い夜のおねだり',
-    // 添付イラストを正式素材化するまでは stage03 専用画像キーを使用（未登録時は安全にフォールバック）
-    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 18000 },
+    // 専用イラスト(assets/boss_milk.webp)・専用の当たり判定(colliderLayouts.milk)・専用の表情位置(BossAffection.milk)
+    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 18000,
+      art: { face: { u: 0.43, v: 0.43, w: 0.3 }, stage: { x: -0.24, h: 0.74 } } },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
     concept: '甘え上手な猫系の女の子。きらめくプレミアムコンカフェを舞台に、ハートを届けて口説き落とす。',
     line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)

@@ -11,6 +11,14 @@ import { CityMap } from './CityMap.js';
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const phrase = (s) => esc(s).replace(/([、。！？!?…—]+\s*)/g, '$1<wbr>');
 export const castArt = (stage) => BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? '';
+/** 画像の見せ方(GameData の boss.art。省略時はリリスの画像の構図)*/
+const ART_DEFAULT = { face: { u: 0.545, v: 0.2, w: 0.14 }, stage: { x: -0.4, h: 1 } };
+export const castArtData = (stage) => ({ face: { ...ART_DEFAULT.face, ...stage.boss.art?.face }, stage: { ...ART_DEFAULT.stage, ...stage.boss.art?.stage } });
+/** 顔を中心に切り抜く画像(親の .face-crop の中で、CSS 変数 --bx / --by / --fpx の位置・大きさに顔を合わせる)*/
+export function faceCrop(stage) {
+  const f = castArtData(stage).face;
+  return `<img class="face-img" src="${castArt(stage)}" alt="" style="--fu:${f.u};--fv:${f.v};--fw:${f.w}" draggable="false">`;
+}
 export const castLine = (heroine, stage) => heroine?.line ?? stage?.line ?? 'あなたのハート、ちゃんと届くかな？';
 /** 画面上部:戻る + ロゴ */
 export const capTop = (back) => `<div class="cap-top">${back ? '<button type="button" class="cap-back" data-act="back" aria-label="戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5 7.5 12l7 7"/></svg></button>' : ''}<div class="cap-logo"><i>♡</i>HEART STRIKE</div></div>`;
@@ -30,7 +38,7 @@ export function showShopMap(m, { shopId } = {}) {
     </div>`;
   if (!m.city) {
     m.city = new CityMap({ shops: SHOPS, isOpen, reduced: reducedMotion(), onSelect: (id) => { m.shopSel = id; renderShopCard(m); m.g.audio?.tick?.(); }, onEnter: (id) => enterShop(m, id) });
-    m.city.portraitStyle = (s) => { const c = castsOf(s)[0]; return c ? `background-image:url('${castArt(c.stage)}')` : ''; };
+    m.city.portrait = (s) => { const c = castsOf(s)[0]; return c ? faceCrop(c.stage) : ''; };
     m.city.renderMarkers();
     // 看板の筆記体フォントがまだなら、読み込めたら街を描き直す
     const font = '12px "Great Vibes"';
@@ -83,26 +91,26 @@ export function showShop(m, { shopId } = {}) {
   m.frame('shop', s.name, s.ja);
   const I = s.theme.interior;
   m.body.innerHTML = `
-    <div class="sh" style="--ac:${s.theme.accent};--gl:${s.theme.glow};--w1:${I.wall};--w2:${I.wall2};--cu:${I.curtain};--li:${I.light};--sg:${I.sign}">
-      <div class="sh-hero">
-        <div class="sh-room" aria-hidden="true">
-          <i class="sh-arch a1"></i><i class="sh-arch a2"></i><i class="sh-arch a3"></i>
-          <i class="sh-curtain l"></i><i class="sh-curtain r"></i>
+    <div class="shp" style="--ac:${s.theme.accent};--gl:${s.theme.glow};--w1:${I.wall};--w2:${I.wall2};--cu:${I.curtain};--li:${I.light};--sg:${I.sign}">
+      <div class="shp-hero">
+        <div class="shp-room" aria-hidden="true">
+          <i class="shp-arch a1"></i><i class="shp-arch a2"></i><i class="shp-arch a3"></i>
+          <i class="shp-curtain l"></i><i class="shp-curtain r"></i>
           ${chandelier()}
-          <span class="sh-neon">${esc(s.name)}</span>
-          <i class="sh-floor"></i>
-          <i class="sh-table t1"></i><i class="sh-table t2"></i><i class="sh-table t3"></i>
-          <i class="sh-bokeh"></i>
+          <span class="shp-neon">${esc(s.name)}</span>
+          <i class="shp-floor"></i>
+          <i class="shp-table t1"></i><i class="shp-table t2"></i><i class="shp-table t3"></i>
+          <i class="shp-bokeh"></i>
         </div>
         ${capTop(true)}
-        <div class="sh-title">
+        <div class="shp-title">
           <h1><b class="script">${esc(s.name)}</b><span>${esc(s.ja)}</span></h1>
           <p>${phrase(s.tagline)}</p>
-          <button type="button" class="sh-detail" data-act="detail">お店の詳細<i>›</i></button>
+          <button type="button" class="shp-detail" data-act="detail">お店の詳細<i>›</i></button>
         </div>
       </div>
-      <nav class="sh-filters" role="tablist">${FILTERS.map(([id, label, ic]) => `<button type="button" role="tab" data-filter="${id}"><i>${ic}</i>${label}</button>`).join('')}</nav>
-      <div class="sh-list"></div>
+      <nav class="shp-filters" role="tablist">${FILTERS.map(([id, label, ic]) => `<button type="button" role="tab" data-filter="${id}"><i>${ic}</i>${label}</button>`).join('')}</nav>
+      <div class="shp-list"></div>
     </div>`;
   m.body.querySelector('[data-act="back"]').addEventListener('click', () => m.router.back());
   m.body.querySelector('[data-act="detail"]').addEventListener('click', () => openShopDetail(m, s));
@@ -124,14 +132,14 @@ function renderCasts(m, s) {
     ...casts.filter((c) => filter === 'all' || filter === 'open' || (filter === 'clear' && c.st.some((x) => x.clear))),
     ...(filter === 'all' || filter === 'locked' ? soon : []),
   ];
-  const list = m.body.querySelector('.sh-list');
-  list.innerHTML = show.length ? show.map((c, k) => (c ? castCard(c, k) : soonCard(k))).join('') : '<p class="sh-empty">まだいません</p>';
+  const list = m.body.querySelector('.shp-list');
+  list.innerHTML = show.length ? show.map((c, k) => (c ? castCard(c, k) : soonCard(k))).join('') : '<p class="shp-empty">まだいません</p>';
   for (const b of list.querySelectorAll('[data-stage]')) b.addEventListener('click', () => m.router.go('cast', { stageId: b.dataset.stage }));
 }
 
 function castCard({ heroine, stage, st }, k) {
   return `<button type="button" class="cc" data-cast="${esc(heroine.id)}" data-stage="${esc(stage.id)}" style="--i:${k}">
-    <span class="cc-art" style="background-image:url('${castArt(stage)}')"><i class="cc-heart" aria-hidden="true">♥</i></span>
+    <span class="cc-art face-crop">${faceCrop(stage)}<i class="cc-heart" aria-hidden="true">♥</i></span>
     <span class="cc-body">
       <span class="cc-name"><b>${esc(stage.boss.name)}</b>${heroine.roman ? `<em class="script">${esc(heroine.roman)}</em>` : ''}</span>
       <p>${phrase(`「${castLine(heroine, stage)}」`)}</p>
@@ -149,8 +157,8 @@ function soonCard(k) {
 function openShopDetail(m, s) {
   const pr = shopProgress(m.progress, s, Config.difficultyOrder);
   const el = document.createElement('div');
-  el.className = 'sh-pop';
-  el.innerHTML = `<div class="sh-popbox" role="dialog" aria-modal="true" style="--ac:${s.theme.accent}">
+  el.className = 'shp-pop';
+  el.innerHTML = `<div class="shp-popbox" role="dialog" aria-modal="true" style="--ac:${s.theme.accent}">
     <header><b class="script">${esc(s.name)}</b><span>${esc(s.ja)}</span></header>
     <p>${phrase(s.detail ?? s.intro)}</p>
     <dl><div><dt>キャスト</dt><dd>${pr.total}人${s.soonSlots ? `<small> + 近日 ${s.soonSlots}</small>` : ''}</dd></div><div><dt>攻略</dt><dd>${pr.cleared} / ${pr.total}</dd></div><div><dt>難易度クリア</dt><dd>♥ ${pr.marks} / ${pr.maxMarks}</dd></div></dl>
@@ -168,5 +176,5 @@ function chandelier() {
     return `<path d="M100 58 Q${100 + k * 12} ${84} ${x} ${y}" /><rect x="${x - 2}" y="${y - 10}" width="4" height="10" rx="1"/><circle class="fl" cx="${x}" cy="${y - 13}" r="3.2"/>${[0, 1, 2].map((j) => `<path class="cr" d="M${x - 3 + j * 3} ${y + 4 + j * 2} l2 4 l-2 4 l-2 -4z"/>`).join('')}`;
   }).join('');
   const drops = Array.from({ length: 9 }, (_, i) => { const x = 64 + i * 9, y = 86 + Math.sin((i / 8) * Math.PI) * 10; return `<path class="cr" d="M${x} ${y} l2.5 5 l-2.5 5 l-2.5 -5z"/>`; }).join('');
-  return `<svg class="sh-chand" viewBox="0 0 200 120" aria-hidden="true"><line x1="100" y1="0" x2="100" y2="40"/><ellipse cx="100" cy="44" rx="14" ry="5"/><path d="M86 46 Q100 70 114 46"/>${arms}${drops}<ellipse class="glow" cx="100" cy="70" rx="80" ry="34"/></svg>`;
+  return `<svg class="shp-chand" viewBox="0 0 200 120" aria-hidden="true"><line x1="100" y1="0" x2="100" y2="40"/><ellipse cx="100" cy="44" rx="14" ry="5"/><path d="M86 46 Q100 70 114 46"/>${arms}${drops}<ellipse class="glow" cx="100" cy="70" rx="80" ry="34"/></svg>`;
 }

@@ -30,6 +30,20 @@ const DEMON_FACE = {
   size: 0.055,          // 頬の赤みの大きさ(画像幅の割合)
 };
 
+// みるく(寝そべりポーズ・正方形の画像)
+const MILK_LAYOUT_ZONES = {
+  hair: [{ u: 0.12, v: 0.45, w: 0.14, h: 0.3 }, { u: 0.56, v: 0.12, w: 0.12, h: 0.12 }],
+  face: [{ u: 0.43, v: 0.45, w: 0.3, h: 0.22 }],
+  hand: [{ u: 0.25, v: 0.62, w: 0.14, h: 0.12 }],
+  outfit: [{ u: 0.515, v: 0.6, w: 0.09, h: 0.07 }, { u: 0.56, v: 0.22, w: 0.08, h: 0.07 }],
+};
+const MILK_FACE = {
+  cheeks: [[0.35, 0.51], [0.54, 0.47]],
+  eyes: [[0.335, 0.43], [0.51, 0.37]],
+  sweat: [0.6, 0.3],
+  size: 0.07,
+};
+
 export const BOSS_AFFECTION = {
   lilith: {
     name: 'リリス',
@@ -88,6 +102,35 @@ export const BOSS_AFFECTION = {
       },
     ],
     loveMax: { line: '……あなたのためだけに、歌ってあげる♡' },
+  },
+  milk: {
+    name: 'みるく',
+    stages: [
+      { min: 0, id: 'normal', blush: 0 },
+      { min: 25, id: 'shy', blush: 0.35, line: 'にゃ……？ いまの、ちょっとドキッとした……' },
+      { min: 50, id: 'flustered', blush: 0.65, sweat: true, line: 'もぉ〜、そんなに構われたら、しっぽが勝手に……！' },
+      { min: 75, id: 'embarrassed', blush: 0.9, sweat: true, lookAway: true, line: '……見ないで。いま、ふにゃふにゃな顔してるから……' },
+      { min: 100, id: 'dere', blush: 1, heartEyes: true, sparkle: true },
+    ],
+    face: MILK_FACE,
+    heart50Expression: 'embarrassed',
+    talks: [
+      {
+        id: 'interest50', at: 50,
+        opening: '……ねぇ。さっきから、みるくのことばっかり見てる？',
+        question: '……みるくの、どこが好き？',
+        prompt: '次の1投で答えて！',
+        hint: '髪・顔・手・アクセサリー ── どこに当てる？',
+        zones: [
+          { id: 'hair', label: '髪', part: 'head', rects: MILK_LAYOUT_ZONES.hair, line: '……髪？ ふわふわでしょ、えへへ。', expr: 'shy' },
+          { id: 'face', label: '顔', part: 'head', rects: MILK_LAYOUT_ZONES.face, line: 'か、顔！？ そんなにじっと見ないでぇ……！', expr: 'embarrassed' },
+          { id: 'hand', label: '手', part: 'rightArm', rects: MILK_LAYOUT_ZONES.hand, line: 'にゃんこの手、気に入った……？', expr: 'flustered' },
+          { id: 'outfit', label: '鈴・アクセサリー', part: 'chest', rects: MILK_LAYOUT_ZONES.outfit, line: '鈴、気づいてくれたんだ……♪', expr: 'shy' },
+        ],
+        miss: 'もぉ〜、どこ狙ってるの！',
+      },
+    ],
+    loveMax: { line: '……もう、あなたの猫になってあげる。ずっと甘えさせてね♡' },
   },
 };
 

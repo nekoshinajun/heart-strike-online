@@ -70,6 +70,8 @@ export class RotationCurve {
   update(t) {
     if (this.angle !== 0 && t - this.lastInputAt >= (this.cfg.decaySec ?? 2) * 1000) {
       this.angle = 0; this.decayed = true; this.lastAng = null;
+      // 減衰前の軌跡は捨てる(この後の「まっすぐな引き」の取り消しで、減衰前の角度に戻さない)
+      this.trail = []; this.seg = 0;
       return true;
     }
     return false;
