@@ -40,11 +40,14 @@ export const TYPES = {
  *   description … GameplayDescription(CHARACTER DETAIL に出す「どう使うキャラか」1〜2文)
  *   detail      … CHARACTER DETAIL の全身イラスト表示:DetailPosition(x,y:画面比の中心)/ DetailScale / DetailRotation(度)
  *   heroineId   … (任意)攻略対象をプレイアブル化した味方版の時だけ、元の攻略対象の id(data/RomanceData.js の HEROINES)
+ *   accent      … (任意)キャラ固有のアクセント(カードの薄い光・ガチャ TOP の色)。レアリティ共通の枠とは別。{ id, glow }
+ *   gachaReveal … (任意)ガチャ登場時の追加演出の ID(src/gacha/RevealEffects.js)。無ければレアリティ共通の演出だけ
+ *   specialThrowEffect … (任意)SPECIAL 投球の見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない(見た目だけ)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
 export const CHARACTERS = [
   {
-    id: 'minamo', rank: 'SSR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT',
+    id: 'minamo', rank: 'SR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT',
     art: { portrait: 'minamo', fullBody: 'minamo', specialCutIn: 'minamo', cutout: 'minamo_cut' },
     portraitFocus: { x: 0.48, y: 0.21, zoom: 3.0 },
     cutIn: { faceX: 0.47, faceY: 0.18, x: 0.5, y: 0.34, scale: 1.9, rot: -6 },
@@ -60,7 +63,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'raimu', rank: 'SSR', name: 'ライム', attribute: 'THUNDER', type: 'CURVE',
+    id: 'raimu', rank: 'SR', name: 'ライム', attribute: 'THUNDER', type: 'CURVE',
     art: { portrait: 'raimu', fullBody: 'raimu', specialCutIn: 'raimu', cutout: 'raimu_cut' },
     portraitFocus: { x: 0.55, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.17, x: 0.5, y: 0.34, scale: 1.9, rot: -5 },
@@ -83,6 +86,19 @@ export const CHARACTERS = [
     description: 'まだ粗削りな元気印。レベルを上げて伸びしろを見せたい、カーブ使いの新人。',
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
+  // ---- SSR ----
+  {
+    // ダークドラゴンの女の子(ガチャ PICK UP)。画像は assets/chara_yoruna.webp / cut_yoruna.webp を置いて tools/embed_assets.py → art にキーを入れる
+    id: 'yoruna', rank: 'SSR', name: 'ヨルナ', attribute: 'FIRE', type: 'CURVE',
+    art: {},
+    portraitFocus: { x: 0.5, y: 0.22, zoom: 3.0 },
+    cutIn: { faceX: 0.5, faceY: 0.22, x: 0.5, y: 0.34, scale: 1.7, rot: -5 },
+    description: '闇夜を焦がす恋の炎をまとうダークドラゴン。SPECIAL ではハートが翼のように分かれ、紫の炎を引いて一斉に届く。',
+    detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
+    accent: { id: 'yoruna', glow: '#b14dff' },
+    gachaReveal: 'darkDragon',
+    specialThrowEffect: 'dragonSplit',
+  },
   // ---- 追加キャラ(画像は未登録:art を空にしておくと仮のシルエットで表示。画像キーを入れるだけで差し替わる)----
   {
     id: 'kohaku', rank: 'SR', name: 'コハク', attribute: 'THUNDER', type: 'STRAIGHT',
@@ -93,7 +109,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'kagura', rank: 'SSR', name: 'カグラ', attribute: 'FIRE', type: 'CURVE',
+    id: 'kagura', rank: 'SR', name: 'カグラ', attribute: 'FIRE', type: 'CURVE',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: 5 },

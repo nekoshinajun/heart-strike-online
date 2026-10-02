@@ -31,7 +31,7 @@ export class GachaParticles {
     }
   }
 
-  /** (x, y)から弾ける。kinds:shard / heart / petal / ribbon / star / dot */
+  /** (x, y)から弾ける。kinds:shard / heart / petal / ribbon / star / dot / flame(キャラ固有演出の炎)*/
   burst(x, y, { colors, kinds = ['shard', 'heart', 'dot'], count = 70, speed = 1, size = 1, gravity = 0.35 } = {}) {
     for (let i = 0; i < this.n(count); i++) {
       const a = rand(0, TAU), v = rand(2.5, 9) * speed;
@@ -107,6 +107,7 @@ export class GachaParticles {
         case 'shard': g.beginPath(); g.moveTo(0, -s); g.lineTo(s * 0.6, s * 0.7); g.lineTo(-s * 0.5, s * 0.4); g.closePath(); g.fill(); break;
         case 'petal': g.beginPath(); g.ellipse(0, 0, s * 0.55, s, 0, 0, TAU); g.fill(); break;
         case 'ribbon': g.fillRect(-s * 0.25, -s * 1.2, s * 0.5, s * 2.4); break;
+        case 'flame': g.beginPath(); g.moveTo(0, -s * 1.6); g.quadraticCurveTo(s * 0.9, -s * 0.2, 0, s * 0.8); g.quadraticCurveTo(-s * 0.9, -s * 0.2, 0, -s * 1.6); g.fill(); break;
         default: g.beginPath(); g.arc(0, 0, s * 0.6, 0, TAU); g.fill();
       }
       g.restore();

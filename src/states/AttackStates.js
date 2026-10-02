@@ -148,6 +148,8 @@ export class BallToBossState {
     if (g.answerExtraThrow) g.answerExtraThrow = false; else g.turn.markThrown();
     g.ui.tutorialDone('flick');
     if (special) {
+      // キャラ固有の SPECIAL 投球の見た目(CharacterData.specialThrowEffect。見た目だけ・ダメージは本体の1投だけ)
+      g.specialFx.start(g.turn.current.chara, th);
       g.ui.showJudge('SPECIAL HEART!', 'perfect', '#ff7ab8');
       g.cam.kickFov(14); g.cam.shake(0.7); g.ui.speedLines(true);
       g.ui.flash('#ffffff', 0.5);
@@ -255,7 +257,7 @@ export class BossHitState {
       g.ui.setParts(g.boss.parts, partId);
       g.cam.shake(0.2 + (power - 0.8) * 0.4 + (mul - 1) * 0.2);
       g.hitstop(special ? special.hitstop : 0.05 + power * 0.04 + (perfect ? 0.04 : 0));
-      if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); }
+      if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); g.specialFx.hit(point); }
       g.ui.flash('#ffe6f2', 0.1 + (mul - 1) * 0.12);
       g.audio.heart(power, perfect);
 
@@ -279,6 +281,7 @@ export class BossHitState {
     } else {
       // 外れ:自動補正はしない。ラリーは途切れる
       // Gate を通っても最後にボスへ当たらなければ GATE CHAIN のボーナスは無し
+      g.specialFx.miss();
       // MISS:COMBO 0・FEVER ゲージ 0%
       const lost = g.fever.onMiss();
       g.ui.setCombo(0, { broke: lost > 0 });

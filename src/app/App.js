@@ -55,7 +55,7 @@ export class App {
     const R = this.router, S = this.screens;
     R.register('home', { kind: KIND.TAB_ROOT, layer: 'home', opaque: true, show: (p, c) => this.home.show(p, c), hide: () => this.home.hide() });
     R.register('training', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: () => S.showTraining() });
-    R.register('gacha', { kind: KIND.TAB_ROOT, layer: 'gacha', opaque: true, show: () => this.gacha.showTop() });
+    R.register('gacha', { kind: KIND.TAB_ROOT, layer: 'gacha', opaque: true, show: (p, ctx) => this.gacha.showTop(p, ctx) });
     R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p) => S.showCollection(p) });
     R.register('trainChar', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showTrainChar(p) });
     R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopVoice(), leave: () => S.stopVoice() });
@@ -67,7 +67,7 @@ export class App {
     R.register('trainAbility', { kind: KIND.SHEET, show: () => S.openTrainSheet('ability'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
     R.register('trainGift', { kind: KIND.SHEET, show: () => S.openTrainSheet('gift'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
     R.register('gachaConfirm', { kind: KIND.SHEET, show: (p) => this.gacha.showConfirm(p), hide: () => this.sheet.close() });
-    R.register('gachaRates', { kind: KIND.SHEET, show: () => this.gacha.showRates(), hide: () => this.sheet.close() });
+    R.register('gachaRates', { kind: KIND.SHEET, show: (p) => this.gacha.showRates(p), hide: () => this.sheet.close() });
     R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, noNav: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });
     R.register('gachaResult', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: (p) => this.gacha.showResult(p) });
     // 3D ゲームが使えない環境でも HOME / ガチャは動く(攻略・編成は案内だけ)

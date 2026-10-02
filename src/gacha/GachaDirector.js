@@ -4,7 +4,8 @@ import { artUrl } from '../data/CharacterArt.js';
 import { RARITY_OBTAIN_LINES } from '../data/CharacterVoice.js';
 import { giftById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
 import { Haptic, reducedMotion, Log } from '../app/Platform.js';
-import { rarityBadge, raritySparkle } from '../app/Rarity.js';
+import { rarityBadge, raritySparkle, charAccent } from '../app/Rarity.js';
+import { revealEffectFor } from './RevealEffects.js';
 import { mulberry32 } from './GachaService.js';
 import { GachaParticles } from './GachaParticles.js';
 import { GachaSfx } from './GachaSfx.js';
@@ -61,6 +62,7 @@ export class GachaDirector {
           <div class="gs-tapnext" hidden>TAP</div>
         </div>
         <div class="gs-presents" hidden><header><small>＋</small><b>BONUS PRESENT</b></header><div class="gs-plist"></div><div class="gs-tapnext">TAP</div></div>
+        <div class="gs-cfx" hidden aria-hidden="true"><i class="cfx-veil"></i><i class="cfx-flame"></i><i class="cfx-heart">♥</i></div>
         <div class="gs-flash"></div>
         <div class="gs-ctrl"><button type="button" class="gs-allopen" hidden>ALL OPEN</button><button type="button" class="gs-skip">SKIP ›</button></div>
       </div>`;
@@ -97,7 +99,7 @@ export class GachaDirector {
   reset() {
     const E = this.el;
     E.dataset.phase = 'idle'; E.dataset.hint = ''; E.dataset.rarity = '';
-    for (const s of ['.gs-touch', '.gs-grid', '.gs-rev', '.gs-presents', '.gs-allopen']) this.q(s).hidden = true;
+    for (const s of ['.gs-touch', '.gs-grid', '.gs-rev', '.gs-presents', '.gs-allopen', '.gs-cfx']) this.q(s).hidden = true;
     this.q('.gs-grid').innerHTML = ''; this.q('.gs-plist').innerHTML = '';
     this.q('.gs-crystal').className = 'gs-crystal';
     this.q('.gs-flash').className = 'gs-flash';
@@ -209,6 +211,12 @@ export class GachaDirector {
     this.sfx.play('ssrConfirm');
   }
 
+  /** キャラ固有の追加演出(CharacterData.gachaReveal → RevealEffects.js)。無いキャラは何もしない */
+  async charFx(it) {
+    const fx = revealEffectFor(characterById(it.characterId));
+    if (fx) await fx(this, it);
+  }
+
   /** 弾ける(SR は花びら・リボン・ハート / SSR はホワイトアウト)*/
   async burst(rarity) {
     const c = this.center(), C = this.q('.gs-crystal');
@@ -277,6 +285,7 @@ export class GachaDirector {
     await this.touch();
     await this.crack(pl.hint);
     if (pl.promote) await this.promote();
+    await this.charFx(it);
     await this.burst(it.rarity);
     this.q('.gs-crystal').className = 'gs-crystal gone';
     await this.reveal(it);
@@ -339,6 +348,7 @@ export class GachaDirector {
       const c = this.center();
       for (let k = 0; k < 2; k++) { C.classList.remove('beat'); void C.offsetWidth; C.classList.add('beat'); this.sfx.play('heartbeat', 1.3); this.fx.ripple(c.x, c.y, k ? '#ffd36e' : '#ff9ccf', this.T('ripple')); await this.wait(this.T('ripple') * 0.6); }
       this.sfx.play('ssrConfirm');
+      if (!this.allOpening) await this.charFx(it);
       await this.burst('SSR');
       C.className = 'gs-crystal gone';
       await this.reveal(it, { short: this.allOpening });
@@ -363,7 +373,7 @@ export class GachaDirector {
 /** 10連の一覧に並ぶカード(レアリティ枠は共通)*/
 function cardHTML(it, i) {
   const ch = characterById(it.characterId);
-  return `<div class="gs-card rar-frame" data-rarity="${it.rarity}" style="--i:${i}"><span class="gs-cface"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false"></span>${rarityBadge(it.rarity, 'gs-cb')}${raritySparkle(it.rarity)}<b>${esc(ch.name)}</b>${it.isNew ? '<em>NEW</em>' : ''}</div>`;
+  return `<div class="gs-card rar-frame" data-rarity="${it.rarity}" style="--i:${i}"><span class="gs-cface"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false"></span>${rarityBadge(it.rarity, 'gs-cb')}${raritySparkle(it.rarity)}${charAccent(ch)}<b>${esc(ch.name)}</b>${it.isNew ? '<em>NEW</em>' : ''}</div>`;
 }
 
 /** ハートの上の小さな王冠 */

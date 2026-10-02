@@ -35,6 +35,7 @@ import { MenuFlow } from './screens/MenuFlow.js';
 import { SpecialCutIn } from './screens/SpecialCutIn.js';
 import { devInput, safe, Log } from './app/Platform.js';
 import { FeverSystem } from './fever/FeverSystem.js';
+import { SpecialThrowFx } from './effects/SpecialThrowEffects.js';
 import { SpaceSystem } from './space/SpaceSystem.js';
 import { Spotlight } from './world/Spotlight.js';
 import { AffectionSystem } from './affection/AffectionSystem.js';
@@ -63,6 +64,7 @@ export class GameManager {
     this.cam = new CameraController(1);
     this.arena = new Arena(this.scene);
     this.effects = new Effects(this.scene);
+    this.specialFx = new SpecialThrowFx(this);   // SPECIAL 投球の見た目(キャラごと。見た目だけ)
     this.hitMarker = new HitMarker();   // 着弾マーク(実際に当たった位置に約1秒)
     this.boss = new BossController(this.scene);
     this.ball = new BallController(this.scene);
@@ -233,6 +235,7 @@ export class GameManager {
     this.stats = { perfect: 0, great: 0, good: 0, miss: 0, throwMiss: 0, loveSpots: 0, orbs: 0, heart: 0, startTime: performance.now() };
     this.energy?.reset();
     this.fever?.reset();
+    this.specialFx?.end();
     this.affection?.reset();
     this.preview?.hideGhost();
     this.ui.setPlayers(this.turn.players, 0);
@@ -475,6 +478,7 @@ export class GameManager {
       this.heartTrailT = (this.heartTrailT ?? 0) - dt;
       if (this.heartTrailT <= 0) { this.heartTrailT = Config.special.trailHearts; this.effects.heartBurst(this.ball.pos, 2, 1.4, 0.22); }
     }
+    this.specialFx.update(dt, realDt);
     this.effects.update(dt);
     this.hitMarker.update();
     this.arena.update(dt, this.clock);

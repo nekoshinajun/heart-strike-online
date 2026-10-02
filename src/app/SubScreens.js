@@ -10,7 +10,7 @@ import { statRadarSVG } from '../screens/StatRadar.js';
 export { statRadarSVG };
 import { Haptic } from './Platform.js';
 import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from './Roles.js';
-import { rarityAttr, rarityBadge, raritySparkle } from './Rarity.js';
+import { rarityAttr, rarityBadge, raritySparkle, charAccent } from './Rarity.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -65,7 +65,7 @@ export class AppScreens {
     void r;
     return `<button type="button" class="tl-card rar-frame${party ? ' party' : ''}${si >= 0 ? ' in' : ''}" data-id="${id}" ${rarityAttr(ch.rank)} style="--ac:${a.color}" aria-label="${esc(ch.name)}${si >= 0 ? `(編成中 ${'ABCD'[si]})` : ''}">
       <span class="tl-art"><img src="${artUrl(ch, 'cutout')}" alt="" draggable="false" loading="lazy"></span>
-      ${rarityBadge(ch.rank, 'tl-rank')}${raritySparkle(ch.rank)}
+      ${rarityBadge(ch.rank, 'tl-rank')}${raritySparkle(ch.rank)}${charAccent(ch)}
       ${si >= 0 ? `<span class="tl-in" title="編成中"><i>✓</i>${'ABCD'[si]}</span>` : ''}
       ${home ? '<span class="tl-home" title="ホーム設定中">⌂</span>' : ''}
       <span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span>
