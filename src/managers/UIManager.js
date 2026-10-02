@@ -1,6 +1,6 @@
 import { ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
 import { Config } from '../core/Config.js';
-import { STAT_KEYS, STAT_LABELS } from '../data/GrowthData.js';
+import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX } from '../data/GrowthData.js';
 import { HP_MAX } from '../data/Growth.js';
 import { statRadarSVG } from '../screens/StatRadar.js';
 import { portraitStyle } from '../data/CharacterArt.js';
@@ -86,7 +86,7 @@ export class UIManager {
         <i class="pst-slot">${p.id}</i></div>
       ${p.ownerName ? `<div class="pst-owner">${p.mine ? 'YOU' : esc(p.ownerName)}</div>` : ''}
       <div class="pst-hp${p.hp <= 0 ? ' down' : ''}"><span>HP</span><i><i style="transform:scaleX(${hpK})"></i></i><b>${Math.max(0, Math.round(p.hp))}</b>/${p.maxHp ?? 100}</div>
-      <div class="pst-radar">${statRadarSVG([{ key: 'hp', label: 'HP', value: p.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats?.[k] ?? 50, max: 100 }))])}</div>
+      <div class="pst-radar">${statRadarSVG([{ key: 'hp', label: 'HP', value: p.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)?.[k] ?? 50, max: STAT_DISPLAY_MAX }))])}</div>
       <div class="pst-ab"><small>ABILITY</small><div>${ab.length ? ab.map((x) => `<span class="${x.ultimate ? 'ult' : ''}">${esc(x.name)}</span>`).join('') : '<span class="none">なし</span>'}</div></div>`;
     // アイコンの左横(画面内に収める)
     const card = this.cards[i].d.getBoundingClientRect(), host = el.parentElement.getBoundingClientRect();

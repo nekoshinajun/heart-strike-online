@@ -22,8 +22,8 @@ const cleanChars=l=>{const out=[];for(const c of Array.isArray(l)?l:[l]){const x
 function fitShares(r){r.players.forEach((p,i)=>{if(p.characterIds.length<need(r,i))p.ready=false})}
 /** GAME START:各プレイヤーの担当キャラを交互に並べて A→B→C→D(2人 = ホスト1・協力1・ホスト2・協力2 / 3人 = ホスト1・協力1・協力2・ホスト2)*/
 function buildUnits(r){const lists=r.players.map((p,i)=>p.characterIds.slice(0,need(r,i)));const units=[];for(let k=0;k<2;k++)lists.forEach((l,i)=>{if(l[k]&&units.length<4){const p=r.players[i];const prof=p.profiles?.[l[k]]||null,mx=unitMaxHp(prof);units.push({slot:'ABCD'[units.length],ownerId:p.id,characterId:l[k],profile:prof,hp:mx,maxHp:mx,alive:true})}});return units}
-// キャラごとの最大 HP(各クライアントの育成 profile.maxHp。無い・おかしい値は 100)
-function unitMaxHp(prof){const v=Math.round(Number(prof?.maxHp));return Number.isFinite(v)&&v>0?Math.min(300,v):100}
+// キャラごとの最大 HP(各クライアントの育成 profile.maxHp = 基礎 + VITAL UP。無い・おかしい値は 100。上限 600)
+function unitMaxHp(prof){const v=Math.round(Number(prof?.maxHp));return Number.isFinite(v)&&v>0?Math.min(600,v):100}
 const ownedMaxHp=(r,p)=>(r.units||[]).filter(u=>u.ownerId===p.id).reduce((a,u)=>a+(u.maxHp||100),0)||100;
 // 1ターン = PLAYER ATTACK PHASE(生存しているキャラが A→B→C→D の順に1投ずつ。投げるのは担当のプレイヤー)→ ボスがまとめて反撃(全員同時キャッチ)
 const playable=p=>p&&p.alive!==false&&p.connected!==false;
@@ -63,7 +63,7 @@ function dropFromBattle(r,p,extra={}){
   send(r,'PLAYER_DOWN',{playerId:p.id,nextIndex:adv.bossTurn?null:r.currentIndex,nextPlayerId:adv.bossTurn?null:ownerAt(r,r.currentIndex),wasCurrent,bossTurn:!!adv.bossTurn,...extra});
 }
 /** 育成の戦闘データ(各プレイヤーが自分のセーブから送る):Lv / ステータス / アビリティ ID だけ */
-function cleanProfile(x){const n=(v,a,b)=>Math.max(a,Math.min(b,Math.round(Number(v)||0)));const st=x&&typeof x.stats==='object'?x.stats:{};return {level:n(x?.level,1,100),maxHp:n(x?.maxHp||100,1,300),stats:{attack:n(st.attack,0,100),defence:n(st.defence,0,100),control:n(st.control,0,100),curve:n(st.curve,0,100)},abilities:(Array.isArray(x?.abilities)?x.abilities:[]).filter(a=>typeof a==='string'&&a.length<=40).slice(0,12)};}
+function cleanProfile(x){const n=(v,a,b)=>Math.max(a,Math.min(b,Math.round(Number(v)||0)));const st=x&&typeof x.stats==='object'?x.stats:{};return {level:n(x?.level,1,100),maxHp:n(x?.maxHp||100,1,600),stats:{attack:n(st.attack,0,200),defence:n(st.defence,0,200),control:n(st.control,0,200),curve:n(st.curve,0,200)},abilities:(Array.isArray(x?.abilities)?x.abilities:[]).filter(a=>typeof a==='string'&&a.length<=40).slice(0,16)};}
 function pub(r){return {code:r.code,status:r.status,hostId:r.hostId,currentIndex:r.currentIndex,seq:r.seq,field:r.field||null,visibility:r.visibility||'private',stageId:r.stageId||null,difficulty:r.difficulty||'NORMAL',units:(r.units||[]).map(u=>({slot:u.slot,ownerId:u.ownerId,characterId:u.characterId,profile:u.profile,alive:u.alive!==false,hp:Number.isFinite(u.hp)?u.hp:(u.maxHp||100),maxHp:u.maxHp||100})),players:r.players.map((p,i)=>({id:p.id,name:p.name,characterId:p.characterIds[0]||null,characterIds:p.characterIds,need:need(r,i),ready:p.ready,connected:p.connected,slot:p.slot,alive:p.alive!==false,hp:Number.isFinite(p.hp)?p.hp:100,maxHp:ownedMaxHp(r,p)}))};}
 function send(room,type,data={}){room.seq++;const msg=`event: message\ndata: ${JSON.stringify({type,seq:room.seq,room:pub(room),...data})}\n\n`;for(const p of room.players){const set=clients.get(p.id);if(set)for(const res of set){try{res.write(msg)}catch{}}}}
 function json(res,status,obj){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(obj));}
