@@ -1,6 +1,6 @@
 import { ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
 import { Config } from '../core/Config.js';
-import { STAT_KEYS, STAT_LABELS } from '../data/GrowthData.js';
+import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX } from '../data/GrowthData.js';
 import { HP_MAX } from '../data/Growth.js';
 import { statRadarSVG } from '../screens/StatRadar.js';
 import { portraitStyle } from '../data/CharacterArt.js';
@@ -86,7 +86,7 @@ export class UIManager {
         <i class="pst-slot">${p.id}</i></div>
       ${p.ownerName ? `<div class="pst-owner">${p.mine ? 'YOU' : esc(p.ownerName)}</div>` : ''}
       <div class="pst-hp${p.hp <= 0 ? ' down' : ''}"><span>HP</span><i><i style="transform:scaleX(${hpK})"></i></i><b>${Math.max(0, Math.round(p.hp))}</b>/${p.maxHp ?? 100}</div>
-      <div class="pst-radar">${statRadarSVG([{ key: 'hp', label: 'HP', value: p.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats?.[k] ?? 50, max: 100 }))])}</div>
+      <div class="pst-radar">${statRadarSVG([{ key: 'hp', label: 'HP', value: p.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)?.[k] ?? 50, max: STAT_DISPLAY_MAX }))])}</div>
       <div class="pst-ab"><small>ABILITY</small><div>${ab.length ? ab.map((x) => `<span class="${x.ultimate ? 'ult' : ''}">${esc(x.name)}</span>`).join('') : '<span class="none">なし</span>'}</div></div>`;
     // アイコンの左横(画面内に収める)
     const card = this.cards[i].d.getBoundingClientRect(), host = el.parentElement.getBoundingClientRect();
@@ -98,8 +98,9 @@ export class UIManager {
   }
   hideStatus() { if (this.statusEl) this.statusEl.hidden = true; this.statusIndex = null; }
 
-  setPlayers(players, current) {
+  setPlayers(players, current = this.currentIdx) {
     this.players = players;
+    this.currentIdx = current;
     if (this.statusIndex != null && this.statusEl && !this.statusEl.hidden) this.showStatus(this.statusIndex);   // 表示中に HP が変わったら更新
     players.forEach((p, i) => {
       const c = this.cards[i];
@@ -108,6 +109,42 @@ export class UIManager {
       c.d.classList.toggle('down', p.hp <= 0);
       c.d.classList.toggle('mine', !!p.mine);   // MULTI:自分が担当するキャラ
     });
+  }
+
+  /**
+   * セラ ANGEL HEART の回復演出(約 1.2 秒・テンポ優先):巨大な白い翼 → 中央から白〜金の光 → 金の羽根と光のハートが各味方へ飛ぶ →
+   * 着いた味方の HP ゲージが伸びる(+N)→ 中央に「ALL HEAL +N」。数値は result(SpecialEffects の結果)をそのまま表示
+   */
+  playAngelHeal(result) {
+    const host = document.getElementById('ui');
+    if (!host || !result) return;
+    let el = document.getElementById('angelFx');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'angelFx'; el.setAttribute('aria-hidden', 'true');
+      const wing = (side) => `<svg class="af-wing ${side}" viewBox="0 0 200 160">${Array.from({ length: 9 }, (_, k) => `<ellipse cx="${30 + k * 17}" cy="${40 + k * 9}" rx="${46 - k * 2}" ry="10" transform="rotate(${-28 + k * 9} ${30 + k * 17} ${40 + k * 9})" />`).join('')}<path d="M10 30 Q 90 -10 190 60 Q 120 40 60 70 Z" class="af-arm"/></svg>`;
+      el.innerHTML = `<div class="af-light"></div>${wing('l')}${wing('r')}<div class="af-text"><small>ANGEL HEART</small><b></b></div>`;
+      host.appendChild(el);
+    }
+    el.querySelector('.af-text b').textContent = `ALL HEAL +${result.amount}`;
+    el.hidden = false; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(this.angelT); this.angelT = setTimeout(() => { el.hidden = true; el.classList.remove('on'); }, 1350);
+    // 金の羽根と光のハートが各味方へ → 着いたら HP ゲージが伸びる(+N)
+    const r = this.el.dmg.getBoundingClientRect(), cx = r.width / 2, cy = r.height * 0.42;
+    result.healed.forEach((h, k) => {
+      const card = this.cards[h.i]?.d;
+      if (!card) return;
+      setTimeout(() => {
+        this.flyTo(cx, cy, card, '<i class="feather"></i><i class="hh">♥</i>', 'heal', 480).then(() => {
+          this.setPlayers(this.players);
+          const n = document.createElement('span');
+          n.className = 'healnum'; n.textContent = `+${h.gained}`;
+          card.appendChild(n); card.classList.remove('healed'); void card.offsetWidth; card.classList.add('healed');
+          setTimeout(() => n.remove(), 900);
+        });
+      }, 240 + k * 70);
+    });
+    if (!result.healed.length) this.setPlayers(this.players);
   }
 
   hitPlayer(i) {

@@ -65,6 +65,7 @@ export class App {
     R.register('detail', { kind: KIND.SUB, layer: null, overlay: true, opaque: true, show: (p, c) => { if (!c.restore) this.detail.open(p.id); }, hide: () => this.detail.hide() });
     // 育成 → キャラクター詳細:アビリティ / プレゼントはボタンで開くシート(詳細の下へ直接並べない)
     R.register('trainAbility', { kind: KIND.SHEET, show: () => S.openTrainSheet('ability'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
+    R.register('trainSpecial', { kind: KIND.SHEET, show: (p) => S.showSpecialSheet(p), hide: () => this.sheet.close() });
     R.register('trainGift', { kind: KIND.SHEET, show: () => S.openTrainSheet('gift'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
     R.register('gachaConfirm', { kind: KIND.SHEET, show: (p) => this.gacha.showConfirm(p), hide: () => this.sheet.close() });
     R.register('gachaRates', { kind: KIND.SHEET, show: (p) => this.gacha.showRates(p), hide: () => this.sheet.close() });

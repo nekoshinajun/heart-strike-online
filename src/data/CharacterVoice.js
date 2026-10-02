@@ -134,6 +134,15 @@ const EXT = {
     },
     gacha: { obtainDialogue: { default: '見つけた…♡ あなたのハート、もう離さないから', firstTime: '闇夜を越えて届いたハート…♡ ヨルナ、あなたのものになってあげる' } },
   },
+  sera: {
+    voiceStyle: 'gentle', voiceNote: 'やさしく明るい天使',
+    homeDialogue: {
+      launch: ['おかえりなさい♡ 今日もいっしょに、がんばりましょうね', 'あなたのハート、ちゃんと届いていますよ'],
+      tap: ['ふふっ、くすぐったいです', '痛いところはありませんか？ わたしが治してあげます'],
+      afterClear: ['みんな無事でよかった…♡ おつかれさまです'],
+    },
+    gacha: { obtainDialogue: { default: 'あなたのハート、天まで届きました♡', firstTime: '見つけてくれて、ありがとう。これからは、わたしがあなたを守りますね♡' } },
+  },
   nagi: {
     voiceStyle: 'gentle', voiceNote: '穏やかでやさしい',
     homeDialogue: { tap: ['のんびりいきましょう'] },

@@ -42,7 +42,12 @@ export const TYPES = {
  *   heroineId   … (任意)攻略対象をプレイアブル化した味方版の時だけ、元の攻略対象の id(data/RomanceData.js の HEROINES)
  *   accent      … (任意)キャラ固有のアクセント(カードの薄い光・ガチャ TOP の色)。レアリティ共通の枠とは別。{ id, glow }
  *   gachaReveal … (任意)ガチャ登場時の追加演出の ID(src/gacha/RevealEffects.js)。無ければレアリティ共通の演出だけ
- *   specialThrowEffect … (任意)SPECIAL 投球の見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない(見た目だけ)
+ *   special     … (任意)キャラ固有の必殺技(SPECIAL)。育成画面の説明とバトルの効果は両方ここだけを見る(画面に説明文を書かない)
+ *       name / description / highlight(強調する数値・効果)/ note(補足)
+ *       effectType … 効果の種類(src/effects/SpecialEffects.js):'attack' = 通常の SPECIAL だけ / 'healAll' = 命中で味方全員を回復 / 今後:防御・バフ・デバフ・蘇生…
+ *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.03 = 3%)
+ *       visualEffect … 見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない
+ *     省略したキャラは DEFAULT_SPECIAL(全員共通の SPECIAL HEART)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
 export const CHARACTERS = [
@@ -97,7 +102,30 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
     accent: { id: 'yoruna', glow: '#b14dff' },
     gachaReveal: 'darkDragon',
-    specialThrowEffect: 'dragonSplit',
+    special: {
+      name: 'DRAGON HEART BURST',
+      description: '投げたハートが 1 → 3 → 7個へ分裂。ドラゴンの翼のように広がり、命中時にターゲットへ収束する。',
+      highlight: { value: '1 → 3 → 7', label: 'HEART SPLIT' },
+      note: '※ 分裂は演出。ダメージ判定は1回(SPECIAL 1回分)。',
+      effectType: 'attack', effectValue: null, visualEffect: 'dragonSplit',
+    },
+  },
+  {
+    // 天使の女の子(回復型 SSR)。画像:assets/chara_sera.webp(カード用)/ cut_sera.webp(透過の全身)
+    id: 'sera', rank: 'SSR', name: 'セラ', attribute: 'THUNDER', type: 'STRAIGHT',
+    art: { portrait: 'sera', fullBody: 'sera', specialCutIn: 'sera', cutout: 'sera_cut' },
+    portraitFocus: { x: 0.48, y: 0.25, zoom: 3.0 },
+    cutIn: { faceX: 0.48, faceY: 0.25, x: 0.5, y: 0.34, scale: 1.8, rot: 4 },
+    description: '白と金の翼で仲間を包む回復型の天使。必殺技が命中すると、与えたダメージの一部で味方全員を回復する。',
+    detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
+    accent: { id: 'sera', glow: '#ffd76a' },
+    special: {
+      name: 'ANGEL HEART',
+      description: '必殺技の攻撃が命中すると、与えた最終ダメージの3%分、生存中の味方全員のHPを回復する。',
+      highlight: { value: '与ダメージの 3%', label: 'ALL HEAL' },
+      note: '※ HP 0 の味方は回復しない(蘇生ではない)。MISS では回復しない。',
+      effectType: 'healAll', effectValue: 0.03, visualEffect: 'angelHeal',
+    },
   },
   // ---- 追加キャラ(画像は未登録:art を空にしておくと仮のシルエットで表示。画像キーを入れるだけで差し替わる)----
   {
@@ -126,6 +154,16 @@ export const CHARACTERS = [
   },
 
 ];
+
+/** SPECIAL を持たないキャラの必殺技(全員共通の SPECIAL HEART。効果の数値は Config.special.heartMul と同じ)*/
+export const DEFAULT_SPECIAL = {
+  name: 'SPECIAL HEART',
+  description: 'SPECIAL ゲージ MAX でタップして予約。次の1投が大きなハートになり、届く HEART が大きく増える。',
+  highlight: { value: 'HEART ×{heartMul}', label: 'SPECIAL' },   // {heartMul} は表示時に Config.special.heartMul に置き換える
+  note: null, effectType: 'attack', effectValue: null, visualEffect: null,
+};
+for (const c of CHARACTERS) c.special ??= { ...DEFAULT_SPECIAL };
+
 
 /** 旧IDからの移行(保存データ用) */
 export const LEGACY_CHARACTER_IDS = { aqua: 'minamo', ignis: 'hinoka', raika: 'raimu', marin: 'shizuku', flare: 'akane' };

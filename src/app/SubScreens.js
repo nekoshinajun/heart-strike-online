@@ -1,7 +1,7 @@
 import { Config } from '../core/Config.js';
-import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById } from '../data/GameData.js';
+import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById, DEFAULT_SPECIAL } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
-import { STAT_KEYS, STAT_LABELS, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
+import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
 import { staminaNextMs, HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML, staminaHTML } from '../screens/MenuFlow.js';
@@ -33,6 +33,26 @@ export const TRAINING_FEATURES = [
   { id: 'costume', label: '衣装', ready: false },
 ];
 
+
+/** 必殺技の表示用(CharacterData.special → 画面用の文字)。{heartMul} などは Config から */
+export function specialView(ch) {
+  const sp = ch?.special ?? DEFAULT_SPECIAL;
+  const fill = (t) => String(t ?? '').replace(/\{heartMul\}/g, String(Config.special.heartMul));
+  const custom = sp !== DEFAULT_SPECIAL && sp.name !== DEFAULT_SPECIAL.name;
+  return {
+    name: sp.name, description: fill(sp.description), note: sp.note ? fill(sp.note) : null, effectType: sp.effectType ?? 'attack',
+    highlight: { value: fill(sp.highlight?.value ?? ''), label: fill(sp.highlight?.label ?? '') },
+    // 固有の必殺技も、土台は共通の SPECIAL HEART(次の1投の HEART 倍率)
+    base: custom ? `＋ SPECIAL HEART:届く HEART ×${Config.special.heartMul}` : null,
+  };
+}
+/** 育成画面のキャラ詳細の「SPECIAL / 必殺技名 ›」(1行。タップで詳細のシート:必殺技名・効果・重要な数値・固有効果)*/
+export function specialCardHTML(ch) {
+  const sp = specialView(ch);
+  return `<button type="button" class="td-special" data-act="special" data-effect="${esc(sp.effectType)}" aria-label="必殺技 ${esc(sp.name)} の詳細を開く">
+    <small>SPECIAL</small><b class="tsp-name">${esc(sp.name)}</b><i class="tsp-go" aria-hidden="true">›</i>
+  </button>`;
+}
 export class AppScreens {
   constructor(app, el) {
     this.app = app;
@@ -89,6 +109,20 @@ export class AppScreens {
   }
 
   // ---------------- キャラクター詳細(SUB):画面全体がキャラクター。右側に情報パネル、アビリティ / プレゼントはボタンで開くシート ----------------
+  /** 必殺技の詳細(シート)。内容は CharacterData.special だけから作る */
+  showSpecialSheet({ id } = {}) {
+    const ch = this.p.character(id ?? this.trainId), sp = specialView(ch);
+    this.app.sheet.open('SPECIAL / 必殺技', `
+      <div class="sp-sheet" data-effect="${esc(sp.effectType)}">
+        <small class="sp-chara">${esc(ch.name)}</small>
+        <h3 class="sp-name">${esc(sp.name)}</h3>
+        <div class="sp-hl"><b>${esc(sp.highlight.value)}</b><span>${esc(sp.highlight.label)}</span></div>
+        <p class="sp-desc">${esc(sp.description)}</p>
+        ${sp.note ? `<p class="sp-note">${esc(sp.note)}</p>` : ''}
+        ${sp.base ? `<p class="sp-base">${esc(sp.base)}</p>` : ''}
+      </div>`);
+  }
+
   showTrainChar({ id, focus } = {}) {
     if (!id || !this.p.isOwned(id)) { this.app.router.back(); return; }
     if (this.trainId !== id) this.abilityOpen = null;   // キャラを替えた時は「変更」を閉じた状態から
@@ -105,7 +139,7 @@ export class AppScreens {
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
     const active = ch.abilities ?? [];
     // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
-    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats[k], max: 100 }))]);
+    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)[k], max: STAT_DISPLAY_MAX }))]);   // 表示はレベル + アビリティの合計
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
         <div class="td-bg"></div>
@@ -120,6 +154,7 @@ export class AppScreens {
           <div class="td-exp"><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `EXP ${ch.expInto} / ${ch.expNeed}`}</small></div>
           ${si >= 0 || home ? `<div class="td-chips">${si >= 0 ? `<span class="td-chip in">✓ 編成中 ${'ABCD'[si]}</span>` : ''}${home ? '<span class="td-chip home">⌂ ホーム設定中</span>' : ''}</div>` : ''}
         </section>
+        ${specialCardHTML(ch)}
         <section class="td-panel">
           <div class="td-radar">${radar}</div>
           <div class="td-meta"><div class="td-stam${ch.tired ? ' tired' : ''}"><div class="td-stamrow"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b>/${ch.staminaMax}</small></div>${ch.tired ? `<p>${stamNote}</p>` : ''}</div>
@@ -139,6 +174,7 @@ export class AppScreens {
     let sx = null;
     art.addEventListener('pointerdown', (e) => { sx = e.clientX; });
     art.addEventListener('pointerup', (e) => { if (sx == null || n < 2) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1); });
+    this.body.querySelector('[data-act="special"]')?.addEventListener('click', () => this.app.router.go('trainSpecial', { id }));
     this.body.querySelector('[data-act="gift"]').addEventListener('click', () => this.app.router.go('trainGift'));
     this.body.querySelector('[data-act="ability"]').addEventListener('click', () => this.app.router.go('trainAbility'));
     this.body.querySelector('[data-act="home"]').addEventListener('click', () => this.setHomeCharacter(id));
@@ -192,7 +228,7 @@ export class AppScreens {
     if (this.trainSheet && !this.app.sheet.root.hidden) this.renderTrainSheet();
   }
 
-  /** アビリティ:Lv10〜90 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)*/
+  /** アビリティ:Lv10〜100 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)も */
   abilityBoardHTML(id) {
     const rows = this.p.abilityBoard(id), items = this.p.abilityResetItems, I = ABILITY_RESET_ITEM;
     const open = this.abilityOpen ?? null;
@@ -252,7 +288,7 @@ export class AppScreens {
     host.querySelector('.ab-burst')?.remove();
     const el = document.createElement('div');
     el.className = 'ab-burst';
-    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.filter((lv) => lv < 100).map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
+    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
     host.appendChild(el);
     this.app.audio?.loveMax?.();
     setTimeout(() => el.remove(), 2600);
