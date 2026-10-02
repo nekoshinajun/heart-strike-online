@@ -1,6 +1,7 @@
 /**
  * レアリティの共通ルール(すべてのキャラクターカードで同じ見た目)
- *   N = シルバー / グレー ・ R = ブルー ・ SR = パープル ・ SSR = ゴールド + ピンク(発光 + 控えめなキラキラ)
+ *   R = 青のシンプルな枠 / SR = 紫〜ラベンダー + 薄い Glow・四隅の光 / SSR = ピンクゴールド〜パール(色が流れる枠・Glow・星・Shimmer・ハート)
+ *   N = シルバー / グレー(今は N のキャラはいない)
  *
  * 使い方(どの画面でも同じ):
  *   カードの要素に class="rar-frame" と rarityAttr(rank)      → 枠(グラデーションのリング)・影
@@ -12,9 +13,14 @@
 export const RARITY_ORDER = ['N', 'R', 'SR', 'SSR'];
 export const rarityId = (rank) => (RARITY_ORDER.includes(rank) ? rank : 'N');
 export const rarityAttr = (rank) => `data-rarity="${rarityId(rank)}"`;
-export const rarityBadge = (rank, cls = '') => `<i class="rar-badge${cls ? ` ${cls}` : ''}" data-rarity="${rarityId(rank)}">${rarityId(rank)}</i>`;
-// SSR 共通:キラキラ(Sparkle)+ 光のすじ(Shimmer)+ 四隅のパール。どの SSR でも同じ
-export const raritySparkle = (rank) => (rarityId(rank) === 'SSR' ? '<i class="rar-sparkle" aria-hidden="true"><i class="rar-shimmer"></i><i class="rar-pearl"></i></i>' : '');
+export const rarityBadge = (rank, cls = '') => { const r = rarityId(rank); return `<i class="rar-badge${cls ? ` ${cls}` : ''}" data-rarity="${r}">${r === 'SSR' ? '<s>★</s>SSR<s>★</s>' : r}</i>`; };
+// レアリティの装飾(RarityCardStyle)。SSR … 光のすじ(Shimmer)・四隅のパール・小さな星・上部のハート・ランダムな Sparkle 1〜2個
+//   SR  … 四隅の小さな光・ごく薄いキラキラ / R・N … 装飾なし(空)
+const DECO = {
+  SR: '<i class="rar-corners"></i><i class="rar-dust"></i>',
+  SSR: '<i class="rar-shimmer"></i><i class="rar-pearl"></i><i class="rar-stars"></i><i class="rar-heart">♥</i><i class="rar-tw a"></i><i class="rar-tw b"></i>',
+};
+export const raritySparkle = (rank) => { const r = rarityId(rank); return DECO[r] ? `<i class="rar-sparkle" data-rarity="${r}" aria-hidden="true">${DECO[r]}</i>` : ''; };
 /**
  * キャラ固有のアクセント(CharacterData.accent)。レアリティ共通の枠・光とは別の要素で重ねる(枠の CSS は触らない)
  *   例:ヨルナ = 紫〜ダークピンクのごく薄い光。accent が無いキャラは空
