@@ -77,7 +77,7 @@ SPECIAL_THROW_EFFECTS.angelHeal = {
     g.effects.heartBurst(point, 30, 8, 1.1, ['#ffffff', '#fff3c4', '#ffd76a', '#ffe9f4']);
     g.effects.shockwave(point, '#fff1b8', 9, g.cam.camera);
     fx.active = null;
-    if (result?.type === 'healAll') g.ui.playAngelHeal?.(result);
+    if (result?.type === 'healAll' && !result.preview) g.ui.playAngelHeal?.(result);   // MULTI(preview)はサーバーの HEAL を受け取った時に再生
   },
 };
 

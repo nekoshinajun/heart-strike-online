@@ -4,7 +4,7 @@ import { DEFAULT_SPECIAL } from '../data/GameData.js';
  * SPECIAL(必殺技)の効果。CharacterData.special.effectType で選ぶ(キャラごとの処理はここに足すだけ)
  *   どの効果も「SPECIAL が敵に命中して最終ダメージが確定した後」に BOSS_HIT から1回だけ呼ばれる
  *   (MISS・Heart Gate を通っただけ・Diamond を取っただけでは呼ばれない)
- *   apply(ctx) … ctx = { players, damage(この1投の最終ダメージ = 実際に増えた HEART), value(effectValue)}
+ *   apply(ctx) … ctx = { players, damage(この1投の最終ダメージ = 実際に増えた HEART), value(effectValue), preview(HP を変えずに結果だけ)}
  *              → 結果(演出・MULTI の同期に使う)。何も起きない時は null
  *   今後:防御(guard)・バフ(buff)・デバフ(debuff)・蘇生(revive)… を足せる
  */
@@ -17,10 +17,12 @@ export const SPECIAL_EFFECTS = {
    *   HP は各キャラの最大 HP で止める(余りは移さない)/ HP 0 の味方は回復しない(蘇生ではない)
    */
   healAll: {
-    apply({ players, damage, value }) {
+    apply({ players, damage, value, preview = false }) {
       const amount = healAmount(damage, value);
       if (amount <= 0) return null;
-      return { type: 'healAll', amount, healed: applyHealAll(players, amount) };
+      // preview:HP は変えずに結果だけ(MULTI はサーバーが HP を確定して全員へ配る)
+      const target = preview ? players.map((p) => (p ? { hp: p.hp, maxHp: p.maxHp } : p)) : players;
+      return { type: 'healAll', amount, healed: applyHealAll(target, amount), preview };
     },
   },
 };

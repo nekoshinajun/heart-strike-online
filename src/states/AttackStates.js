@@ -225,7 +225,8 @@ export class BossHitState {
       const r = g.boss.addHeart(partId, heartMul, heartMul / (hm.attackMul * hm.attrMul));
       // SPECIAL の効果(CharacterData.special.effectType):命中して最終ダメージ(r.heartGain)が確定した後に1回だけ
       //   例:セラ ANGEL HEART = 最終ダメージ × 3% を生存中の味方全員に回復。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる
-      this.specialResult = special ? applySpecialEffect(ch, { players: g.turn.players, damage: r.heartGain }) : null;
+      //   MULTI:HP はここでは変えない(preview)。投げた人が回復量をサーバーへ送り、サーバーの HEAL(全員同じ値)で HP と演出を確定
+      this.specialResult = special ? applySpecialEffect(ch, { players: g.turn.players, damage: r.heartGain, preview: !!g.online }) : null;
       if (this.specialResult?.type === 'healAll') {
         if (g.online && g.lastThrowMine) g.online.sendHeal?.(this.specialResult.amount);
         g.stats.healed = (g.stats.healed ?? 0) + this.specialResult.healed.reduce((a, x) => a + x.gained, 0);
