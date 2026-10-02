@@ -209,9 +209,9 @@ export class BossHitState {
       const sMul = special ? special.heartMul : 1;
       // アビリティ(条件つき):投げた子のアビリティ × この投球の内容(SPIN・球質・SPECIAL・FEVER・Energy)
       // ★ 統一ルール:引く量(球速)ではダメージは変わらない → HEART のアビリティ条件には pull を渡さない
-      const abilityHeart = abilityMul(ch?.abilities, 'heart', { throwSpin: th.throwSpin ?? th.spin, effects: th.effects, special: !!special, fever: g.fever.active, energy: orbs });
+      const abilityHeart = abilityMul(ch?.abilities, 'heart', { throwSpin: th.throwSpin ?? th.spin, effects: th.effects, special: !!special, fever: g.fever.active, energy: orbs, gates });
       const hm = heartMultiplier({
-        attack: ch?.stats?.attack ?? 50, ability: abilityHeart, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
+        attack: ch?.stats?.attack ?? 50, attackBonus: ch?.bonusStats?.attack ?? 0, ability: abilityHeart, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
         rally: 1, energy: 1, special: sMul, fever: g.fever.heartMul,
         // 3D 空間:GATE CHAIN / BANK SHOT は「ボスに当たった時だけ」
         gate: Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)],

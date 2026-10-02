@@ -58,7 +58,7 @@ export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
     <div class="cname">${esc(ch.name)}</div>
     <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${t.label}</span></div>
     <div class="cstat cstat-lv"><span>♡Lv.${ch.level}</span><span class="chp">HP ${ch.maxHp ?? '-'}</span></div>
-    <div class="cstat"><span>ATK ${ch.stats?.attack ?? '-'}</span><span>DEF ${ch.stats?.defence ?? '-'}</span></div>
+    <div class="cstat"><span>ATK ${(ch.totalStats ?? ch.stats)?.attack ?? '-'}</span><span>DEF ${(ch.totalStats ?? ch.stats)?.defence ?? '-'}</span></div>
     ${staminaHTML(ch)}
   </div>`;
 }
@@ -520,13 +520,13 @@ export class MenuFlow {
     }).join('')}</div>`;
   }
 
-  /** Lv10 ごとのアビリティ解放(NEW ABILITY UNLOCKED ♡)。Lv100 は ULTIMATE */
+  /** Lv10 ごとのアビリティ解放(NEW ABILITY UNLOCKED ♡)。Lv100 は特殊枠 + ULTIMATE */
   abilityUnlockHTML(growth = []) {
     const list = growth.filter((r) => r.newAbilitySlots?.length || r.ultimate);
     if (!list.length) return '';
     return list.map((r) => `<section class="ability-unlock"><div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div>
       <small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${esc(r.after.name)}</b>
-      <p>${[...(r.newAbilitySlots ?? []).filter((lv) => lv < 100).map((lv) => `Lv.${lv} のアビリティを選べます`), r.ultimate ? `ULTIMATE「${esc(r.after.abilities.find((x) => x.ultimate)?.name ?? '')}」` : ''].filter(Boolean).join(' / ')}</p>
+      <p>${[...(r.newAbilitySlots ?? []).map((lv) => `Lv.${lv} のアビリティを選べます`), r.ultimate ? `ULTIMATE「${esc(r.after.abilities.find((x) => x.ultimate)?.name ?? '')}」` : ''].filter(Boolean).join(' / ')}</p>
       <button type="button" class="r-btn" data-ability-go="${esc(r.id)}">♡ アビリティを選ぶ</button></section>`).join('');
   }
   wireAbilityGo() { for (const b of this.body.querySelectorAll('[data-ability-go]')) b.addEventListener('click', () => this.router.go('trainChar', { id: b.dataset.abilityGo, focus: 'ability' })); }

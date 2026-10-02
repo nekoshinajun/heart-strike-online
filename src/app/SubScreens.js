@@ -1,7 +1,7 @@
 import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
-import { STAT_KEYS, STAT_LABELS, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
+import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
 import { staminaNextMs, HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML, staminaHTML } from '../screens/MenuFlow.js';
@@ -105,7 +105,7 @@ export class AppScreens {
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
     const active = ch.abilities ?? [];
     // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
-    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats[k], max: 100 }))]);
+    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)[k], max: STAT_DISPLAY_MAX }))]);   // 表示はレベル + アビリティの合計
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
         <div class="td-bg"></div>
@@ -192,12 +192,12 @@ export class AppScreens {
     if (this.trainSheet && !this.app.sheet.root.hidden) this.renderTrainSheet();
   }
 
-  /** アビリティ:Lv10〜90 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)*/
+  /** アビリティ:Lv10〜100 は候補から1つ(未選択・旧アビリティの枠は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)も */
   abilityBoardHTML(id) {
     const rows = this.p.abilityBoard(id), items = this.p.abilityResetItems, I = ABILITY_RESET_ITEM;
     const open = this.abilityOpen ?? null;
     const rowHTML = (row) => {
-      const sel = row.candidates.find((c) => c.id === row.selected);
+      const sel = row.candidates.find((c) => c.id === row.selected) ?? row.legacyPick;
       if (row.ultimate) {
         return `<li class="ab-row ult${row.unlocked ? '' : ' locked'}" data-lv="100"><span class="ab-lv">Lv.100</span>
           <div class="ab-main"><small>ULTIMATE</small><b>${row.unlocked ? esc(sel.name) : '？？？'}</b><p>${row.unlocked ? esc(sel.desc) : 'Lv.100 で解放(キャラ固有)'}</p></div></li>`;
@@ -206,10 +206,12 @@ export class AppScreens {
       const choosing = !sel || open === row.level;
       const cands = choosing ? `<div class="ab-cands">${row.candidates.map((c) => {
         const isCur = c.id === row.selected;
-        return `<button type="button" class="ab-cand${isCur ? ' cur' : ''}" data-lv="${row.level}" data-ab="${c.id}" ${isCur || (sel && items < 1) ? 'disabled' : ''}><b>${esc(c.name)}</b><small>${esc(c.desc)}</small>${sel && !isCur ? `<em>${I.icon} ×1 で変更</em>` : ''}${isCur ? '<em>選択中</em>' : ''}</button>`;
+        // 旧アビリティの枠は無料で選び直せる(アイテム不要)
+        const cost = sel && !row.legacy;
+        return `<button type="button" class="ab-cand${isCur ? ' cur' : ''}" data-lv="${row.level}" data-ab="${c.id}" ${isCur || (cost && items < 1) ? 'disabled' : ''}><b>${esc(c.name)}</b><small>${esc(c.desc)}</small>${cost && !isCur ? `<em>${I.icon} ×1 で変更</em>` : ''}${sel && row.legacy ? '<em>無料で変更</em>' : ''}${isCur ? '<em>選択中</em>' : ''}</button>`;
       }).join('')}</div>` : '';
       return `<li class="ab-row${sel ? ' set' : ' new'}" data-lv="${row.level}"><span class="ab-lv">Lv.${row.level}</span>
-        <div class="ab-main">${sel ? `<b>${esc(sel.name)}</b><p>${esc(sel.desc)}</p>` : '<b class="ab-pick">NEW ♡ 1つ選んでね</b>'}${cands}</div>
+        <div class="ab-main">${row.legacy ? '<small class="ab-legacy">旧アビリティ(効果はそのまま)</small>' : ''}${sel ? `<b>${esc(sel.name)}</b><p>${esc(sel.desc)}</p>` : '<b class="ab-pick">NEW ♡ 1つ選んでね</b>'}${cands}</div>
         ${sel ? `<button type="button" class="ab-change" data-lv="${row.level}">${open === row.level ? 'やめる' : '変更'}</button>` : ''}</li>`;
     };
     return `<section class="tc-ability">
@@ -223,7 +225,7 @@ export class AppScreens {
       if (!r.ok) { this.app.toast?.(r.reason === 'noItem' ? `${ABILITY_RESET_ITEM.name}が足りません` : 'このアビリティは選べません'); return; }
       this.abilityOpen = null;
       Haptic.light?.();
-      this.app.toast?.(r.changed ? `アビリティを変更しました(${ABILITY_RESET_ITEM.name} 残り ${r.itemsLeft})` : 'アビリティを習得しました♡');
+      this.app.toast?.(r.changed ? (r.free ? 'アビリティを変更しました' : `アビリティを変更しました(${ABILITY_RESET_ITEM.name} 残り ${r.itemsLeft})`) : 'アビリティを習得しました♡');
       this.refreshTrain();
     });
   }
@@ -252,7 +254,7 @@ export class AppScreens {
     host.querySelector('.ab-burst')?.remove();
     const el = document.createElement('div');
     el.className = 'ab-burst';
-    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.filter((lv) => lv < 100).map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
+    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
     host.appendChild(el);
     this.app.audio?.loveMax?.();
     setTimeout(() => el.remove(), 2600);
