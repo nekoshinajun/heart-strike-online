@@ -1,13 +1,21 @@
-import { Config, catchWin } from '../core/Config.js';
+import { catchWin } from '../core/Config.js';
 import { BallController } from '../controllers/BallController.js';
+import { sample, slice } from '../defence/NotePath.js';
 
-const ARROW = { L: '←', R: '→', U: '↑', D: '↓' };
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svg = (tag, attrs = {}) => { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+const polyD = (pts) => pts.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`).join(' ');
 
 /**
  * Catch Marker(◎)の表示。到達予定地点(3D)を毎フレーム画面へ投影して追従させる。
  *  - 中央リング:到達時のボールの見かけの大きさ
  *  - 外側リング:到達までの残り時間で縮小 → 中央リングと重なる瞬間が PERFECT
  *  - 判定ゾーン(薄い点線):GOOD 半径(練習用)
+ * DEFENCE のハートの種類は文字を使わず「形と動き」で見せる
+ *  - NORMAL … 細いリングだけ(重なった瞬間にタップ)
+ *  - HOLD   … 塗りつぶした「押す面」+ 外周の空のゲージ(押し続けると一周 → 光ったら離す)
+ *  - FLICK  … 開始地点 → 軌道(終点へ流れる矢印)→ 終点ターゲット(押したまま終点まで運んで離す)
+ *  - MULTI  … 次のハートのマーカーを薄く先に見せる(setNext)
  */
 export class CatchTargetController {
   constructor(player, cam, viewport) {
@@ -18,28 +26,80 @@ export class CatchTargetController {
     this.outer = document.getElementById('cmOuter');
     this.inner = document.getElementById('cmInner');
     this.zone = document.getElementById('cmZone');
-    this.badge = document.getElementById('cmBadge');
     this.holdRing = document.getElementById('cmHold');
+    this.pad = document.getElementById('cmPad');
     this.world = null;
+    this.note = null;
+    this.next = null;
+    this.slide = null;
+    this.buildFx();
   }
 
-  /** DEFENCE のハートの種類:HOLD は「HOLD」+ 押し続けるゲージ / FLICK は弾く方向の矢印 / NORMAL は何も出さない */
+  /** FLICK の軌道・終点・ガイドと、MULTI の次のハートを描く SVG(マーカーの下)*/
+  buildFx() {
+    const host = this.el?.parentElement;
+    if (!host) return;
+    const s = svg('svg', { id: 'noteFx', 'aria-hidden': 'true' });
+    this.fxNext = svg('g', { class: 'nf-next' });
+    this.fxNextPath = svg('path', { class: 'nf-next-path' });
+    this.fxNextEnd = svg('circle', { class: 'nf-next-end', r: 8 });
+    this.fxNextRing = svg('circle', { class: 'nf-next-ring', r: 20 });
+    this.fxNextPad = svg('circle', { class: 'nf-next-pad', r: 14 });
+    this.fxNext.append(this.fxNextPath, this.fxNextEnd, this.fxNextRing, this.fxNextPad);
+    this.fxPath = svg('g', { class: 'nf-path' });
+    this.fxTube = svg('path', { class: 'nf-tube' });
+    this.fxDone = svg('path', { class: 'nf-done' });
+    this.fxFlow = svg('path', { class: 'nf-flow' });
+    this.fxEnd = svg('g', { class: 'nf-end' });
+    this.fxEnd.append(svg('circle', { class: 'nf-end-glow', r: 26 }), svg('circle', { class: 'nf-end-ring', r: 20 }), svg('circle', { class: 'nf-end-dot', r: 8 }));   // 終点 = 行き先(点線の輪 + 点。開始のリングとは違う形)
+    this.fxGuide = svg('circle', { class: 'nf-guide', r: 13 });
+    this.fxFinger = svg('circle', { class: 'nf-finger', r: 30 });
+    this.fxPath.append(this.fxTube, this.fxDone, this.fxFlow, this.fxEnd, this.fxGuide, this.fxFinger);
+    s.append(this.fxNext, this.fxPath);
+    host.insertBefore(s, this.el);
+    s.style.display = 'none';
+    this.fx = s;
+  }
+
+  /** 今のハート(NORMAL / HOLD / FLICK)のマーカー */
   setNote(note) {
-    const t = note?.type ?? null;
-    this.el.dataset.note = t ?? '';
-    if (!this.badge) return;
-    this.badge.hidden = !(t === 'HOLD' || t === 'FLICK');
-    this.badge.textContent = t === 'HOLD' ? 'HOLD' : t === 'FLICK' ? ARROW[note.dir] ?? '↑' : '';
-    this.badge.dataset.dir = t === 'FLICK' ? note.dir ?? 'U' : '';
-    this.setHold(null);
+    this.note = note ?? null;
+    const t = note?.type ?? '';
+    this.el.dataset.note = t;
+    this.el.classList.remove('holding', 'ready', 'early', 'sliding');
+    if (this.pad) this.pad.hidden = t !== 'HOLD';
+    this.setHold(t === 'HOLD' ? 0 : null);
+    this.slide = null;
+    if (this.fx) this.fx.dataset.note = t;
   }
 
-  /** HOLD の押し続けゲージ(0..1)。null で隠す */
-  setHold(k) {
+  /** MULTI:次に来るハート(薄く先に見せる)。null で消す */
+  setNext(note) { this.next = note ?? null; if (this.fx) this.fx.dataset.next = note?.type ?? ''; }
+
+  /**
+   * HOLD の押し続けゲージ(0..1)。null で隠す
+   *   state: 'idle'(押す前:空のゲージ)/ 'holding'(押している)/ 'ready'(一周 → 離してよい)/ 'early'(早く離した:残りを赤で見せる)
+   */
+  setHold(k, state = k == null ? null : 'idle') {
     if (!this.holdRing) return;
     this.holdRing.hidden = k == null;
-    if (k != null) this.holdRing.style.setProperty('--k', `${Math.round(k * 360)}deg`);
-    this.el.classList.toggle('holding', k != null);
+    const kk = Math.max(0, Math.min(1, k ?? 0));
+    if (k != null) this.holdRing.style.setProperty('--k', `${Math.round(kk * 360)}deg`);
+    this.el.style.setProperty('--hk', kk.toFixed(3));
+    this.el.dataset.hold = state ?? '';
+    this.el.classList.toggle('holding', state === 'holding');
+    this.el.classList.toggle('ready', state === 'ready');
+    this.el.classList.toggle('early', state === 'early');
+  }
+
+  /** FLICK の操作中:{ consumed(進んだ所 0..1), guide(理想の位置 0..1), finger:{x,y}, reached, fail } / null */
+  setSlide(s) { this.slide = s; this.el.classList.toggle('sliding', !!s && !s.fail); }
+
+  /** FLICK の軌道(今の画面座標 px の折れ線)。判定もこれを使う(見えている軌道 = 判定の軌道)*/
+  pathPoly(note = this.note) {
+    if (!note?.pathWorld?.length) return null;
+    const P = note.pathWorld.map((wp) => this.player.toScreen(wp));
+    return sample(note.path?.kind ?? 'line', P, note.path?.kind === 'line' ? 1 : 24);
   }
 
   show(world, color) {
@@ -47,9 +107,14 @@ export class CatchTargetController {
     this.el.hidden = false;
     this.el.style.setProperty('--pc', color);
     this.el.classList.remove('hit', 'miss');
+    if (this.fx) this.fx.style.display = '';
   }
 
-  hide() { this.el.hidden = true; this.world = null; }
+  hide() {
+    this.setNote(null); this.setNext(null);
+    this.el.hidden = true; this.world = null;
+    if (this.fx) { this.fx.style.display = 'none'; this.fx.dataset.note = ''; this.fx.dataset.next = ''; }
+  }
 
   /** 現在のマーカー中心(px) */
   screen() { return this.world ? this.player.toScreen(this.world) : null; }
@@ -60,6 +125,7 @@ export class CatchTargetController {
     const s = this.screen();
     const short = Math.min(this.viewport.w, this.viewport.h);
     const r = BallController.screenRadius(this.cam.camera, this.world, this.viewport.h);
+    this.r = r;
     const k = Math.max(-0.35, Math.min(1, progress));
     const outer = r * (1 + k * 2.6);
     this.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
@@ -68,9 +134,48 @@ export class CatchTargetController {
     this.outer.style.opacity = progress > 1 ? 0.35 : 1;
     const zr = catchWin('goodRadius') * short;
     this.zone.style.width = this.zone.style.height = `${zr * 2}px`;
-    if (this.holdRing) this.holdRing.style.width = this.holdRing.style.height = `${r * 2 + 18}px`;
-    if (this.badge) this.badge.style.setProperty('--r', `${r}px`);
+    if (this.holdRing) this.holdRing.style.width = this.holdRing.style.height = `${r * 2 + 30}px`;
+    if (this.pad) this.pad.style.width = this.pad.style.height = `${r * 2 - 6}px`;
     this.el.classList.toggle('near', Math.abs(progress) < 0.08);
+    this.drawFx(r);
+  }
+
+  /** FLICK の軌道・終点・ガイド / 次のハート(マーカーを動かした後に毎フレーム)*/
+  drawFx(r = this.r ?? 24) {
+    if (!this.fx) return;
+    const n = this.note;
+    const poly = n?.type === 'FLICK' ? this.pathPoly(n) : null;
+    this.fxPath.style.display = poly ? '' : 'none';
+    if (poly) {
+      const sl = this.slide, from = sl ? Math.max(0, Math.min(1, sl.consumed)) : 0;
+      // 進んだ所は消えていく(残りの軌道だけ太く見せる)。流れる矢印は終点へ向かって動く
+      const rest = slice(poly, from, 1), done = slice(poly, 0, from);
+      this.fxTube.setAttribute('d', polyD(rest)); this.fxTube.style.strokeWidth = `${Math.max(16, r * 0.8).toFixed(1)}px`;
+      this.fxFlow.setAttribute('d', polyD(rest));
+      this.fxDone.setAttribute('d', from > 0.001 ? polyD(done) : '');
+      const end = poly[poly.length - 1];
+      this.fxEnd.setAttribute('transform', `translate(${end.x.toFixed(1)} ${end.y.toFixed(1)}) scale(${Math.max(0.8, r / 34).toFixed(3)})`);
+      this.fxEnd.classList.toggle('reached', !!sl?.reached);
+      this.fxPath.classList.toggle('fail', !!sl?.fail);
+      const gt = sl && !sl.fail ? sl.guide : null;
+      this.fxGuide.style.display = gt != null && gt < 1 ? '' : 'none';
+      if (gt != null) { const g = slice(poly, 0, Math.max(0.001, Math.min(1, gt))).at(-1); this.fxGuide.setAttribute('cx', g.x.toFixed(1)); this.fxGuide.setAttribute('cy', g.y.toFixed(1)); this.fxGuide.setAttribute('r', (r * 0.55).toFixed(1)); }
+      this.fxFinger.style.display = sl?.finger && !sl.fail ? '' : 'none';
+      if (sl?.finger) { this.fxFinger.setAttribute('cx', sl.finger.x.toFixed(1)); this.fxFinger.setAttribute('cy', sl.finger.y.toFixed(1)); this.fxFinger.setAttribute('r', (r * 1.15).toFixed(1)); }
+    }
+    // MULTI:次のハートを薄く(種類ごとの形:NORMAL = リング / HOLD = 塗りつぶし / FLICK = 軌道と終点)
+    const nx = this.next, nw = nx?.markerWorld;
+    this.fxNext.style.display = nw ? '' : 'none';
+    if (nw) {
+      const p = this.player.toScreen(nw), rr = Math.max(14, r * 0.8);
+      for (const c of [this.fxNextRing, this.fxNextPad]) { c.setAttribute('cx', p.x.toFixed(1)); c.setAttribute('cy', p.y.toFixed(1)); }
+      this.fxNextRing.setAttribute('r', rr.toFixed(1)); this.fxNextPad.setAttribute('r', (rr * 0.72).toFixed(1));
+      this.fxNextPad.style.display = nx.type === 'HOLD' ? '' : 'none';
+      const np = nx.type === 'FLICK' ? this.pathPoly(nx) : null;
+      this.fxNextPath.setAttribute('d', np ? polyD(np) : '');
+      this.fxNextEnd.style.display = np ? '' : 'none';
+      if (np) { const e = np[np.length - 1]; this.fxNextEnd.setAttribute('cx', e.x.toFixed(1)); this.fxNextEnd.setAttribute('cy', e.y.toFixed(1)); this.fxNextEnd.setAttribute('r', (rr * 0.6).toFixed(1)); }
+    }
   }
 
   flash(ok) { this.el.classList.add(ok ? 'hit' : 'miss'); }

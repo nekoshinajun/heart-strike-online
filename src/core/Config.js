@@ -526,8 +526,11 @@ export const Config = {
     maxLevel: 5,
     levelBannerSec: 1.1,       // 攻撃開始時の「ATTACK LEVEL ★★★☆☆」の表示時間
     curveChance: 0.3,          // ★2 以降、ハートの軌道が左右に曲がる割合(見た目の変化だけ。タイミングは変わらない)
-    hold: { sec: 0.8, releaseWindowMul: 2, scale: 1.6, color: '#ffd23e' },   // ★ HOLD:長押しの長さ(秒)・離す判定の幅(押し始めの何倍)・見た目
-    flick: { minDist: 0.07, maxAngleDeg: 40, maxSec: 0.45, color: '#5ad8ff' },  // ★ FLICK:弾く距離(画面短辺比)・方向のずれの許容・押してから離すまで
+    hold: { sec: 0.8, releaseWindowMul: 2, scale: 1.6, pressScale: 0.86, color: '#ffd23e' },   // ★ HOLD:長押しの長さ(秒)・離す判定の幅(押し始めの何倍)・見た目
+    // ★ FLICK = スライド:開始地点で押す → 指を離さず軌道に沿って終点まで運ぶ → 離す(osu! のスライダー)
+    //   pathLen … 軌道の長さ(画面の短辺比)/ slideSec … 理想の運ぶ時間(ガイドがこの時間で終点へ)/ tol … 軌道から離れてよい距離(短辺比)
+    //   endRadius … 終点に着いたとみなす距離 / endWindowMul … 終点で離すタイミングの判定幅(開始の判定の何倍)
+    flick: { pathLen: 0.5, pathMargin: 0.1, pathTop: 0.22, slideSec: 0.7, tol: 0.13, endRadius: 0.075, endWindowMul: 3, color: '#5ad8ff' },
     multi: { damageMul: 1.5, gap: 0.1 },  // ★ MULTI:1回の攻撃全体のダメージ倍率(各ハートに 1/個数 ずつ)・次のハートまでの間(秒)
     /**
      * ★ごとの攻撃の候補(weight で抽選)。notes:'NORMAL' | 'HOLD' | 'FLICK' か { type, hold(秒), dir('L'|'R'|'U'|'D'|'random') }

@@ -1,6 +1,7 @@
 import { GameState } from '../core/StateMachine.js';
 import { Config, catchWin } from '../core/Config.js';
 import { Judge } from '../catch/CatchJudge.js';
+import { nearest } from '../defence/NotePath.js';
 import { DefenseCalculator, BattleTuning } from '../data/BattleCalc.js';
 
 const JUDGE_COLOR = { PERFECT: '#ffd23e', GREAT: '#3ee8ff', GOOD: '#9dff7a', MISS: '#ff3d5a' };
@@ -142,6 +143,7 @@ export class BossReturnState {
     g.catchJudge.begin(plan.arrival, plan.markerLead);
     g.catchTarget.show(plan.markerWorld, g.turn.current.color);
     g.catchTarget.setNote?.(plan.notes?.[0]);
+    g.catchTarget.setNext?.(plan.notes?.[1]);
     g.ui.showPrompt(promptFor(plan.notes?.[0]), g.turn.current.color);
     g.boss.view.playCharge();
     g.ball.hide();
@@ -175,8 +177,6 @@ export class BossReturnState {
 
 const ORDER = [Judge.PERFECT, Judge.GREAT, Judge.GOOD, Judge.MISS];
 const worse = (a, b) => ORDER[Math.max(ORDER.indexOf(a), ORDER.indexOf(b))];
-const DIRS = { L: { x: -1, y: 0, label: '←' }, R: { x: 1, y: 0, label: '→' }, U: { x: 0, y: -1, label: '↑' }, D: { x: 0, y: 1, label: '↓' } };
-export const FLICK_DIRS = DIRS;
 const promptFor = (n) => (n?.type === 'HOLD' ? 'catchHold' : n?.type === 'FLICK' ? 'catchFlick' : 'catch');
 /** 到達後に遅れて判定できる時間(HOLD は押し始めの判定のあと押し続けるので同じ)*/
 function lateDurFor() { return catchWin('goodTime') + 0.02; }
@@ -185,7 +185,8 @@ function lateDurFor() { return catchWin('goodTime') + 0.02; }
  * PLAYER_DEFENSE:ボスの攻撃を捌く。1回の攻撃 = 1個以上のハート(notes)。ハートごとに操作と判定
  *   NORMAL … 到達でタップ(位置 + タイミング。既存の CatchJudge)
  *   HOLD   … 到達で押し始め(位置 + タイミング)→ hold 秒押し続けて離す(離すタイミングも判定)。悪い方
- *   FLICK  … 到達で押して、指定方向へ弾く(押した位置 + タイミング・方向)。タップだけ / 違う方向は MISS
+ *   FLICK  … スライド:開始地点で押す(位置 + タイミング)→ 指を離さず軌道に沿って終点まで運ぶ → 終点で離す(離すタイミングも判定)
+ *            軌道から大きく外れる / 終点まで運ばずに離す / タップだけ は MISS。軌道は NotePath(直線。将来カーブも)
  *   MULTI  … 1個ずつ順に飛んでくる(1個の判定が終わったら次が発射)
  * ダメージは全部のハートの判定が終わってから1回だけ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul)。PERFECT は 0
  */
@@ -212,7 +213,10 @@ export class PlayerDefenseState {
     this.arrival = arrival;
     this.noteState = 'wait';
     this.noteGrade = null;
-    this.down = null;
+    this.slide = null;
+    this.fxKeep = false;
+    g.ball.setPressed?.(0);
+    g.catchTarget.setNext?.(this.notes[k + 1]);
     this.events = (n.motion?.events ?? []).map((e) => ({ ...e }));
     if (k > 0) {
       g.catchJudge.begin(arrival, n.markerLead ?? Math.min(0.9, n.duration * 0.9));
@@ -233,13 +237,6 @@ export class PlayerDefenseState {
     const n = this.note, target = g.catchTarget.screen();
     const tap = e.x != null ? { x: e.x, y: e.y } : null;
     const short = Math.min(g.viewport.w, g.viewport.h);
-    if (n.type === 'FLICK') {
-      // 押した瞬間の位置とタイミングを覚えておき、弾いて離した時に判定(タップだけでは成功にしない)
-      if (g.clock < g.catchJudge.ringStart - 0.05) return;
-      this.down = { t: g.clock, tap, target, short };
-      this.noteState = 'flicking';
-      return;
-    }
     // pointer event の timeStamp は端末で基準が違うことがあるので、判定は g.clock で(既存どおり)
     const r = g.catchJudge.input(g.clock, tap, target, short);
     if (!r) return;
@@ -248,33 +245,67 @@ export class PlayerDefenseState {
       this.noteState = 'holding';
       this.startGrade = r;
       this.holdEnd = this.arrival + (n.hold ?? Config.defence.hold.sec);
-      g.catchTarget.setHold?.(0);
+      g.catchTarget.setHold?.(0, 'holding');
+      return;
+    }
+    if (n.type === 'FLICK' && r !== Judge.MISS) {
+      // 開始地点を押せた → 指を離さず終点まで運ぶ(ガイドは slideSec で終点へ)
+      this.noteState = 'sliding';
+      this.startGrade = r;
+      this.slideEnd = Math.max(g.clock, this.arrival) + (n.slideSec ?? Config.defence.flick.slideSec);
+      this.slide = { consumed: 0, guide: 0, finger: tap, reached: false, fail: false };
+      g.catchTarget.setSlide?.(this.slide);
       return;
     }
     this.finishNote(r, g.catchJudge.describe());
   }
 
-  onRelease(f) {
+  /** FLICK(スライド)中:指の位置 → 軌道の進み。軌道から大きく外れたら MISS */
+  onDrag(e) {
+    if (this.result || this.noteState !== 'sliding' || !e?.current) return;
+    this.follow({ x: e.current.x, y: e.current.y });
+  }
+
+  follow(p) {
+    const g = this.g, F = Config.defence.flick, short = Math.min(g.viewport.w, g.viewport.h);
+    const poly = g.catchTarget.pathPoly?.(this.note);
+    if (!poly) return;
+    const nr = nearest(poly, p), end = poly[poly.length - 1];
+    const sl = this.slide;
+    sl.finger = p;
+    if (nr.dist > (F.tol ?? 0.13) * short) { this.failSlide('軌道から外れた'); return; }
+    sl.consumed = Math.max(sl.consumed, nr.t);
+    sl.reached = sl.reached || Math.hypot(p.x - end.x, p.y - end.y) <= (F.endRadius ?? 0.075) * short;
+    if (sl.reached) sl.consumed = 1;
+    // ハートは指について動く(キャッチ地点と同じ奥行き)
+    g.ball.pinAt?.(g.player.screenToWorld(p.x, p.y, Config.ball.catchDepth));
+  }
+
+  failSlide(why) {
+    this.slide.fail = true;
+    this.g.catchTarget.setSlide?.(this.slide);
+    this.fxKeep = true;
+    this.finishNote(Judge.MISS, why);
+  }
+
+  /** 離した:HOLD は終わりのタイミング / FLICK は終点まで運べたか + 終点で離したタイミング */
+  onRelease() {
     const g = this.g, n = this.note;
     if (this.result) return;
     if (this.noteState === 'holding') {
-      const D = Config.defence.hold, dt = g.clock - this.holdEnd, mul = D.releaseWindowMul ?? 2;
-      const rg = ORDER[Math.min(3, (() => { const a = Math.abs(dt) / mul; return a <= catchWin('perfectTime') ? 0 : a <= catchWin('greatTime') ? 1 : a <= catchWin('goodTime') ? 2 : 3; })())];
+      const D = Config.defence.hold, dt = g.clock - this.holdEnd;
+      const rg = endGrade(dt, D.releaseWindowMul ?? 2);
+      const early = rg === Judge.MISS && dt < 0;
+      if (early) { g.catchTarget.setHold?.(1 - (this.holdEnd - g.clock) / (n.hold ?? D.sec), 'early'); this.fxKeep = true; }   // 残り時間を赤で見せる
       this.finishNote(worse(this.startGrade, rg), rg === Judge.MISS ? (dt < 0 ? '離すのが早い' : '離すのが遅い') : '');
       return;
     }
-    if (this.noteState === 'flicking') {
-      const F = Config.defence.flick, d = this.down, want = DIRS[n.dir] ?? DIRS.U;
-      const dist = (f?.distance ?? 0) / d.short;
-      const ang = f?.distance ? Math.acos(Math.max(-1, Math.min(1, (f.dx * want.x + f.dy * want.y) / f.distance))) * 180 / Math.PI : 180;
-      const quick = (g.clock - d.t) <= (F.maxSec ?? 0.45) + 0.05;
-      if (dist < F.minDist || !quick) { this.finishNote(Judge.MISS, dist < F.minDist ? 'フリックしていない' : '遅い'); return; }
-      if (ang > F.maxAngleDeg) { this.finishNote(Judge.MISS, '方向ちがい'); return; }
-      const tg = CatchJudgeTime(d.t - this.arrival);
-      const distN = d.tap && d.target ? Math.hypot(d.tap.x - d.target.x, d.tap.y - d.target.y) / d.short : 1;
-      const pg = distN <= catchWin('perfectRadius') ? 0 : distN <= catchWin('greatRadius') ? 1 : distN <= catchWin('goodRadius') ? 2 : 3;
-      if (d.tap) g.ui.tapRipple(d.tap.x, d.tap.y, JUDGE_COLOR[ORDER[Math.max(tg, pg)]]);
-      this.finishNote(ORDER[Math.max(tg, pg)], tg > 0 ? (d.t < this.arrival ? '早い' : '遅い') : pg > 0 ? '位置ズレ' : '');
+    if (this.noteState === 'sliding') {
+      if (!this.slide.reached) { this.failSlide('終点まで運んでいない'); return; }
+      const rg = endGrade(g.clock - this.slideEnd, Config.defence.flick.endWindowMul ?? 3);
+      this.fxKeep = true;
+      g.catchTarget.setSlide?.(this.slide);
+      this.finishNote(worse(this.startGrade, rg), rg === Judge.MISS ? (g.clock < this.slideEnd ? '運ぶのが早い' : '離すのが遅い') : '');
     }
   }
 
@@ -288,14 +319,15 @@ export class PlayerDefenseState {
     this.noteState = 'done';
     this.noteWhy = why;
     g.catchJudge.result = r;
-    g.catchTarget.setHold?.(null);
+    if (!this.fxKeep) { g.catchTarget.setHold?.(null); g.catchTarget.setSlide?.(null); }
+    g.ball.setPressed?.(0);
     const multi = this.notes.length > 1;
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], multi ? `${this.idx + 1} / ${this.notes.length}${why ? ` ・ ${why}` : ''}` : why);
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
     g.fever.onCatch(r);   // FEVER 中の PERFECT で FEVER LEVEL UP(既存)
     if (r === Judge.PERFECT && !multi) g.setTimeScale(0.2); // 到達までスローモーション(1個の攻撃だけ)
-    if (r === Judge.MISS || g.clock >= this.arrival || this.note.type === 'HOLD') this.noteImpact();
+    if (r === Judge.MISS || g.clock >= this.arrival || this.note.type !== 'NORMAL') this.noteImpact();
   }
 
   /** 1個のハートが届いた(キャッチ / MISS)→ 次のハートへ / 全部終わったらダメージ */
@@ -350,15 +382,26 @@ export class PlayerDefenseState {
     if (prog > 0 && prog < 0.5) g.cam.kickFov((0.5 - prog) * 5);
     // タイミングを知らせるカウント音は鳴らさない(見た目だけで判断する)
     if (this.noteState === 'holding') {
+      // ゲージが一周(100%)→ 光る = 離してよい。終わりが近いほどゲージの色・脈動が強くなる(CSS:--hk)
       const n = this.note, k = 1 - (this.holdEnd - now) / (n.hold ?? Config.defence.hold.sec);
-      g.catchTarget.setHold?.(Math.max(0, Math.min(1, k)));
-      g.ball.pinAt?.(n.world);
+      g.catchTarget.setHold?.(Math.max(0, Math.min(1, k)), k >= 1 ? 'ready' : 'holding');
+      g.ball.pinAt?.(n.markerWorld ?? n.world);   // ハートはマーカーの中央に固定
+      g.ball.setPressed?.(Math.max(0.2, Math.min(1, k)));
       const late = (Config.defence.hold.releaseWindowMul ?? 2) * catchWin('goodTime');
       if (now > this.holdEnd + late) this.finishNote(Judge.MISS, '離さなかった');
       return;
     }
+    if (this.noteState === 'sliding') {
+      const n = this.note, sl = this.slide;
+      sl.guide = Math.max(0, Math.min(1, (now - (this.slideEnd - (n.slideSec ?? Config.defence.flick.slideSec))) / (n.slideSec ?? Config.defence.flick.slideSec)));
+      g.catchTarget.setSlide?.(sl);
+      if (!sl.finger) g.ball.pinAt?.(n.markerWorld ?? n.world);
+      const late = (Config.defence.flick.endWindowMul ?? 3) * catchWin('goodTime');
+      if (now > this.slideEnd + late) { if (sl.reached) { this.fxKeep = true; this.finishNote(Judge.MISS, '離すのが遅い'); } else this.failSlide('終点まで運んでいない'); }
+      return;
+    }
     if (this.noteState === 'done') { if (this.noteImpacted !== this.idx && now >= this.arrival) this.noteImpact(); return; }
-    if (now > judge.lateLimit) { if (g.online && g.online.isDown()) return; this.finishNote(Judge.MISS, this.noteState === 'flicking' ? 'フリックしていない' : 'タップなし'); }
+    if (now > judge.lateLimit) { if (g.online && g.online.isDown()) return; this.finishNote(Judge.MISS, 'タップなし'); }
   }
 
   /** テスト / デバッグ:今のハートの判定を直接決める(1個だけの攻撃は全体が決まる)*/
@@ -381,7 +424,9 @@ export class PlayerDefenseState {
     this.impacted = true;
     g.setTimeScale(1);
     const r = this.result;
-    setTimeout(() => g.catchTarget.hide(), 180);
+    // HOLD を早く離した / FLICK の結果は少し残して見せる。その間に次の攻撃のマーカーが出ていたら消さない
+    const ct = g.catchTarget, shown = ct.world;
+    setTimeout(() => { if (ct.world === shown) ct.hide(); }, this.fxKeep ? 650 : 180);
     if (r !== Judge.MISS) g.ui.tutorialDone('catch');
     if (this.grades.some((x) => x === Judge.MISS)) g.turn.resetRally();
     if (this.notes.length > 1) g.ui.showJudge(r === Judge.PERFECT ? 'ALL PERFECT!' : `${this.grades.filter((x) => x !== Judge.MISS).length} / ${this.grades.length} DEFENCE`, r === Judge.PERFECT ? 'perfect' : 'tier', JUDGE_COLOR[r], this.grades.join(' ・ '));
@@ -417,15 +462,19 @@ export class PlayerDefenseState {
     this.g.ui.hideCatchNotice?.();
     this.g.ui.showPrompt(null);
     this.g.catchJudge.reset();
-    this.g.catchTarget.setNote?.(null);
+    // HOLD を早く離した残り / FLICK の結果は、マーカーを消す時(impact の少し後の hide)まで残す
+    if (!this.fxKeep) { this.g.catchTarget.setNote?.(null); this.g.catchTarget.setNext?.(null); }
     this.g.ball.setNoteLook?.(null);
+    this.g.ball.setPressed?.(0);
   }
 }
 
-function CatchJudgeTime(dt) {
-  const a = Math.abs(dt);
-  return a <= catchWin('perfectTime') ? 0 : a <= catchWin('greatTime') ? 1 : a <= catchWin('goodTime') ? 2 : 3;
+/** 終わり(離す)のタイミングの判定:開始の判定の幅 × mul */
+function endGrade(dt, mul) {
+  const a = Math.abs(dt) / mul;
+  return a <= catchWin('perfectTime') ? Judge.PERFECT : a <= catchWin('greatTime') ? Judge.GREAT : a <= catchWin('goodTime') ? Judge.GOOD : Judge.MISS;
 }
+
 
 /** PLAYER_CATCH:キャッチしたボールを画面下の投球位置へ移動 */
 export class PlayerCatchState {
