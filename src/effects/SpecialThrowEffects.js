@@ -3,11 +3,12 @@ import { Config } from '../core/Config.js';
 import { heartGeometry } from '../controllers/BallController.js';
 
 /**
- * SPECIAL 投球の見た目(キャラクターごと)。CharacterData.specialThrowEffect に ID を書くだけで切り替わる
+ * SPECIAL 投球の見た目(キャラクターごと)。CharacterData.special.visualEffect に ID を書くだけで切り替わる
  *   ★ 見た目だけ:分かれたハートに当たり判定・ダメージは無い。ダメージ・部位判定は本体の1投(既存の SPECIAL 1回分)だけ
  *   MULTI でも全クライアントが同じ投球(同じキャラ・同じ軌道)を再生するので、同じ見た目になる
  *
- * 1つの演出 = { start(fx, ctx), update(fx, dt), hit(fx, point), end(fx) }(fx = SpecialThrowFx。共通の道具を持つ)
+ * 1つの演出 = { start(fx, ctx), update(fx, dt), hit(fx, point, result), end(fx) }(fx = SpecialThrowFx。共通の道具を持つ)
+ *   result = SPECIAL の効果の結果(src/effects/SpecialEffects.js。回復量など)。MISS では hit は呼ばれない
  */
 export const SPECIAL_THROW_EFFECTS = {
   /**
@@ -64,6 +65,22 @@ export const SPECIAL_THROW_EFFECTS = {
   },
 };
 
+SPECIAL_THROW_EFFECTS.angelHeal = {
+  /**
+   * エンジェルハート(セラ):命中 → 巨大な白い翼が開く → 中央から白〜金の光 → 金の羽根と光のハートが各味方へ →
+   * HP ゲージが伸びる → 「ALL HEAL +○○」(約 1.2 秒)。投球中の見た目は通常の SPECIAL のまま
+   */
+  start() {},
+  update() {},
+  hit(fx, point, result) {
+    const g = fx.g;
+    g.effects.heartBurst(point, 30, 8, 1.1, ['#ffffff', '#fff3c4', '#ffd76a', '#ffe9f4']);
+    g.effects.shockwave(point, '#fff1b8', 9, g.cam.camera);
+    fx.active = null;
+    if (result?.type === 'healAll') g.ui.playAngelHeal?.(result);
+  },
+};
+
 /** SPECIAL 投球の見た目を再生する係(GameManager に1つ)。演出の中身は SPECIAL_THROW_EFFECTS */
 export class SpecialThrowFx {
   constructor(g) {
@@ -76,9 +93,10 @@ export class SpecialThrowFx {
   /** 発射時:そのキャラの演出があれば始める(無ければ何もしない = 既存の SPECIAL の見た目)*/
   start(chara, th) {
     this.end();
-    const def = SPECIAL_THROW_EFFECTS[chara?.specialThrowEffect];
+    const id = chara?.special?.visualEffect ?? chara?.specialThrowEffect;   // CharacterData.special.visualEffect
+    const def = SPECIAL_THROW_EFFECTS[id];
     if (!def) return false;
-    this.active = def; this.id = chara.specialThrowEffect;
+    this.active = def; this.id = id;
     this.t = 0; this.trailAcc = 0; this.tick = 0; this.exploded = false; this.stages = [1];
     this.flightTime = th?.flightTime ?? 0.6;
     this.conv = null;
@@ -87,7 +105,7 @@ export class SpecialThrowFx {
   }
 
   /** 本体が HIT(BOSS_HIT)→ 集まる演出。MISS → 消える */
-  hit(point) { if (this.active) { this.active.hit?.(this, point); } }
+  hit(point, result = null) { if (this.active) { this.active.hit?.(this, point, result); } }
   miss() { this.end(); }
 
   /** dt = ゲーム時間 / realDt = 実時間(集まる演出はヒットストップ中も実時間で進める)*/

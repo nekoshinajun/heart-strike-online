@@ -7,6 +7,7 @@ const STANDARD_POOL = [
   { characterId: 'minamo', weight: 1, pickup: false }, { characterId: 'raimu', weight: 1, pickup: false }, { characterId: 'kagura', weight: 1, pickup: false },
   { characterId: 'hinoka', weight: 1, pickup: false }, { characterId: 'shizuku', weight: 1, pickup: false }, { characterId: 'kohaku', weight: 1, pickup: false },
   { characterId: 'akane', weight: 1, pickup: false }, { characterId: 'nagi', weight: 1, pickup: false },
+  { characterId: 'sera', weight: 1, pickup: false },   // SSR(DEFAULT・ヨルナ PICK UP の非 PICK UP SSR 枠)
 ];
 
 export const APP_CONFIG = {

@@ -1,3 +1,4 @@
+import { applySpecialEffect } from '../effects/SpecialEffects.js';
 import * as THREE from '../lib/three.js';
 import { GameState } from '../core/StateMachine.js';
 import { Config } from '../core/Config.js';
@@ -74,6 +75,7 @@ export class PlayerAttackState {
     // 前の人が投げ終えた瞬間に NEXT 予告を消す。
     if (g.online) g.ui.hideCatchNotice?.();
     const special = g.energy.consumeSpecial();
+    g.lastThrowMine = true;   // この投球は自分(MULTI:命中後の SPECIAL の効果をサーバーへ送るのは投げた人だけ)
     if (g.online) g.online.sendThrow(th, !!special);
     g.sm.change(GameState.BALL_TO_BOSS, { th, flick, special });
   }
@@ -188,6 +190,7 @@ export class BossHitState {
 
   enter({ result, th, vel, special, banks = 0, gates = 0, flight = null }) {
     const g = this.g;
+    this.specialResult = null;
     const mul = g.turn.mul;
     const color = g.turn.current.color;
     const point = result.point;
@@ -220,6 +223,14 @@ export class BossHitState {
       const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
       const heartMul = hm.total;
       const r = g.boss.addHeart(partId, heartMul, heartMul / (hm.attackMul * hm.attrMul));
+      // SPECIAL の効果(CharacterData.special.effectType):命中して最終ダメージ(r.heartGain)が確定した後に1回だけ
+      //   例:セラ ANGEL HEART = 最終ダメージ × 3% を生存中の味方全員に回復。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる
+      this.specialResult = special ? applySpecialEffect(ch, { players: g.turn.players, damage: r.heartGain }) : null;
+      if (this.specialResult?.type === 'healAll') {
+        if (g.online && g.lastThrowMine) g.online.sendHeal?.(this.specialResult.amount);
+        g.stats.healed = (g.stats.healed ?? 0) + this.specialResult.healed.reduce((a, x) => a + x.gained, 0);
+        this.wait = Math.max(this.wait, 1.35);   // 回復の演出(約 1.2 秒)を見せてから次へ
+      }
       g.stats.heart += r.heartGain;
       g.stats.bestHit = Math.max(g.stats.bestHit ?? 0, r.heartGain);   // 記録:BestHeartPerThrow
       g.affection.onHeartChanged();   // LOVE 25% ごとの表情
@@ -257,7 +268,7 @@ export class BossHitState {
       g.ui.setParts(g.boss.parts, partId);
       g.cam.shake(0.2 + (power - 0.8) * 0.4 + (mul - 1) * 0.2);
       g.hitstop(special ? special.hitstop : 0.05 + power * 0.04 + (perfect ? 0.04 : 0));
-      if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); g.specialFx.hit(point); }
+      if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); g.specialFx.hit(point, this.specialResult); }
       g.ui.flash('#ffe6f2', 0.1 + (mul - 1) * 0.12);
       g.audio.heart(power, perfect);
 
