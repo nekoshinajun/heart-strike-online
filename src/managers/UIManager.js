@@ -98,8 +98,9 @@ export class UIManager {
   }
   hideStatus() { if (this.statusEl) this.statusEl.hidden = true; this.statusIndex = null; }
 
-  setPlayers(players, current) {
+  setPlayers(players, current = this.currentIdx) {
     this.players = players;
+    this.currentIdx = current;
     if (this.statusIndex != null && this.statusEl && !this.statusEl.hidden) this.showStatus(this.statusIndex);   // 表示中に HP が変わったら更新
     players.forEach((p, i) => {
       const c = this.cards[i];
@@ -108,6 +109,42 @@ export class UIManager {
       c.d.classList.toggle('down', p.hp <= 0);
       c.d.classList.toggle('mine', !!p.mine);   // MULTI:自分が担当するキャラ
     });
+  }
+
+  /**
+   * セラ ANGEL HEART の回復演出(約 1.2 秒・テンポ優先):巨大な白い翼 → 中央から白〜金の光 → 金の羽根と光のハートが各味方へ飛ぶ →
+   * 着いた味方の HP ゲージが伸びる(+N)→ 中央に「ALL HEAL +N」。数値は result(SpecialEffects の結果)をそのまま表示
+   */
+  playAngelHeal(result) {
+    const host = document.getElementById('ui');
+    if (!host || !result) return;
+    let el = document.getElementById('angelFx');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'angelFx'; el.setAttribute('aria-hidden', 'true');
+      const wing = (side) => `<svg class="af-wing ${side}" viewBox="0 0 200 160">${Array.from({ length: 9 }, (_, k) => `<ellipse cx="${30 + k * 17}" cy="${40 + k * 9}" rx="${46 - k * 2}" ry="10" transform="rotate(${-28 + k * 9} ${30 + k * 17} ${40 + k * 9})" />`).join('')}<path d="M10 30 Q 90 -10 190 60 Q 120 40 60 70 Z" class="af-arm"/></svg>`;
+      el.innerHTML = `<div class="af-light"></div>${wing('l')}${wing('r')}<div class="af-text"><small>ANGEL HEART</small><b></b></div>`;
+      host.appendChild(el);
+    }
+    el.querySelector('.af-text b').textContent = `ALL HEAL +${result.amount}`;
+    el.hidden = false; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(this.angelT); this.angelT = setTimeout(() => { el.hidden = true; el.classList.remove('on'); }, 1350);
+    // 金の羽根と光のハートが各味方へ → 着いたら HP ゲージが伸びる(+N)
+    const r = this.el.dmg.getBoundingClientRect(), cx = r.width / 2, cy = r.height * 0.42;
+    result.healed.forEach((h, k) => {
+      const card = this.cards[h.i]?.d;
+      if (!card) return;
+      setTimeout(() => {
+        this.flyTo(cx, cy, card, '<i class="feather"></i><i class="hh">♥</i>', 'heal', 480).then(() => {
+          this.setPlayers(this.players);
+          const n = document.createElement('span');
+          n.className = 'healnum'; n.textContent = `+${h.gained}`;
+          card.appendChild(n); card.classList.remove('healed'); void card.offsetWidth; card.classList.add('healed');
+          setTimeout(() => n.remove(), 900);
+        });
+      }, 240 + k * 70);
+    });
+    if (!result.healed.length) this.setPlayers(this.players);
   }
 
   hitPlayer(i) {

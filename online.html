@@ -281,6 +281,35 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @keyframes nowpulse { from { box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--pc), 0 0 10px 1px var(--pc); } to { box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff, 0 0 20px 5px var(--pc); } }
 .pcard.down { filter: grayscale(1) brightness(.45); }
 .pcard.hurt { animation: hurt 400ms; }
+/* HP ゲージは滑らかに伸び縮み(回復が見える)*/
+.pcard .pbar i { transition: transform .45s cubic-bezier(.2,.8,.3,1); }
+.pcard.healed .picon { animation: healGlow .8s ease-out; }
+@keyframes healGlow { 0% { box-shadow: 0 0 0 2px #fff, 0 0 18px 6px rgba(255,226,140,.9); } 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0), 0 0 0 0 rgba(255,226,140,0); } }
+.pcard .healnum { position: absolute; right: calc(100% + 4px); top: 8px; z-index: 3; font: 400 13px var(--display); color: #fff7d6; text-shadow: 0 0 6px #ffd76a, 0 1px 0 #6b4a00; pointer-events: none; animation: healNum .9s ease-out forwards; }
+@keyframes healNum { 0% { opacity: 0; transform: translateY(6px) scale(.8); } 25% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-12px); } }
+/* セラ ANGEL HEART:白い翼・白〜金の光・ALL HEAL(約 1.2 秒)*/
+#angelFx { position: absolute; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+#angelFx[hidden] { display: none; }
+#angelFx .af-light { position: absolute; left: 50%; top: 42%; width: 160vmax; height: 160vmax; transform: translate(-50%, -50%) scale(0); border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.95) 0, rgba(255,247,214,.7) 12%, rgba(255,222,140,.35) 26%, rgba(255,240,250,0) 48%); }
+#angelFx .af-wing { position: absolute; top: 42%; width: 56vw; max-width: 300px; height: auto; fill: #fffdf7; stroke: rgba(230,190,90,.55); stroke-width: 1.2; filter: drop-shadow(0 0 10px rgba(255,236,170,.9)) drop-shadow(0 0 22px rgba(255,255,255,.8)); opacity: 0; }
+#angelFx .af-wing .af-arm { fill: #fff8e6; }
+#angelFx .af-wing.l { right: 50%; transform-origin: 100% 20%; transform: translateY(-40%) scaleX(-1) rotate(30deg) scale(.4); }
+#angelFx .af-wing.r { left: 50%; transform-origin: 0% 20%; transform: translateY(-40%) rotate(30deg) scale(.4); }
+#angelFx .af-text { position: absolute; left: 0; right: 0; top: 30%; text-align: center; opacity: 0; }
+#angelFx .af-text small { display: block; font: 400 12px var(--display); letter-spacing: .3em; color: #fff7d6; text-shadow: 0 0 6px #d4a52a; }
+#angelFx .af-text b { display: block; font: 400 34px var(--display); color: #fff; -webkit-text-stroke: 1px #d9a53a; text-shadow: 0 0 10px #ffd76a, 0 0 24px #fff1b8, 0 3px 0 rgba(140,90,0,.4); }
+#angelFx.on .af-light { animation: afLight 1.25s ease-out forwards; }
+#angelFx.on .af-wing.l { animation: afWingL 1.25s cubic-bezier(.2,.9,.3,1) forwards; }
+#angelFx.on .af-wing.r { animation: afWingR 1.25s cubic-bezier(.2,.9,.3,1) forwards; }
+#angelFx.on .af-text { animation: afText 1.25s ease-out forwards; }
+@keyframes afLight { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 25% { opacity: 1; } 60% { transform: translate(-50%, -50%) scale(1); opacity: .8; } 100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; } }
+@keyframes afWingL { 0% { opacity: 0; transform: translateY(-40%) scaleX(-1) rotate(30deg) scale(.4); } 30% { opacity: 1; transform: translateY(-40%) scaleX(-1) rotate(-8deg) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-46%) scaleX(-1) rotate(-14deg) scale(1.05); } }
+@keyframes afWingR { 0% { opacity: 0; transform: translateY(-40%) rotate(30deg) scale(.4); } 30% { opacity: 1; transform: translateY(-40%) rotate(-8deg) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-46%) rotate(-14deg) scale(1.05); } }
+@keyframes afText { 0%, 30% { opacity: 0; transform: scale(.8); } 45% { opacity: 1; transform: scale(1.06); } 55% { transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+.flychip.heal { display: flex; align-items: center; gap: 1px; }
+.flychip.heal .feather { display: block; width: 7px; height: 16px; border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%; background: linear-gradient(180deg, #fff, #ffe7a3); box-shadow: 0 0 6px #ffd76a; transform: rotate(-30deg); }
+.flychip.heal .hh { font-style: normal; font-size: 12px; color: #fff7d6; text-shadow: 0 0 6px #ffd76a, 0 0 2px #fff; }
+@media (prefers-reduced-motion: reduce) { #angelFx.on * { animation-duration: .4s; } }
 @keyframes hurt { 0%, 100% { translate: 0; } 20% { translate: -5px 0; background: #7a1026; } 40% { translate: 5px 0; } 60% { translate: -3px 0; } }
 
 #game[data-state="TITLE"], #game[data-state="GAME_CLEAR"], #game[data-state="GAME_OVER"] { cursor: pointer; }
@@ -728,7 +757,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .td-bubble { z-index: 4; left: 8%; right: auto; top: 16%; max-width: 48%; }
 .td-nav { position: absolute; z-index: 5; top: 44%; width: 36px; height: 56px; border: 1px solid rgba(255,255,255,.85); border-radius: 18px; background: rgba(255,255,255,.55); color: var(--hs-pink-deep); font: 800 26px/1 var(--round); box-shadow: var(--hs-shadow); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .td-nav.prev { left: calc(var(--sal) + 6px); }
-.td-nav.next { right: calc(var(--sar) + 6px); }
+.td-nav.next { right: calc(var(--sar) + 12px + clamp(124px, 35%, 136px)); }   /* 右の列(プレート・必殺技・ステータス)にかからないよう、列のすぐ左 */
 .td-side { position: absolute; z-index: 3; right: calc(var(--sar) + 6px); top: calc(var(--sat) + 54px); bottom: 56px; width: clamp(124px, 35%, 136px); align-items: flex-end; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; pointer-events: none; }
 .td-plate, .td-panel { position: relative; pointer-events: auto; padding: 7px 8px; border-radius: 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,.9); background: linear-gradient(160deg, rgba(255,255,255,.82), rgba(255,240,247,.7)); box-shadow: var(--hs-shadow); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .td-badges { display: flex; flex-wrap: wrap; gap: 2px; }
@@ -779,6 +808,24 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .td-ab.new { background: var(--hs-pink); color: #fff; box-shadow: none; }
 .td-ab.none { color: var(--hs-ink-soft); }
 .td-ab.more { background: var(--hs-pink-pale); color: var(--hs-pink-deep); }
+.td-special { position: relative; pointer-events: auto; width: 100%; min-height: 40px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; gap: 1px 4px; padding: 5px 6px 6px 8px; border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.95); background: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,236,246,.85)); box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(255,150,200,.35);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--hs-ink); font-family: var(--round); text-align: left; cursor: pointer; }
+.td-special small { justify-self: start; grid-column: 1; padding: 0 5px; border-radius: 6px; background: linear-gradient(135deg, #ff8cc6, #ff5fa2); color: #fff; font: 900 7.5px/1.5 var(--round); letter-spacing: .08em; }
+.td-special .tsp-name { grid-column: 1; min-width: 0; font: 900 11px/1.15 var(--display, var(--round)); color: #6b2a57; overflow-wrap: anywhere; }
+.td-special .tsp-go { grid-column: 2; grid-row: 1 / 3; font-style: normal; font: 900 16px/1 var(--round); color: var(--hs-pink-deep); }
+.td-special:active { transform: scale(.98); }
+.td-special[data-effect="healAll"] small { background: linear-gradient(135deg, #f3c55a, #e0a335); }
+.td-special[data-effect="healAll"] { box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(232,190,90,.55); }
+.sp-sheet { display: grid; gap: 8px; padding: 2px 2px 6px; text-align: center; }
+.sp-sheet .sp-chara { font-weight: 800; color: var(--hs-ink-soft); }
+.sp-sheet .sp-name { margin: 0; font: 900 22px var(--display, var(--round)); color: #6b2a57; letter-spacing: .03em; }
+.sp-sheet .sp-hl { justify-self: center; display: flex; align-items: baseline; gap: 6px; padding: 6px 16px; border-radius: 14px; background: linear-gradient(135deg, #ff8cc6, #ff5fa2); color: #fff; box-shadow: 0 4px 14px rgba(255,95,162,.35); }
+.sp-sheet[data-effect="healAll"] .sp-hl { background: linear-gradient(135deg, #f3c55a, #e0a335); box-shadow: 0 4px 14px rgba(224,163,53,.4); }
+.sp-sheet .sp-hl b { font: 900 20px var(--round); }
+.sp-sheet .sp-hl span { font: 900 11px var(--round); letter-spacing: .1em; }
+.sp-sheet .sp-desc { margin: 0; font-size: 14px; font-weight: 800; line-height: 1.7; color: var(--hs-ink); }
+.sp-sheet .sp-note, .sp-sheet .sp-base { margin: 0; font-size: 11.5px; font-weight: 800; color: var(--hs-ink-soft); }
 .td-actions { position: absolute; z-index: 4; right: calc(var(--sar) + 6px); bottom: 6px; display: grid; grid-template-columns: repeat(3, 70px); gap: 5px; }
 .td-actions button { position: relative; min-height: 46px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px; padding: 0 2px; border-radius: 16px; border: 1px solid rgba(255,255,255,.9); background: rgba(255,255,255,.78); color: var(--hs-pink-deep); font: 800 10px var(--round); white-space: nowrap; box-shadow: var(--hs-shadow); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .td-actions button i { font-style: normal; font-size: 14px; line-height: 1; }
