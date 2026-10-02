@@ -419,7 +419,7 @@ export const Config = {
 
   // ---- FEVER TIME(ラリーを続けたご褒美:現在キャラから4人が1投ずつ強力に投げるボーナスラウンド)----
   fever: {
-    gain: { PERFECT: 15, GREAT: 12, GOOD: 8, MISS: 0 },   // ★ FeverGaugeGain(キャッチ成功ごと。%)
+    gain: { PERFECT: 30, GREAT: 24, GOOD: 16, MISS: 0 },   // ★ FeverGaugeGain(キャッチ成功ごと。%)。旧 15 / 12 / 8 の2倍
     heartMul: [2.0, 2.5, 3.0],   // ★ FeverHeartMultiplier Lv.1 / Lv.2 / Lv.MAX(既存の全倍率の最後に掛ける)
     levelLabels: ['Lv.1', 'Lv.2', 'Lv.MAX'],
     missLevelDown: false,        // MISS で FEVER LEVEL を1段階下げるか(初期実装:維持)

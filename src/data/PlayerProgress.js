@@ -536,11 +536,14 @@ export class PlayerProgress {
     const st = this.data.heroines[h.id] ?? heroineEntry();
     return REWARD_VOICE_SLOTS.map(({ difficulty, type }) => {
       const v = h.rewardVoices?.[difficulty] ?? null;
+      const cleared = this.isCleared(h.stageId, difficulty);
+      // 音声がまだ設定されていない枠:クリアしていれば「解放済み・音声準備中」(鍵のままにしない)
       const unlockedAt = v ? st.voiceUnlocked[v.id] ?? null : null;
+      const open = !!unlockedAt || (!v && cleared);
       return {
         difficulty, type: v?.type ?? type, voice: v, id: v?.id ?? null, title: v?.title ?? null, src: v?.src ?? null,
-        unlock: rewardUnlock(difficulty), cleared: this.isCleared(h.stageId, difficulty),
-        unlocked: !!unlockedAt, unlockedAt, isNew: !!unlockedAt && !st.voiceSeen[v.id], playable: !!unlockedAt && !!v?.src,
+        unlock: rewardUnlock(difficulty), cleared,
+        unlocked: open, unlockedAt, isNew: !!unlockedAt && !st.voiceSeen[v.id], playable: !!unlockedAt && !!v?.src,
       };
     });
   }

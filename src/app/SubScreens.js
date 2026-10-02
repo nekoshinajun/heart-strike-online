@@ -305,7 +305,7 @@ export class AppScreens {
       const D = Config.difficulties?.[v.difficulty];
       const state = !v.unlocked ? `🔒 ${esc(rewardLockText(v))}` : !v.src ? '音声準備中' : v.durationSec ? fmtTime(v.durationSec) : 'タップで再生';
       return `<li class="am-row${v.unlocked ? '' : ' locked'}${v.playable ? ' playable' : ''}${v.type === 'asmr' ? ' asmr' : ''}" data-track="${v.difficulty}" style="--dc:${D?.color ?? 'var(--heroine)'}">
-        <button type="button" class="am-play" ${v.playable ? '' : 'disabled'} aria-label="${v.playable ? '再生' : '再生できません'}">${v.unlocked ? '▶' : '🔒'}</button>
+        <button type="button" class="am-play" ${v.playable ? '' : 'disabled'} aria-label="${v.playable ? '再生' : '再生できません'}">${!v.unlocked ? '🔒' : v.playable ? '▶' : '…'}</button>
         <div class="am-main"><b><i class="am-kind">${esc(rewardLabel(v))}</i>${v.title ? esc(v.title) : ''}${v.isNew ? ' <em>NEW</em>' : ''}</b><span class="am-state">${state}</span>
           <div class="am-seek" hidden><input type="range" min="0" max="1000" value="0" aria-label="再生位置"><small><span class="am-cur">0:00</span> / <span class="am-dur">${fmtTime(v.durationSec)}</span></small></div></div>
       </li>`;
