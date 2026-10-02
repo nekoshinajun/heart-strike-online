@@ -13,7 +13,7 @@ def emit(out, const, names, comment):
 
 emit('bossImages.js', 'BOSS_IMAGES', {'demon': 'boss_demon.webp', 'siren': 'boss_siren.webp', 'milk': 'boss_milk.webp'}, '')
 # 味方キャラ画像:キー = CharacterData.art の値。追加はここに1行足す(assets/chara_<key>.webp)
-CHARA = ['minamo', 'hinoka', 'raimu', 'shizuku', 'akane']
+CHARA = ['minamo', 'hinoka', 'raimu', 'shizuku', 'akane', 'yoruna']
 # 全身の切り抜き(アルファ付き・HOME / ガチャ Reveal 用)= assets/cut_<key>.webp(tools/cutout.py で生成、本番素材に差し替え可)
 names = {k: f'chara_{k}.webp' for k in CHARA}
 names.update({f'{k}_cut': f'cut_{k}.webp' for k in CHARA if (root / 'assets' / f'cut_{k}.webp').exists()})

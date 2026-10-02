@@ -88,11 +88,11 @@ export const CHARACTERS = [
   },
   // ---- SSR ----
   {
-    // ダークドラゴンの女の子(ガチャ PICK UP)。画像は assets/chara_yoruna.webp / cut_yoruna.webp を置いて tools/embed_assets.py → art にキーを入れる
+    // ダークドラゴンの女の子(ガチャ PICK UP)。画像:assets/chara_yoruna.webp(カード用)/ cut_yoruna.webp(透過の全身)
     id: 'yoruna', rank: 'SSR', name: 'ヨルナ', attribute: 'FIRE', type: 'CURVE',
-    art: {},
-    portraitFocus: { x: 0.5, y: 0.22, zoom: 3.0 },
-    cutIn: { faceX: 0.5, faceY: 0.22, x: 0.5, y: 0.34, scale: 1.7, rot: -5 },
+    art: { portrait: 'yoruna', fullBody: 'yoruna', specialCutIn: 'yoruna', cutout: 'yoruna_cut' },
+    portraitFocus: { x: 0.53, y: 0.23, zoom: 3.0 },
+    cutIn: { faceX: 0.53, faceY: 0.22, x: 0.5, y: 0.34, scale: 1.8, rot: -5 },
     description: '闇夜を焦がす恋の炎をまとうダークドラゴン。SPECIAL ではハートが翼のように分かれ、紫の炎を引いて一斉に届く。',
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
     accent: { id: 'yoruna', glow: '#b14dff' },

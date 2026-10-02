@@ -83,6 +83,7 @@ export const STAT_EFFECTS = {
  *   { kind: 'stat',    stat, add }            … ステータスに加算(表示にも反映)
  *   { kind: 'heart',   mul, when }            … 命中時の HEART 倍率(条件つき)
  *   { kind: 'curve',   mul, when }            … カーブの効き
+ *   { kind: 'specialCharge', mul }      … Diamond 1個で増える SPECIAL ゲージの量(投げた子が持っている時。ダメージ・FEVER には関係しない)
  *   { kind: 'drive',   mul, when }            … DRIVE の沈む量
  *   { kind: 'control', mul }                  … CONTROL の誤差(小さいほど正確)
  *   { kind: 'guard',   mul, when }            … 被ダメージ倍率
@@ -112,7 +113,8 @@ export const ABILITIES = {
   drive_master: { name: 'DRIVE MASTER', desc: 'DRIVE の沈みが ×1.2', effects: [{ kind: 'drive', mul: 1.2 }] },
   prespin_master: { name: 'PRE-SPIN MASTER', desc: 'PRE-SPIN を仕込んだカーブが ×1.15', effects: [{ kind: 'curve', mul: 1.15, when: { preSpin: true } }] },
   drive_heart: { name: 'DROP HEART', desc: 'DRIVE で命中すると HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { drive: true } }] },
-  energy_heart: { name: 'ENERGY HEART', desc: 'Energy を取って命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { energyMin: 1 } }] },
+  // 旧 ENERGY HEART(Diamond でダメージ ×1.08)→ SPECIAL CHARGE。ID はセーブ互換のためそのまま。Diamond の役割(SPECIAL ゲージ)は変えない
+  energy_heart: { name: 'SPECIAL CHARGE', desc: 'Diamond 1個で SPECIAL +12%(通常 +10%)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
   special_heart: { name: 'SPECIAL HEART+', desc: 'SPECIAL の HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
   fever_heart: { name: 'FEVER HEART+', desc: 'FEVER 中の HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { fever: true } }] },
   straight_master: { name: 'STRAIGHT MASTER', desc: 'ストレート(カーブなし)の命中 HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },

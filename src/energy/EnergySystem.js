@@ -1,5 +1,6 @@
 import * as THREE from '../lib/three.js';
 import { Config, bossProfile } from '../core/Config.js';
+import { abilityMul } from '../data/Growth.js';
 import { simulate } from '../physics/BallPhysics.js';
 import { glowTexture, shadowTexture } from '../world/Textures.js';
 
@@ -190,16 +191,19 @@ export class EnergySystem {
     o.fly = 0.001;
     this.combo++;
     const before = this.energy;
-    this.energy = Math.min(this.max, this.energy + Config.energy.orbValue);
+    // Diamond 1個 = SPECIAL +10%。投げた子が SPECIAL CHARGE を持っていれば +12%(×1.2)。100% で止める(超えた分は切り捨て)
+    const charge = abilityMul(g.turn.current?.chara?.abilities, 'specialCharge');
+    const gain = Math.round(Config.energy.orbValue * charge);
+    this.energy = Math.min(this.max, this.energy + gain);
     g.stats.orbs = (g.stats.orbs ?? 0) + 1;
     g.ball.pulseBoost(0.8);
     g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
     g.audio.orb(this.combo);
     // 「SPECIAL +10%」→ Diamond が SPECIAL ゲージへ飛ぶ → 着いたらゲージが増える(MAX なら SPECIAL READY)
     const s = g.player.toScreen(o.pos);
-    const add = Math.round((Config.energy.orbValue / this.max) * 100);
+    const add = Math.round((gain / this.max) * 100);
     const reached = before < this.max && this.ready;
-    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: '#ffb3e0', label: '◆ DIAMOND' });
+    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: charge > 1 ? '#ffd27a' : '#ffb3e0', label: charge > 1 ? '◆ DIAMOND ・ SPECIAL CHARGE' : '◆ DIAMOND' });
     g.ui.flyTo(s.x, s.y, 'energy', '<i class="dia">◆</i>', 'diamond', 480).then(() => {
       g.ui.setEnergy(this.energy, this.max, this.ready, this.armed, true);
       if (reached && this.ready) {
