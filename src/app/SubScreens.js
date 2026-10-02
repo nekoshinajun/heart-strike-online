@@ -46,15 +46,11 @@ export function specialView(ch) {
     base: custom ? `＋ SPECIAL HEART:届く HEART ×${Config.special.heartMul}` : null,
   };
 }
-/** 育成画面のキャラ詳細の「SPECIAL / 必殺技」カード(タップで詳細)*/
+/** 育成画面のキャラ詳細の「SPECIAL / 必殺技名 ›」(1行。タップで詳細のシート:必殺技名・効果・重要な数値・固有効果)*/
 export function specialCardHTML(ch) {
   const sp = specialView(ch);
-  return `<button type="button" class="td-special" data-act="special" data-effect="${esc(sp.effectType)}" aria-label="必殺技 ${esc(sp.name)} の詳細">
-    <small>SPECIAL / 必殺技</small>
-    <b class="tsp-name">${esc(sp.name)}</b>
-    <span class="tsp-hl"><em>${esc(sp.highlight.value)}</em><i>${esc(sp.highlight.label)}</i></span>
-    <span class="tsp-desc">${esc(sp.description)}</span>
-    <span class="tsp-more">詳しく ›</span>
+  return `<button type="button" class="td-special" data-act="special" data-effect="${esc(sp.effectType)}" aria-label="必殺技 ${esc(sp.name)} の詳細を開く">
+    <small>SPECIAL</small><b class="tsp-name">${esc(sp.name)}</b><i class="tsp-go" aria-hidden="true">›</i>
   </button>`;
 }
 export class AppScreens {

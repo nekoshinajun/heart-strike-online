@@ -808,21 +808,15 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .td-ab.new { background: var(--hs-pink); color: #fff; box-shadow: none; }
 .td-ab.none { color: var(--hs-ink-soft); }
 .td-ab.more { background: var(--hs-pink-pale); color: var(--hs-pink-deep); }
-.td-special { position: relative; pointer-events: auto; width: 100%; box-sizing: border-box; display: grid; gap: 2px; justify-items: start; text-align: left; padding: 7px 8px 6px; border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.95); background: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,236,246,.82) 55%, rgba(240,226,255,.82)); box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(255,150,200,.35);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--hs-ink); font-family: var(--round); }
-.td-special::after { content: "♥"; position: absolute; right: 7px; top: 5px; font-size: 11px; color: var(--hs-pink); opacity: .6; }
-.td-special small { font: 900 8px var(--round); letter-spacing: .12em; color: var(--hs-pink-deep); }
-.td-special .tsp-name { font: 900 12.5px/1.15 var(--display, var(--round)); letter-spacing: .02em; color: #6b2a57; word-break: break-word; }
-.td-special .tsp-hl { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; margin: 1px 0; padding: 2px 7px; border-radius: 9px; background: linear-gradient(135deg, #ff8cc6, #ff5fa2); color: #fff; box-shadow: 0 2px 8px rgba(255,95,162,.35); }
-.td-special .tsp-hl em { font: 900 13px/1.25 var(--round); font-style: normal; }
-.td-special .tsp-hl i { font: 900 8.5px var(--round); font-style: normal; letter-spacing: .08em; opacity: .95; }
-.td-special .tsp-desc { font-size: 9px; font-weight: 800; line-height: 1.4; color: var(--hs-ink-soft); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.td-special .tsp-more { justify-self: end; font-size: 8.5px; font-weight: 900; color: var(--hs-pink-deep); }
-/* 効果の種類で色だけ変える(回復 = 白金 / 特殊投球 = 紫〜ピンク)*/
-.td-special[data-effect="healAll"] { background: linear-gradient(155deg, rgba(255,255,255,.95), rgba(255,248,226,.9) 55%, rgba(255,240,250,.85)); box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(232,190,90,.55); }
-.td-special[data-effect="healAll"] .tsp-hl { background: linear-gradient(135deg, #f3c55a, #e0a335); box-shadow: 0 2px 8px rgba(224,163,53,.4); }
-@media (max-height: 640px) { .td-special .tsp-desc, .td-special .tsp-more { display: none; } .td-special { padding: 5px 7px; gap: 1px; } .td-special .tsp-name { font-size: 11px; } .td-special .tsp-hl em { font-size: 11.5px; } }
+.td-special { position: relative; pointer-events: auto; width: 100%; min-height: 40px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; gap: 1px 4px; padding: 5px 6px 6px 8px; border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.95); background: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,236,246,.85)); box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(255,150,200,.35);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--hs-ink); font-family: var(--round); text-align: left; cursor: pointer; }
+.td-special small { justify-self: start; grid-column: 1; padding: 0 5px; border-radius: 6px; background: linear-gradient(135deg, #ff8cc6, #ff5fa2); color: #fff; font: 900 7.5px/1.5 var(--round); letter-spacing: .08em; }
+.td-special .tsp-name { grid-column: 1; min-width: 0; font: 900 11px/1.15 var(--display, var(--round)); color: #6b2a57; overflow-wrap: anywhere; }
+.td-special .tsp-go { grid-column: 2; grid-row: 1 / 3; font-style: normal; font: 900 16px/1 var(--round); color: var(--hs-pink-deep); }
+.td-special:active { transform: scale(.98); }
+.td-special[data-effect="healAll"] small { background: linear-gradient(135deg, #f3c55a, #e0a335); }
+.td-special[data-effect="healAll"] { box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(232,190,90,.55); }
 .sp-sheet { display: grid; gap: 8px; padding: 2px 2px 6px; text-align: center; }
 .sp-sheet .sp-chara { font-weight: 800; color: var(--hs-ink-soft); }
 .sp-sheet .sp-name { margin: 0; font: 900 22px var(--display, var(--round)); color: #6b2a57; letter-spacing: .03em; }
