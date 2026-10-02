@@ -19,17 +19,6 @@ function buildCurve({ knee, total }) {
   return cum;
 }
 const TABLES = Object.fromEntries(Object.entries(AFFECTION.curves).map(([k, c]) => [k, buildCurve(c)]));
-/** 旧テーブル(目安の点の間は直線)。既存セーブの Lv を下げない移行だけに使う */
-const LEGACY_TABLE = (() => {
-  const pts = Object.entries(AFFECTION.legacyExpAnchors).map(([lv, e]) => [Number(lv), Number(e)]).sort((a, b) => a[0] - b[0]);
-  const t = [0, 0];
-  for (let lv = 2; lv <= AFFECTION.maxLevel; lv++) {
-    const hi = pts.find(([l]) => l >= lv) ?? pts[pts.length - 1];
-    const lo = [...pts].reverse().find(([l]) => l <= lv) ?? pts[0];
-    t[lv] = hi[0] === lo[0] ? lo[1] : Math.round(lo[1] + ((hi[1] - lo[1]) * (lv - lo[0])) / (hi[0] - lo[0]));
-  }
-  return t;
-})();
 /** キャラの EXP カーブの種類('A' | 'BC' | 'DEF')。レアリティで決まる(データ:AFFECTION.curveByRank)*/
 export const expCurveOf = (charId) => AFFECTION.curveByRank[characterById(charId)?.rank] ?? AFFECTION.defaultCurve;
 const tableOf = (charId) => TABLES[expCurveOf(charId)] ?? TABLES[AFFECTION.defaultCurve];
@@ -43,8 +32,6 @@ const lvOf = (t, total) => {
 export const expForLevel = (lv, charId) => tableOf(charId)[clamp(Math.floor(lv), 1, AFFECTION.maxLevel)];
 export const maxAffectionExp = (charId) => tableOf(charId)[AFFECTION.maxLevel];
 export const levelFromExp = (total, charId) => lvOf(tableOf(charId), total);
-/** 旧テーブルでの Lv(移行用)*/
-export const legacyLevelFromExp = (total) => lvOf(LEGACY_TABLE, total);
 /** 累計 EXP → { level, into(今の Lv に入ってから), need(次の Lv までの幅。MAX は 0), total, max } */
 export function affectionProgress(total, charId) {
   const t = tableOf(charId);
@@ -53,18 +40,6 @@ export function affectionProgress(total, charId) {
   const max = level >= AFFECTION.maxLevel;
   return { level, total: e, into: max ? 0 : e - t[level], need: max ? 0 : t[level + 1] - t[level], max };
 }
-/**
- * 既存セーブの移行:「今の Lv(旧テーブル / 保存値)」と「新テーブルの Lv」の高い方を残し、EXP はその Lv の最低値まで補正する
- *   → { exp, level, oldLevel, newLevel }。Lv は絶対に下がらない
- */
-export function migrateAffectionExp(exp, charId, savedLevel = null) {
-  const e = Math.max(0, Math.floor(Number(exp) || 0));
-  const oldLevel = Math.max(legacyLevelFromExp(e), clamp(Math.floor(Number(savedLevel) || 1), 1, AFFECTION.maxLevel));
-  const newLevel = levelFromExp(e, charId);
-  const level = Math.max(oldLevel, newLevel);
-  return { exp: Math.min(maxAffectionExp(charId), Math.max(e, expForLevel(level, charId))), level, oldLevel, newLevel };
-}
-
 // ---------------- ステータス ----------------
 const growthU = (level) => Math.pow((clamp(level, 1, AFFECTION.maxLevel) - 1) / (AFFECTION.maxLevel - 1), GROWTH_EXPONENT);
 /** Lv の基礎ステータス(レベルの成長だけ。アビリティは含めない → abilityStats / abilityStatMul で別枠)*/
@@ -124,42 +99,27 @@ export function abilitySlots(charId) {
 }
 export const abilityById = (id) => (ABILITIES[id] ? { id, ...ABILITIES[id] } : null);
 export const ultimateFor = (charId) => abilityById(ULTIMATES[charId]);
-/** 選択済みのアビリティが今の候補に無い(旧アビリティ)か */
-export const isLegacyPick = (charId, level, abilityId) => !!abilityId && !(abilitySlots(charId)[String(level)] ?? []).includes(abilityId);
-/**
- * 有効なアビリティ:到達した Lv の枠で選んだもの + Lv100 の ULTIMATE
- *   旧アビリティ(今の候補に無い・移行できなかったもの)も、選択済みなら効果を残す(既存ユーザーの保護)
- */
+/** 有効なアビリティ:到達した Lv の枠で、その枠の候補から選んだもの + Lv100 の ULTIMATE(候補に無い ID は無視)*/
 export function activeAbilities(charId, level, selected = {}) {
   const slots = abilitySlots(charId), out = [];
-  for (const [lv, pick] of Object.entries(selected ?? {})) {
-    if (!(level >= Number(lv)) || !pick || ULTIMATES[charId] === pick) continue;
-    const a = abilityById(pick);
-    if (a && !a.ultimate) out.push({ ...a, slot: Number(lv), legacy: !(slots[lv] ?? []).includes(pick) });
+  for (const [lv, ids] of Object.entries(slots)) {
+    const pick = selected?.[lv];
+    if (level >= Number(lv) && pick && ids.includes(pick)) { const a = abilityById(pick); if (a) out.push({ ...a, slot: Number(lv) }); }
   }
-  out.sort((x, y) => x.slot - y.slot);
   if (level >= ULTIMATE_LEVEL) { const u = ultimateFor(charId); if (u) out.push({ ...u, slot: ULTIMATE_LEVEL }); }
   return out;
 }
-/** 条件(when)を満たすか。ctx = { pull, throwSpin, effects, special, fever, energy, judge } */
+/** 条件(when)を満たすか。ctx = { throwSpin, special, gates } */
 export function abilityCondition(when, ctx = {}) {
   if (!when) return true;
-  const fx = ctx.effects ?? [];
-  if (when.pullMin != null && !((ctx.pull ?? 0) >= when.pullMin)) return false;
-  if (when.pullMax != null && !((ctx.pull ?? 1) <= when.pullMax)) return false;
   if (when.noSpin && (ctx.throwSpin ?? 0) !== 0) return false;
   if (when.spin && !(ctx.throwSpin ?? 0)) return false;
-  if (when.preSpin && !fx.some((e) => e.type === 'preSpin')) return false;
-  if (when.drive && !fx.some((e) => e.type === 'drive')) return false;
   if (when.special && !ctx.special) return false;
-  if (when.fever && !ctx.fever) return false;
-  if (when.energyMin != null && !((ctx.energy ?? 0) >= when.energyMin)) return false;
-  if (when.judge && ctx.judge !== when.judge) return false;
   if (when.gate && !((ctx.gates ?? 0) > 0)) return false;
   return true;
 }
 /**
- * 種類(heart / curve / drive / control / guard)の倍率の積
+ * 種類(heart / curve / control / guard / specialCharge)の倍率の積
  *   onlyAlways … 条件なしの効果だけ / onlyWhen … 条件つきの効果だけ(CONTROL:常時はキャラの性能、条件つきは投球ごとに掛ける)
  */
 export function abilityMul(abilities, kind, ctx = {}, { onlyAlways = false, onlyWhen = false } = {}) {

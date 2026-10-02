@@ -1,8 +1,8 @@
 import { CHARACTERS, DEFAULT_PARTY, LEGACY_CHARACTER_IDS, STAGES, characterById } from './GameData.js';
 import { Config } from '../core/Config.js';
 import { HEROINES, REWARD_VOICE_SLOTS, rewardUnlock, heroineById, heroineByStage, giftById, giftExp } from './RomanceData.js';
-import { STAMINA, ABILITY_RESET_ITEM, STAT_KEYS, STAT_MAX, GROWTH_VERSION, ABILITY_MIGRATION } from './GrowthData.js';
-import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, migrateAffectionExp, statsAt, hpAt, abilityStats, totalStats, activeAbilities, abilitySlots, isLegacyPick, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
+import { STAMINA, ABILITY_RESET_ITEM, STAT_KEYS, STAT_MAX, GROWTH_VERSION } from './GrowthData.js';
+import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, statsAt, hpAt, abilityStats, totalStats, activeAbilities, abilitySlots, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
 import { storage, Log } from '../app/Platform.js';
 
 /**
@@ -11,9 +11,9 @@ import { storage, Log } from '../app/Platform.js';
  *       ← 固定 Character ID(表示名は使わない)。親密度 = レベル(AFFECTION Lv.1〜100)
  *       affectionExp … 累計の親密度 EXP(Lv はここから計算。affectionLevel は表示・確認用に同じ値を保存)
  *       stamina / lastStaminaUpdate … キャラごとの STAMINA と最後に更新した時刻(アプリを閉じている間の回復はここから計算)
- *       selectedAbilities … { '10': abilityId, … }(Lv10〜100 で選んだアビリティ。今の候補に無い旧アビリティも効果は残す)
- *       growthVersion … 育成データの版(2 = レアリティ別 EXP。1 以前のセーブは読み込み時に1回だけ移行 → growthMigration に記録)
- *       legacyGrowth … 旧セーブの { level, exp, intimacy }(移行の記録。使わない)
+ *       selectedAbilities … { '10': abilityId, … }(Lv10〜100 で選んだアビリティ。その枠の候補に無い ID は読み込み時に消す)
+ *       growthVersion … 育成データの版(GrowthData.GROWTH_VERSION)。古い / 無いキャラは Lv1 / EXP 0 / アビリティなしから始める
+ *         ★ 正式リリース前のため、旧育成(旧 Lv / EXP / 旧アビリティ)は引き継がない
  *   inventory = { presents: { giftId: 所持数 }, abilityResetItems: 数 }(旧 items はここへ移す)
  *   heroines[heroineId] = { voiceUnlocked: { voiceId: 解放時刻 }, voiceSeen: { voiceId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)のクリア報酬ボイス
  *       (旧 asmrUnlocked / asmrSeen は読み込み時に voiceUnlocked / voiceSeen へ移す)
@@ -38,50 +38,28 @@ export class ProgressRepository {
 }
 
 const now = () => Date.now();
-// 旧仕様(キャラ Lv1〜50:次の Lv まで 100 + 50×(Lv−1))。移行の計算だけに使う
-const legacyNextExp = (lv) => 100 + (lv - 1) * 50;
-/** 旧セーブのキャラ Lv / EXP と親密度ポイントを、親密度 EXP(累計)へ移す:旧レベルまでに使った EXP + 今の EXP + 親密度ポイント */
-export function legacyAffectionExp(level, exp, intimacy) {
-  const lv = Math.max(1, Math.min(50, Math.floor(Number(level) || 1)));
-  let total = 0;
-  for (let l = 1; l < lv; l++) total += legacyNextExp(l);
-  return total + Math.max(0, Math.floor(Number(exp) || 0)) + Math.max(0, Math.floor(Number(intimacy) || 0));
-}
 /**
- * 育成再設計(growthVersion 2)への移行:Lv は「今の Lv」と「新テーブルの Lv」の高い方(絶対に下げない)・EXP はその Lv の最低値へ
- *   旧アビリティは移行先(ABILITY_MIGRATION)がその枠の候補にある時だけ置き換え、無ければそのまま(効果は残る)
+ * 味方キャラの保存枠(欠けを埋める。何度呼んでも同じ)。id = キャラ ID(EXP カーブはレアリティで決まる)
+ *   growthVersion が今より古い(または無い)= 旧育成のセーブ → Lv1 / EXP 0 / アビリティなしから(旧 Lv / EXP / アビリティは引き継がない)
+ *   所持・入手日・STAMINA などの育成以外はそのまま
  */
-function migrateGrowth(id, entry) {
-  const m = migrateAffectionExp(entry.affectionExp, id, entry.affectionLevel);
-  const from = { ...entry.selectedAbilities }, sel = { ...from };
-  for (const [lv, ab] of Object.entries(sel)) {
-    const to = ABILITY_MIGRATION[ab];
-    if (to && (abilitySlots(id)[lv] ?? []).includes(to)) sel[lv] = to;
-  }
-  const changed = m.exp !== entry.affectionExp || m.level !== entry.affectionLevel || JSON.stringify(sel) !== JSON.stringify(from);
-  return {
-    ...entry, affectionExp: m.exp, selectedAbilities: sel, growthVersion: GROWTH_VERSION,
-    ...(changed ? { growthMigration: { at: now(), exp: entry.affectionExp, level: m.oldLevel, newTableLevel: m.newLevel, keptLevel: m.level, abilities: from } } : {}),
-  };
-}
-/** 味方キャラの保存枠(欠けを埋める・旧フィールドは移す。何度呼んでも同じ)。id = キャラ ID(EXP カーブはレアリティで決まる)*/
 const charEntry = (o = {}, id = null) => {
-  const { level, exp, intimacy, bonus, ...rest } = o;
-  const hasLegacy = !Number.isFinite(rest.affectionExp) && (level != null || exp != null || intimacy != null);
-  const rawExp = Number.isFinite(rest.affectionExp) ? Math.max(0, Math.floor(rest.affectionExp)) : hasLegacy ? legacyAffectionExp(level, exp, intimacy) : 0;
-  let e = {
+  const { level, exp, intimacy, bonus, legacyGrowth, growthMigration, ...rest } = o;   // 旧育成のフィールドは捨てる
+  const fresh = !((Number(rest.growthVersion) || 0) >= GROWTH_VERSION);
+  const slots = abilitySlots(id);
+  const picks = !fresh && rest.selectedAbilities && typeof rest.selectedAbilities === 'object' ? rest.selectedAbilities : {};
+  const selectedAbilities = Object.fromEntries(Object.entries(picks).filter(([lv, ab]) => (slots[lv] ?? []).includes(ab)));   // 今の候補に無い ID は残さない
+  const affectionExp = fresh ? 0 : Math.min(maxAffectionExp(id), Math.max(0, Math.floor(Number(rest.affectionExp) || 0)));
+  return {
     owned: false, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null,
     ...rest,
-    affectionExp: rawExp,
+    growthVersion: GROWTH_VERSION,
+    affectionExp,
+    affectionLevel: levelFromExp(affectionExp, id),
     stamina: Number.isFinite(rest.stamina) ? Math.max(0, Math.min(STAMINA.max, rest.stamina)) : STAMINA.max,
     lastStaminaUpdate: Number.isFinite(rest.lastStaminaUpdate) ? rest.lastStaminaUpdate : now(),
-    selectedAbilities: rest.selectedAbilities && typeof rest.selectedAbilities === 'object' ? { ...rest.selectedAbilities } : {},
-    ...(hasLegacy ? { legacyGrowth: { level: level ?? null, exp: exp ?? null, intimacy: intimacy ?? null } } : {}),
+    selectedAbilities,
   };
-  if (!((Number(e.growthVersion) || 1) >= GROWTH_VERSION)) e = migrateGrowth(id, e);
-  e.affectionExp = Math.min(maxAffectionExp(id), e.affectionExp);
-  e.affectionLevel = levelFromExp(e.affectionExp, id);
-  return e;
 };
 const heroineEntry = ({ asmrUnlocked, asmrSeen, ...o } = {}) => ({ ...o, voiceUnlocked: { ...(asmrUnlocked ?? {}), ...(o.voiceUnlocked ?? {}) }, voiceSeen: { ...(asmrSeen ?? {}), ...(o.voiceSeen ?? {}) } });
 const num = (v) => (Number.isFinite(v) ? v : 0);   // 未決定(null)の数値は 0 として扱う
@@ -126,19 +104,11 @@ export function migrateV1(d1) {
   if (!d1 || typeof d1 !== 'object') throw new Error('v1 save is not an object');
   const d = blankSave();
   d.migratedFrom = 'squash-titan-progress-v1';
-  const chars = { ...(d1.characters ?? {}) };
-  for (const [oldId, newId] of Object.entries(LEGACY_CHARACTER_IDS)) {       // 旧キャラクター名(アクア等)の移行
-    if (chars[oldId] && !chars[newId]) chars[newId] = chars[oldId];
-    delete chars[oldId];
-  }
   const t = now();
   for (const c of CHARACTERS) {
-    const o = chars[c.id] ?? {};
-    const lv = Number.isFinite(o.level) ? Math.max(1, Math.min(50, Math.floor(o.level))) : 1;
-    const exp = Number.isFinite(o.exp) ? Math.max(0, Math.floor(o.exp)) : 0;
     // v23 で使えていたキャラ(= legacyRoster)は所持扱いで移行。取り上げない
     const usable = Config.ownership.legacyRoster.includes(c.id);
-    d.characters[c.id] = charEntry({ owned: usable, level: lv, exp, obtainedAt: usable ? t : null, obtainedVia: usable ? 'legacy' : null, introducedAt: usable ? t : null }, c.id);   // 旧 Lv / EXP → 親密度 EXP
+    d.characters[c.id] = charEntry({ owned: usable, obtainedAt: usable ? t : null, obtainedVia: usable ? 'legacy' : null, introducedAt: usable ? t : null }, c.id);   // 育成は Lv1 から(旧 Lv / EXP は引き継がない)
   }
   let party = Array.isArray(d1.party) ? d1.party.map((id) => LEGACY_CHARACTER_IDS[id] ?? id) : null;
   if (!party || party.length !== 4 || party.some((id) => !characterById(id)) || new Set(party).size !== 4) party = [...DEFAULT_PARTY];
@@ -383,7 +353,7 @@ export class PlayerProgress {
    * 表示・戦闘用のキャラ情報(マスター + 親密度 Lv + ステータス + アビリティ + STAMINA)
    *   affectionLevel(= level)/ affectionExp(累計)/ expInto・expNeed(今の Lv の中の進み)/ maxLevel
    *   stats { attack, defence, control, curve }(レベルの基礎)/ bonusStats(アビリティの加算。戦闘では別枠の倍率)/ totalStats(表示用の合計)
-   *   maxHp(基礎 + VITAL UP など)/ abilities(有効なもの。旧アビリティは legacy: true)
+   *   maxHp(基礎 + VITAL UP など)/ abilities(有効なもの)
    *   stamina(自然回復を反映した今の値。保存は spend / recover の時)/ tired(STAMINA 0:獲得 EXP ×10%)
    */
   character(id, at = now()) {
@@ -471,20 +441,16 @@ export class PlayerProgress {
   /** Lv の枠の状態 → [{ level, candidates: [ability…], selected, unlocked, ultimate }] */
   abilityBoard(id) {
     const ch = this.character(id), sel = ch.selectedAbilities;
-    const rows = Object.entries(abilitySlots(id)).map(([lv, ids]) => {
-      const legacy = isLegacyPick(id, lv, sel[lv]) && !!ABILITY_DEF(sel[lv]).name;
-      return {
-        level: Number(lv), unlocked: ch.level >= Number(lv), selected: sel[lv] ?? null, legacy,
-        legacyPick: legacy ? { id: sel[lv], ...ABILITY_DEF(sel[lv]) } : null,   // 旧アビリティ(候補には無い。無料で選び直せる)
-        candidates: ids.map((x) => ({ id: x, ...ABILITY_DEF(x) })).filter((x) => x.name),
-      };
-    }).sort((a, b) => a.level - b.level);
+    const rows = Object.entries(abilitySlots(id)).map(([lv, ids]) => ({
+      level: Number(lv), unlocked: ch.level >= Number(lv), selected: sel[lv] ?? null,
+      candidates: ids.map((x) => ({ id: x, ...ABILITY_DEF(x) })).filter((x) => x.name),
+    })).sort((a, b) => a.level - b.level);
     const ult = ULT_DEF(id);
     if (ult) rows.push({ level: 100, unlocked: ch.level >= 100, selected: ult.id, candidates: [ult], ultimate: true });
     return rows;
   }
   /**
-   * アビリティを選ぶ。まだ選んでいない枠・旧アビリティの枠は無料 / 選択済みの枠を変える時は ABILITY_RESET_ITEM を1つ使う
+   * アビリティを選ぶ。まだ選んでいない枠は無料 / 選択済みの枠を変える時は ABILITY_RESET_ITEM を1つ使う
    *   → { ok, reason?: 'locked' | 'invalid' | 'same' | 'noItem', changed, itemsLeft }
    */
   selectAbility(id, level, abilityId) {
@@ -495,14 +461,13 @@ export class PlayerProgress {
     if (levelFromExp(p.affectionExp, id) < Number(lv)) return { ok: false, reason: 'locked' };
     const cur = p.selectedAbilities[lv];
     if (cur === abilityId) return { ok: false, reason: 'same' };
-    const free = !cur || isLegacyPick(id, lv, cur);
-    if (!free) {
+    if (cur) {
       if (this.abilityResetItems < 1) return { ok: false, reason: 'noItem' };
       this.data.inventory.abilityResetItems -= 1;
     }
     p.selectedAbilities[lv] = abilityId;
     this.save();
-    return { ok: true, changed: !!cur, free: !!cur && free, itemsLeft: this.abilityResetItems };
+    return { ok: true, changed: !!cur, itemsLeft: this.abilityResetItems };
   }
 
   // ---------------- MULTI:自分のキャラの戦闘データ(他プレイヤーへ送る)----------------

@@ -21,11 +21,12 @@ export const AFFECTION = {
   },
   curveByRank: { N: 'A', R: 'A', SR: 'BC', SSR: 'DEF' },
   defaultCurve: 'A',
-  // 旧テーブル(全キャラ共通・Lv100 = 40,000)。既存セーブの Lv を下げないための移行だけに使う
-  legacyExpAnchors: { 1: 0, 10: 1000, 20: 2500, 30: 4500, 40: 7000, 50: 10000, 60: 14000, 70: 19000, 80: 25000, 90: 32000, 100: 40000 },
 };
-/** 育成データの版(2 = レアリティ別 EXP・成長幅 2 倍・新アビリティ)。セーブのキャラごとに growthVersion として保存 */
-export const GROWTH_VERSION = 2;
+/**
+ * 育成データの版。セーブのキャラごとに growthVersion として保存
+ *   これより古い(または無い)キャラは、読み込み時に Lv1 / EXP 0 / アビリティなしから始め直す(正式リリース前のため旧育成は引き継がない)
+ */
+export const GROWTH_VERSION = 3;
 
 // ---------------- 攻略で得る親密度 EXP(参加した味方全員)----------------
 export const BATTLE_EXP = {
@@ -97,17 +98,15 @@ export const STAT_EFFECTS = {
 
 // ---------------- アビリティ ----------------
 /**
- * アビリティ(ABILITIES)。effects は種類ごとの Effect の配列(新しい種類はここと BattleCalc.abilityMul に足す)
+ * アビリティ(ABILITIES)。effects は種類ごとの Effect の配列(新しい種類はここと Growth.abilityMul に足す)
  *   { kind: 'stat',    stat, add }            … ステータスに加算(表示にも反映)。★ 基礎(レベル)とは別枠の倍率で効く(Growth.abilityStatMul)
  *   { kind: 'hp',      add }                  … 最大 HP に加算
  *   { kind: 'heart',   mul, when }            … 命中時の HEART 倍率(条件つき)
- *   { kind: 'curve',   mul, when }            … カーブの効き
- *   { kind: 'specialCharge', mul }      … Diamond 1個で増える SPECIAL ゲージの量(投げた子が持っている時。ダメージ・FEVER には関係しない)
- *   { kind: 'drive',   mul, when }            … DRIVE の沈む量
- *   { kind: 'control', mul }                  … CONTROL の誤差(小さいほど正確)
- *   { kind: 'guard',   mul, when }            … 被ダメージ倍率
- * when(省略 = 常に):pullMin / pullMax(下へ引いた量 0〜1)/ noSpin / spin(カーブあり)/ preSpin / drive / special / fever / energyMin(取った Energy 数)/ judge(キャッチ判定)/ gate(ゲートを通って命中)
- * legacy: true … 旧アビリティ(今の候補には出ない。選択済みのセーブでは効果をそのまま残す)
+ *   { kind: 'specialCharge', mul }            … Diamond 1個で増える SPECIAL ゲージの量(投げた子が持っている時)
+ *   { kind: 'curve',   mul }                  … カーブの効き(ULTIMATE)
+ *   { kind: 'control', mul }                  … CONTROL の誤差(小さいほど正確。ULTIMATE)
+ *   { kind: 'guard',   mul }                  … 被ダメージ倍率(ULTIMATE)
+ * when(省略 = 常に):noSpin / spin(カーブあり)/ special(SPECIAL の投球)/ gate(ゲートを通って命中)
  * ★ 名前・効果はすべて仮(データを差し替えるだけで変更できる)
  */
 export const ABILITIES = {
@@ -116,38 +115,9 @@ export const ABILITIES = {
   guard_up: { name: 'GUARD UP', desc: 'DEF +20(レベルの DEF とは別枠で被ダメージ ×0.90)', effects: [{ kind: 'stat', stat: 'defence', add: 20 }] },
   vital_up: { name: 'VITAL UP', desc: '最大 HP +30', effects: [{ kind: 'hp', add: 30 }] },
   // ---- 特殊枠(Lv20 / 40 / 60 / 80 / 100):乗算。何度選んでも掛け算 ----
-  //   energy_heart / special_heart は ID をそのまま使う(選択済みのセーブはそのまま新アビリティになる)
+  special_master: { name: 'SPECIAL MASTER', desc: 'SPECIAL の HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
+  special_charge: { name: 'SPECIAL CHARGE', desc: 'Diamond で増える SPECIAL ×1.2(1個 +10% → +12%)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
   gate_master: { name: 'GATE MASTER', desc: 'ゲートを通って命中した HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { gate: true } }] },
-  // ---- 旧アビリティ(legacy)----
-  atk_s: { legacy: true, name: 'ATTACK UP', desc: 'ATTACK +5', effects: [{ kind: 'stat', stat: 'attack', add: 5 }] },
-  def_s: { legacy: true, name: 'DEFENCE UP', desc: 'DEFENCE +5', effects: [{ kind: 'stat', stat: 'defence', add: 5 }] },
-  ctl_s: { legacy: true, name: 'CONTROL UP', desc: 'CONTROL +5', effects: [{ kind: 'stat', stat: 'control', add: 5 }] },
-  crv_s: { legacy: true, name: 'CURVE UP', desc: 'CURVE +5', effects: [{ kind: 'stat', stat: 'curve', add: 5 }] },
-  atk_l: { legacy: true, name: 'ATTACK UP+', desc: 'ATTACK +8', effects: [{ kind: 'stat', stat: 'attack', add: 8 }] },
-  def_l: { legacy: true, name: 'DEFENCE UP+', desc: 'DEFENCE +8', effects: [{ kind: 'stat', stat: 'defence', add: 8 }] },
-  ctl_l: { legacy: true, name: 'CONTROL UP+', desc: 'CONTROL +8', effects: [{ kind: 'stat', stat: 'control', add: 8 }] },
-  crv_l: { legacy: true, name: 'CURVE UP+', desc: 'CURVE +8', effects: [{ kind: 'stat', stat: 'curve', add: 8 }] },
-  all_round: { legacy: true, name: 'ALL ROUND', desc: '全ステータス +3', effects: ['attack', 'defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 3 })) },
-  // ★ 統一ルール:引く量(球速)では HEART(ダメージ)は変わらない。引く量を条件にするのはダメージ以外の効果だけ
-  //   power_heart / slow_curve は ID はそのまま(選択済みのセーブもそのまま有効)、効果だけ HEART 倍率 → 投球性能に変更
-  power_heart: { legacy: true, name: 'POWER HEART', desc: '深く引いた(速い)球は CONTROL のブレ ×0.6(狙いどおりまっすぐ飛ぶ)', effects: [{ kind: 'control', mul: 0.6, when: { pullMin: 0.85 } }] },
-  pure_straight: { legacy: true, name: 'PURE STRAIGHT', desc: 'カーブなしで命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },
-  spin_lover: { legacy: true, name: 'SPIN LOVER', desc: 'カーブで命中すると HEART ×1.06', effects: [{ kind: 'heart', mul: 1.06, when: { spin: true } }] },
-  slow_curve: { legacy: true, name: 'SOFT CURVE', desc: '浅く引いた(遅い)球のカーブ ×1.2', effects: [{ kind: 'curve', mul: 1.2, when: { pullMax: 0.35 } }] },
-  calm_aim: { legacy: true, name: 'CALM AIM', desc: 'CONTROL のブレを 30% 軽減', effects: [{ kind: 'control', mul: 0.7 }] },
-  steady_hand: { legacy: true, name: 'STEADY HAND', desc: 'CONTROL のブレを 50% 軽減', effects: [{ kind: 'control', mul: 0.5 }] },
-  tough_heart: { legacy: true, name: 'TOUGH HEART', desc: '受けるダメージ ×0.92', effects: [{ kind: 'guard', mul: 0.92 }] },
-  nice_catch: { legacy: true, name: 'NICE CATCH', desc: 'GREAT キャッチの被ダメージ ×0.8', effects: [{ kind: 'guard', mul: 0.8, when: { judge: 'GREAT' } }] },
-  drive_master: { legacy: true, name: 'DRIVE MASTER', desc: 'DRIVE の沈みが ×1.2', effects: [{ kind: 'drive', mul: 1.2 }] },
-  prespin_master: { legacy: true, name: 'PRE-SPIN MASTER', desc: 'PRE-SPIN を仕込んだカーブが ×1.15', effects: [{ kind: 'curve', mul: 1.15, when: { preSpin: true } }] },
-  drive_heart: { legacy: true, name: 'DROP HEART', desc: 'DRIVE で命中すると HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { drive: true } }] },
-  // 旧 ENERGY HEART(Diamond でダメージ ×1.08)→ SPECIAL CHARGE。ID はセーブ互換のためそのまま。Diamond の役割(SPECIAL ゲージ)は変えない
-  energy_heart: { name: 'SPECIAL CHARGE', desc: 'Diamond で増える SPECIAL ×1.2(1個 +10% → +12%)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
-  special_heart: { name: 'SPECIAL MASTER', desc: 'SPECIAL の HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
-  fever_heart: { legacy: true, name: 'FEVER HEART+', desc: 'FEVER 中の HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { fever: true } }] },
-  straight_master: { legacy: true, name: 'STRAIGHT MASTER', desc: 'ストレート(カーブなし)の命中 HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },
-  curve_master: { legacy: true, name: 'CURVE MASTER', desc: 'カーブの効き ×1.15', effects: [{ kind: 'curve', mul: 1.15 }] },
-  guard_heart: { legacy: true, name: 'GUARD HEART', desc: '受けるダメージ ×0.9', effects: [{ kind: 'guard', mul: 0.9 }] },
   // ---- ULTIMATE(Lv100・キャラ固有。★ 仮)----
   ult_minamo: { name: 'AQUA LINE', desc: 'カーブなしの命中 HEART ×1.2・CONTROL のブレ半減', ultimate: true, effects: [{ kind: 'heart', mul: 1.2, when: { noSpin: true } }, { kind: 'control', mul: 0.5 }] },
   ult_hinoka: { name: 'BLAZE BALANCE', desc: '全ステータス +6', ultimate: true, effects: ['attack', 'defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 6 })) },
@@ -167,17 +137,12 @@ export const ABILITIES = {
  *   同じアビリティを何度選んでもよい。Lv100 は特殊枠 + ULTIMATE(自動)
  */
 const BASE_PICK = ['power_up', 'guard_up', 'vital_up'];
-const SPECIAL_PICK = ['special_heart', 'energy_heart', 'gate_master'];
+const SPECIAL_PICK = ['special_master', 'special_charge', 'gate_master'];
 export const ABILITY_SLOTS = {
   10: BASE_PICK, 20: SPECIAL_PICK, 30: BASE_PICK, 40: SPECIAL_PICK, 50: BASE_PICK,
   60: SPECIAL_PICK, 70: BASE_PICK, 80: SPECIAL_PICK, 90: BASE_PICK, 100: SPECIAL_PICK,
 };
-/**
- * 旧アビリティ → 新アビリティ(既存セーブの読み込み時に1回だけ)。その Lv の枠の候補に移行先がある時だけ置き換える
- *   置き換えられない旧アビリティ(移行先が別の枠 / 廃止)は選択済みのまま効果を残す(legacy)。その枠は無料で選び直せる
- */
-export const ABILITY_MIGRATION = { atk_s: 'power_up', atk_l: 'power_up', def_s: 'guard_up', def_l: 'guard_up' };
-export const CHARACTER_ABILITY_SLOTS = {};   // 例:{ minamo: { 40: ['power_heart', 'pure_straight', 'drive_master'] } }
+export const CHARACTER_ABILITY_SLOTS = {};   // 例:{ minamo: { 40: ['special_master', 'gate_master'] } }
 /** Lv100 の ULTIMATE(キャラ固有・選択なしで自動解放)*/
 export const ULTIMATE_LEVEL = 100;
 export const ULTIMATES = { minamo: 'ult_minamo', hinoka: 'ult_hinoka', raimu: 'ult_raimu', shizuku: 'ult_shizuku', akane: 'ult_akane', kohaku: 'ult_kohaku', kagura: 'ult_kagura', nagi: 'ult_nagi', yoruna: 'ult_yoruna' };
