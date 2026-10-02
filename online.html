@@ -127,11 +127,23 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @keyframes hbump { 0% { box-shadow: 0 0 0 2px #fff, 0 0 18px #ff4fa8; } 100% { box-shadow: 0 0 0 1px #ff9ccc55; } }
 
 /* ---- RALLY(HEART 直下・小さく。増えた時だけポップ) ---- */
-#rally { margin-top: 5px; --rc: #fff; font-family: var(--display); font-size: 11px; color: #8e8e9a; letter-spacing: .06em; display: flex; gap: 6px; justify-content: center; align-items: baseline; }
-#rallyNum { font-size: 15px; color: #fff; text-shadow: none; font-variant-numeric: tabular-nums; display: inline-block; }
-#rallyMul { font-size: 10px; color: var(--rc); }
-#rally.pop #rallyNum { animation: pop 380ms ease-out; }
-#rally.broke #rallyNum { animation: broke 400ms ease-out; }
+/* COMBO(ボスへの攻撃の連続 HIT → FEVER ゲージ)。0 の間は出さない */
+#combo { margin-top: 5px; display: flex; gap: 3px; justify-content: center; align-items: baseline; font-family: var(--display); color: #ffd0ea; letter-spacing: .04em; opacity: 1; transition: opacity .25s; }
+#combo[data-n="0"] { opacity: 0; }
+#combo .cb-h { font-style: normal; color: #ff5fa2; font-size: 11px; text-shadow: 0 0 6px rgba(255,95,162,.8); }
+#combo b { font-size: 16px; color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 0 8px #ff5fa2, 0 1px 0 #000; }
+#combo span { font-size: 9px; color: #ffb3dc; }
+#combo.pop b { animation: pop 380ms ease-out; }
+#combo.pop .cb-h { animation: cbBeat 380ms ease-out; }
+#combo.broke { animation: cbBreak 450ms ease-in forwards; }
+@keyframes cbBeat { 40% { transform: scale(1.6); } }
+@keyframes cbBreak { 0% { opacity: 1; transform: none; filter: none; } 30% { transform: translateX(-3px) rotate(-4deg); filter: grayscale(1); } 60% { transform: translateX(3px) rotate(3deg); } 100% { opacity: 0; transform: translateY(6px) scale(.8); filter: grayscale(1); } }
+/* HUD へ飛ぶチップ(Diamond → SPECIAL / COMBO → FEVER)*/
+.flychip { position: absolute; z-index: 30; pointer-events: none; white-space: nowrap; will-change: transform, opacity; }
+.flychip.diamond .dia { display: block; font-style: normal; font-size: 22px; line-height: 1; color: #fff; text-shadow: 0 0 6px #fff, 0 0 14px #7fe6ff, 0 0 22px #ff9ad5; }
+.flychip.combo { padding: 3px 10px 4px; border-radius: 999px; background: linear-gradient(135deg, rgba(255,140,198,.95), rgba(224,57,138,.95)); color: #fff; font: 900 11px var(--display); letter-spacing: .04em; box-shadow: 0 0 12px rgba(255,90,170,.7), 0 0 0 1.5px rgba(255,255,255,.8) inset; text-align: center; }
+.flychip.combo b { font-size: 15px; margin-right: 2px; }
+.flychip.combo small { display: block; font-size: 8px; color: #fff3b0; letter-spacing: .06em; }
 @keyframes pop { 0% { transform: scale(2.2); } 100% { transform: scale(1); } }
 @keyframes broke { 0%, 60% { color: var(--boss); transform: translateX(-4px); } 30% { transform: translateX(4px); } 100% { transform: none; } }
 
@@ -140,6 +152,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .judge.show { animation: judge 900ms cubic-bezier(.2,1.6,.4,1) forwards; }
 .judge.perfect { font-size: 60px; }
 .judge.tier { font-size: 34px; top: 24%; }
+.judge.fevermax { font-size: 48px; top: 26%; color: #fff; -webkit-text-stroke: 1.5px #ff3f96; text-shadow: 0 0 14px #ff5fa2, 0 0 30px #ffd23e, 0 4px 12px rgba(80,0,40,.6); }
+.judge.fevermax.show { animation: judgeFever 1300ms cubic-bezier(.2,1.6,.4,1) forwards; }
+@keyframes judgeFever { 0% { opacity: 0; transform: scale(2.2); } 18% { opacity: 1; transform: scale(.94); } 28% { transform: scale(1.04); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.12); } }
+.judge.specialready { font-size: 32px; top: 58%; color: #fff6c8; -webkit-text-stroke: 1px #c98a00; text-shadow: 0 0 12px #ffd23e, 0 0 24px #ff9ad5; }
 .judge small { display: block; font-family: var(--body); font-weight: 800; font-size: 14px; -webkit-text-stroke: 0; color: #fff; text-shadow: 0 1px 3px #000; }
 @keyframes judge { 0% { opacity: 0; transform: scale(2.4); } 12% { opacity: 1; transform: scale(1); } 75% { opacity: 1; transform: scale(1.04); } 100% { opacity: 0; transform: scale(1.1) translateY(-16px); } }
 
@@ -298,9 +314,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #game:not(.menuopen) .bossbar .name { font-size: 13px; letter-spacing: .10em; line-height: 1; margin: 0 0 2px; text-shadow: 0 2px 8px #000, 0 0 12px rgba(255,79,154,.32); }
 #game:not(.menuopen) .heartrow { margin-top: 0; grid-template-columns: auto 1fr auto; gap: 7px; }
 #game:not(.menuopen) .heartrow .track { height: 7px; background: rgba(5,5,8,.38); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 1px 6px #0008; }
-#game:not(.menuopen) #rally { position: absolute; left: 2px; top: 42px; z-index: 2; width: 76px; margin: 0; font-size: 9px; line-height: 1; text-align: left; white-space: nowrap; text-shadow: 0 1px 5px #000; }
-#game:not(.menuopen) #rallyNum { font-size: 12px; }
-#game:not(.menuopen) #rallyMul { font-size: 8px; }
+#game:not(.menuopen) #combo { position: absolute; left: 4px; top: 38px; z-index: 2; width: 74px; margin: 0; line-height: 1; justify-content: flex-start; white-space: nowrap; }
 #game:not(.menuopen) #feverBar { position: absolute; left: 82px; right: 2px; top: 39px; z-index: 1; width: auto; margin: 0; }
 #game:not(.menuopen) #energy { left: calc(8px + env(safe-area-inset-left, 0px)); right: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; width: 172px; max-width: calc(100% - 78px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); padding: 5px 7px; overflow: hidden; grid-template-columns: minmax(0, 1fr) auto; }
 #game:not(.menuopen) #energy em { overflow: visible; text-overflow: clip; white-space: nowrap; }
@@ -329,6 +343,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   background: linear-gradient(90deg, #ffb13d, #ffe36e 45%, #ff7ad9); }
 #feverBar .fval { font-family: var(--display); font-weight: 400; font-size: 9px; color: #ffe9b0; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 #feverBar .fdots { display: none; }
+/* 目盛り:COMBO の数(--fn = 12)で区切る */
+#feverBar .fticks { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--fn, 12) - 1px), rgba(0,0,0,.55) calc(100% / var(--fn, 12) - 1px) calc(100% / var(--fn, 12))); }
+#feverBar.on .fticks { display: none; }
 #feverBar.bump .ftrack { animation: fbump 400ms ease-out; }
 @keyframes fbump { 0% { box-shadow: 0 0 0 2px #ffe36e, 0 0 12px #ffb13d; } 100% { box-shadow: none; } }
 #feverBar.ready .ftrack { box-shadow: 0 0 10px #ffe36e; }
@@ -1799,7 +1816,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     <div class="bossbar">
       <div class="name"><span class="hm">♡</span><span id="bossName">DEMON GIRL</span><span id="diffBadge" class="diffbadge">NORMAL</span></div>
       <div class="heartrow" id="heartBar"><span>LOVE</span><div class="track"><i id="heartFill"></i></div><b id="heartPct">0%</b></div>
-      <div id="rally">RALLY <span>×<span id="rallyNum">0</span></span><span id="rallyMul"></span></div>
+      <div id="combo" data-n="0" aria-live="polite"><i class="cb-h">♥</i><b id="comboNum">0</b><span>COMBO</span></div>
     </div>
     <div id="partsWrap"><div id="partsCount">LOVE MAX 0/7</div><div id="parts"></div></div>
     <div id="catchMarker" hidden><span id="cmZone"></span><span id="cmOuter"></span><span id="cmInner"></span></div>

@@ -1,11 +1,13 @@
 import { Config } from '../core/Config.js';
 
 /**
- * FEVER TIME:ラリーを続けたチームへのご褒美。現在の手番から4人が1投ずつ強力に投げるボーナスラウンド。
+ * FEVER TIME:ボスへの攻撃を当て続けた(COMBO)チームへのご褒美。現在の手番から4人が1投ずつ強力に投げるボーナスラウンド。
  *
  * 状態(ここに集約):
- *   gauge               FeverGauge 0〜100(キャッチ成功で増える)
- *   pendingStart        100% に達した → 次の投球前に FEVER_INTRO を挟む
+ *   combo               COMBO(ボスへの攻撃の連続 HIT 数)。HIT で +1 / MISS で 0
+ *   gauge               FeverGauge 0〜100 = combo ÷ comboToFever(浮動小数を足し続けない。COMBO から毎回計算)
+ *                       ★ ゲージを増やすのは COMBO だけ(Heart Gate・Diamond・キャッチでは増えない)
+ *   pendingStart        12 COMBO(100%)に達した → 次のフェーズの最初の投球前に FEVER_INTRO を挟む(到達したら確定)
  *   active (IsFever)    FEVER 中
  *   level               FeverLevel 1〜3(Lv.1 / Lv.2 / Lv.MAX)
  *   throwsRemaining     FeverThrowsRemaining(発射した時点で1減る)
@@ -27,6 +29,7 @@ export class FeverSystem {
   get throwsTotal() { return Math.max(1, Math.round(this.F.throwsPerActivation)); }
 
   reset() {
+    this.combo = 0;
     this.gauge = 0;
     this.pendingStart = false;
     this.active = false;
@@ -43,29 +46,48 @@ export class FeverSystem {
     this.updateUI();
   }
 
-  // ---------------- ゲージ ----------------
-  /** キャッチ判定ごとに呼ぶ(PlayerDefenseState) */
-  onCatch(judge) {
-    if (this.active) {
-      if (judge === 'PERFECT' && this.level < 3) {
-        this.level++;
-        this.applyLevelClass();
-        this.g.ui.partCallout(`♡ FEVER ${this.levelLabel}! ♡`, 'all');
-        this.g.audio.rallyUp();
-      } else if (judge === 'MISS' && this.F.missLevelDown && this.level > 1) {
-        this.level--;
-        this.applyLevelClass();
-      }
-      this.updateUI();
-      return;
+  // ---------------- COMBO → ゲージ ----------------
+  get comboToFever() { return Math.max(1, Math.round(this.F.comboToFever ?? 12)); }
+  /** COMBO → ゲージ %(0〜100) */
+  gaugeFor(combo) { return Math.min(100, (combo / this.comboToFever) * 100); }
+
+  /**
+   * ボスへの攻撃が HIT(BOSS_HIT)→ COMBO +1 → ゲージ。12 COMBO で FEVER MAX(次のフェーズの最初に FEVER 突入)
+   *   FEVER 中も COMBO は数える(表示だけ。ゲージは FEVER の残り投球数を表示)
+   * → { combo, gauge, max(この HIT で 100% に到達)}。ゲージの表示(updateUI)は呼び出し側が演出に合わせて行う
+   */
+  onHit() {
+    this.combo++;
+    let max = false;
+    if (!this.active && !this.pendingStart) {
+      this.gauge = this.gaugeFor(this.combo);
+      if (this.gauge >= 100) { this.pendingStart = true; max = true; }
     }
-    if (this.pendingStart) return;
-    const add = this.F.gain[judge] ?? 0;
-    if (add <= 0) return;   // MISS:既存のラリー仕様(RALLY リセット)のまま。ゲージは減らさない
-    const before = this.gauge;
-    this.gauge = Math.min(100, this.gauge + add);
-    if (this.gauge >= 100 && before < 100) this.pendingStart = true;
-    this.updateUI(true);
+    if (this.g.stats) this.g.stats.maxCombo = Math.max(this.g.stats.maxCombo ?? 0, this.combo);
+    return { combo: this.combo, gauge: this.gauge, max };
+  }
+
+  /** 攻撃が MISS → COMBO 0・ゲージ 0%(FEVER MAX に達していた分は確定済みなので取り消さない)*/
+  onMiss() {
+    const had = this.combo;
+    this.combo = 0;
+    if (!this.active && !this.pendingStart) this.gauge = 0;
+    return had;
+  }
+
+  /** キャッチ判定ごとに呼ぶ(PlayerDefenseState)。ゲージは増えない。FEVER 中の PERFECT で FEVER LEVEL UP(FEVER の効果)*/
+  onCatch(judge) {
+    if (!this.active) return;
+    if (judge === 'PERFECT' && this.level < 3) {
+      this.level++;
+      this.applyLevelClass();
+      this.g.ui.partCallout(`♡ FEVER ${this.levelLabel}! ♡`, 'all');
+      this.g.audio.rallyUp();
+    } else if (judge === 'MISS' && this.F.missLevelDown && this.level > 1) {
+      this.level--;
+      this.applyLevelClass();
+    }
+    this.updateUI();
   }
 
   // ---------------- 開始 / 投球 / 終了 ----------------
@@ -109,6 +131,7 @@ export class FeverSystem {
     if (!this.active) return;
     this.active = false;
     this.finishing = false;
+    this.combo = 0;      // FEVER が終わったら COMBO もゼロから(次の FEVER はまた 12 COMBO)
     this.gauge = 0;
     this.level = 1;
     this.throwsRemaining = 0;
@@ -144,7 +167,8 @@ export class FeverSystem {
     // ゲージ:上部 HEART / RALLY の下にコンパクトに(SPECIAL = 左下のピンクとは別の配色)
     const bar = document.createElement('div');
     bar.id = 'feverBar';
-    bar.innerHTML = '<span class="flabel">FEVER</span><div class="ftrack"><i></i></div><b class="fval">0%</b><span class="fdots"></span>';
+    // 目盛り = COMBO の数(12 COMBO で 100%)。1 HIT ごとに1目盛り進むのが見える
+    bar.innerHTML = '<span class="flabel">FEVER</span><div class="ftrack"><i></i><span class="fticks"></span></div><b class="fval">0%</b><span class="fdots"></span>';
     document.querySelector('.bossbar').appendChild(bar);
     this.bar = bar;
     // FEVER 中の画面演出(外周の発光・端の小さなハート)。中央は空ける
@@ -170,6 +194,7 @@ export class FeverSystem {
     const b = this.bar;
     b.classList.toggle('on', this.active);
     b.classList.toggle('ready', this.pendingStart);
+    b.style.setProperty('--fn', this.comboToFever);
     b.querySelector('i').style.transform = `scaleX(${this.active ? this.throwsRemaining / this.throwsTotal : this.gauge / 100})`;
     b.querySelector('.flabel').textContent = this.active ? `♡ FEVER ${this.levelLabel}` : 'FEVER';
     b.querySelector('.fval').textContent = this.active ? `${this.throwsTotal - this.throwsRemaining} / ${this.throwsTotal}` : this.pendingStart ? 'MAX!' : `${Math.floor(this.gauge)}%`;

@@ -119,11 +119,8 @@ export class GameManager {
     this.bus.on('dragstart', (e) => this.sm.dispatch('onDragstart', e));
     this.bus.on('drag', (e) => this.sm.dispatch('onDrag', e));
     this.bus.on('release', (e) => this.sm.dispatch('onRelease', e));
-    this.bus.on('rally', (e) => {
-      this.ui.setRally(e.rally, e.tier, e);
-      if (e.tierUp) { this.audio.rallyUp(); this.cam.kickFov(5); }
-      this.ball.setStyle(this.turn.current.color, this.turn.tierLevel);
-    });
+    // ラリー(内部:ボスの返球の強さ)はハート玉の光り方だけに使う。画面の数字は COMBO(FeverSystem)
+    this.bus.on('rally', () => this.ball.setStyle(this.turn.current.color, this.turn.tierLevel));
 
     // デバッグ切替(キー / 画面右上ボタン)
     window.addEventListener('keydown', (e) => {
@@ -241,7 +238,7 @@ export class GameManager {
     this.ui.setPlayers(this.turn.players, 0);
     this.ui.setHeart(this.boss.heart, this.boss.maxHeart);
     this.ui.setParts(this.boss.parts);
-    this.ui.setRally(0, this.turn.tier);
+    this.ui.setCombo(0);
     this.returnBall.reset();
     this.catchTarget.hide();
     this.cam.setPlayerX(this.turn.current.x);

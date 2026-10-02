@@ -64,7 +64,7 @@ export const CHARACTERS = [
     art: { portrait: 'raimu', fullBody: 'raimu', specialCutIn: 'raimu', cutout: 'raimu_cut' },
     portraitFocus: { x: 0.55, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.17, x: 0.5, y: 0.34, scale: 1.9, rot: -5 },
-    description: '大きなカーブを自在に操るテクニカルタイプ。障害物を回り込み、左右の Heart Energy をまとめて回収する。',
+    description: '大きなカーブを自在に操るテクニカルタイプ。障害物を回り込み、左右の Diamond をまとめて回収する。',
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {

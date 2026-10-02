@@ -7,7 +7,9 @@ const ROUTE_COLORS = ['#3ee8ff', '#ff7ad9', '#b6ff5c', '#ffb13d'];
 const tmp = new THREE.Vector3();
 
 /**
- * Energy Orb と Energy ゲージ。
+ * Diamond(コード上は Energy Orb)と SPECIAL(必殺技)ゲージ。
+ *   役割は1つだけ:Diamond 1個 = SPECIAL +10%(Config.energy.orbValue / max)。10個で MAX → SPECIAL READY
+ *   Diamond を取ってもダメージ倍率・FEVER ゲージは増えない(Heart Gate = ダメージ / COMBO = FEVER)
  *
  * Orb の配置は「ルート」単位のデータ(Config.energy.routes)で定義する。
  * ルート = お手本の1投(狙う部位・POWER・SPIN)。それを実際の物理でシミュレーションし、
@@ -193,14 +195,19 @@ export class EnergySystem {
     g.ball.pulseBoost(0.8);
     g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
     g.audio.orb(this.combo);
+    // 「SPECIAL +10%」→ Diamond が SPECIAL ゲージへ飛ぶ → 着いたらゲージが増える(MAX なら SPECIAL READY)
     const s = g.player.toScreen(o.pos);
-    const tb = Config.energy.throwBonus;
-    g.ui.damageNumber(s.x, s.y, `♡+${Config.energy.orbValue}`, { color: '#3ee8ff', label: `${this.combo} ENERGY ×${tb[Math.min(this.combo, tb.length - 1)]}` });
-    g.ui.setEnergy(this.energy, this.max, this.ready, this.armed, true);
-    if (before < this.max && this.ready) {
-      g.ui.partCallout('SPECIAL READY!', 'all');
-      g.audio.rallyUp();
-    }
+    const add = Math.round((Config.energy.orbValue / this.max) * 100);
+    const reached = before < this.max && this.ready;
+    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: '#ffb3e0', label: '◆ DIAMOND' });
+    g.ui.flyTo(s.x, s.y, 'energy', '<i class="dia">◆</i>', 'diamond', 480).then(() => {
+      g.ui.setEnergy(this.energy, this.max, this.ready, this.armed, true);
+      if (reached && this.ready) {
+        g.ui.partCallout('♡ SPECIAL READY! ♡', 'all');
+        g.ui.showJudge('SPECIAL READY!', 'specialready', '#ffd23e', 'ゲージをタップで必殺技');
+        g.audio.rallyUp();
+      }
+    });
   }
 
   /** 必殺技の予約/解除(READY の時だけ) */
