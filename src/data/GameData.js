@@ -111,11 +111,11 @@ export const CHARACTERS = [
     },
   },
   {
-    // 天使の女の子(回復型 SSR)。画像:assets/chara_sera.webp(カード用)/ cut_sera.webp(透過の全身)を置いて tools/embed_assets.py → art にキーを入れる
+    // 天使の女の子(回復型 SSR)。画像:assets/chara_sera.webp(カード用)/ cut_sera.webp(透過の全身)
     id: 'sera', rank: 'SSR', name: 'セラ', attribute: 'THUNDER', type: 'STRAIGHT',
-    art: {},
-    portraitFocus: { x: 0.5, y: 0.24, zoom: 3.0 },
-    cutIn: { faceX: 0.5, faceY: 0.24, x: 0.5, y: 0.34, scale: 1.8, rot: 4 },
+    art: { portrait: 'sera', fullBody: 'sera', specialCutIn: 'sera', cutout: 'sera_cut' },
+    portraitFocus: { x: 0.48, y: 0.25, zoom: 3.0 },
+    cutIn: { faceX: 0.48, faceY: 0.25, x: 0.5, y: 0.34, scale: 1.8, rot: 4 },
     description: '白と金の翼で仲間を包む回復型の天使。必殺技が命中すると、与えたダメージの一部で味方全員を回復する。',
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
     accent: { id: 'sera', glow: '#ffd76a' },
