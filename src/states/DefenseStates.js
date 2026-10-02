@@ -128,7 +128,12 @@ export class BossReturnState {
     if (g.online) { g.ui.hideCatchNotice?.(); g.online.beginAllCatch?.(); g.ui.showJudge('CATCH!', 'tier', g.turn.current.color); }
     g.cam.reset();
     const forcedCatch = g.online ? g.online.catchPos : null;
-    const plan = g.returnBall.plan(g.turn.rally, forcedCatch, g.online?.fieldSeed);
+    // ★ = この戦闘でボスが攻撃した回数(1回目 ★1 … 5回目以降 ★5)。MULTI はサーバーの回数(全員同じ)
+    g.bossAttacks = g.online && Number.isFinite(g.online.bossAttacks) ? g.online.bossAttacks : (g.bossAttacks ?? 0) + 1;
+    const level = Math.min(Config.defence.maxLevel ?? 5, g.bossAttacks);
+    const plan = g.returnBall.plan(g.turn.rally, forcedCatch, g.online?.fieldSeed, level);
+    plan.level = level;
+    g.ui.showAttackLevel?.(level);
     this.plan = plan;
     this.wait = plan.chargeTime;
     this.chargeFx = 0;
@@ -136,7 +141,8 @@ export class BossReturnState {
     plan.arrival = g.clock + plan.chargeTime + plan.duration;
     g.catchJudge.begin(plan.arrival, plan.markerLead);
     g.catchTarget.show(plan.markerWorld, g.turn.current.color);
-    g.ui.showPrompt('catch', g.turn.current.color);
+    g.catchTarget.setNote?.(plan.notes?.[0]);
+    g.ui.showPrompt(promptFor(plan.notes?.[0]), g.turn.current.color);
     g.boss.view.playCharge();
     g.ball.hide();
     // 攻撃の予備動作(tell):色の違う溜め + ボスが何度か溜め直す + 短い表示(FEINT など。必ず見切れるサイン)
@@ -157,7 +163,8 @@ export class BossReturnState {
     this.wait -= dt;
     if (this.tellKicks > 0 && p.chargeTime - this.wait >= this.tellNext) { this.tellKicks--; this.tellNext += this.tellEvery; g.boss.view.playCharge(); g.effects.burst(p.spawn, this.chargeColor, 14, 6, 0.6); }
     if (this.wait > 0) return;
-    g.ball.returnTo(p.spawn, p.world, p.lateEnd, p.duration, catchWin('goodTime') + 0.02, p.ctrlOffset, p.motion);
+    g.ball.returnTo(p.spawn, p.world, p.lateEnd, p.duration, lateDurFor(p.notes?.[0]), p.ctrlOffset, p.motion);
+    g.ball.setNoteLook?.(p.notes?.[0]?.type);
     g.effects.burst(p.spawn, '#ff3d7f', 20, 10, 0.8);
     g.effects.shockwave(p.spawn, '#ff5fa2', 2.5, g.cam.camera);
     g.cam.shake(0.2);
@@ -166,51 +173,156 @@ export class BossReturnState {
   }
 }
 
-/** PLAYER_DEFENSE:マーカー位置 + タイミングでキャッチ */
+const ORDER = [Judge.PERFECT, Judge.GREAT, Judge.GOOD, Judge.MISS];
+const worse = (a, b) => ORDER[Math.max(ORDER.indexOf(a), ORDER.indexOf(b))];
+const DIRS = { L: { x: -1, y: 0, label: '←' }, R: { x: 1, y: 0, label: '→' }, U: { x: 0, y: -1, label: '↑' }, D: { x: 0, y: 1, label: '↓' } };
+export const FLICK_DIRS = DIRS;
+const promptFor = (n) => (n?.type === 'HOLD' ? 'catchHold' : n?.type === 'FLICK' ? 'catchFlick' : 'catch');
+/** 到達後に遅れて判定できる時間(HOLD は押し始めの判定のあと押し続けるので同じ)*/
+function lateDurFor() { return catchWin('goodTime') + 0.02; }
+
+/**
+ * PLAYER_DEFENSE:ボスの攻撃を捌く。1回の攻撃 = 1個以上のハート(notes)。ハートごとに操作と判定
+ *   NORMAL … 到達でタップ(位置 + タイミング。既存の CatchJudge)
+ *   HOLD   … 到達で押し始め(位置 + タイミング)→ hold 秒押し続けて離す(離すタイミングも判定)。悪い方
+ *   FLICK  … 到達で押して、指定方向へ弾く(押した位置 + タイミング・方向)。タップだけ / 違う方向は MISS
+ *   MULTI  … 1個ずつ順に飛んでくる(1個の判定が終わったら次が発射)
+ * ダメージは全部のハートの判定が終わってから1回だけ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul)。PERFECT は 0
+ */
 export class PlayerDefenseState {
   constructor(g) { this.g = g; }
 
   enter(plan) {
     this.plan = plan;
-    this.events = (plan.motion?.events ?? []).map((e) => ({ ...e }));   // 攻撃の途中の変化(速度変化・曲がり始め・フェイント)の演出
-    this.arrival = plan.arrival;
+    this.notes = plan.notes?.length ? plan.notes : [{ type: 'NORMAL' }];
+    this.idx = 0;
+    this.grades = [];
     this.result = null;
     this.impacted = false;
-    this.lastBeep = 99;
+    this.noteImpacted = -1;   // ステートは使い回されるので、前の攻撃の値を残さない
+    this.pendingNote = null;
+    this.beginNote(0, plan.arrival);
+  }
+
+  get note() { return this.notes[this.idx]; }
+
+  /** k 番目のハートの判定を始める(1個目は BOSS_RETURN で発射済み)*/
+  beginNote(k, arrival) {
+    const g = this.g, n = this.notes[k];
+    this.arrival = arrival;
+    this.noteState = 'wait';
+    this.noteGrade = null;
+    this.down = null;
+    this.events = (n.motion?.events ?? []).map((e) => ({ ...e }));
+    if (k > 0) {
+      g.catchJudge.begin(arrival, n.markerLead ?? Math.min(0.9, n.duration * 0.9));
+      g.catchTarget.show(n.markerWorld, g.turn.current.color);
+      g.catchTarget.setNote?.(n);
+      g.ui.showPrompt(promptFor(n), g.turn.current.color);
+      g.ball.returnTo(g.boss.spawnPoint(), n.world, n.lateEnd, n.duration, lateDurFor(n), null, n.motion);
+      g.ball.setNoteLook?.(n.type);
+      g.effects.burst(g.boss.spawnPoint(), '#ff3d7f', 10, 8, 0.6);
+      g.audio.bossSwing?.();
+    }
   }
 
   onTap(e) {
     const g = this.g;
     if (g.online && g.online.isDown()) return;
-    if (this.result) return;
-    const target = g.catchTarget.screen();
+    if (this.result || this.noteState !== 'wait') return;
+    const n = this.note, target = g.catchTarget.screen();
     const tap = e.x != null ? { x: e.x, y: e.y } : null;
     const short = Math.min(g.viewport.w, g.viewport.h);
-    // pointer event の timeStamp はブラウザ/端末で基準が異なることがある。
-    // CatchJudge の arrival は g.clock 基準なので、入力判定も同じ g.clock を使う。
+    if (n.type === 'FLICK') {
+      // 押した瞬間の位置とタイミングを覚えておき、弾いて離した時に判定(タップだけでは成功にしない)
+      if (g.clock < g.catchJudge.ringStart - 0.05) return;
+      this.down = { t: g.clock, tap, target, short };
+      this.noteState = 'flicking';
+      return;
+    }
+    // pointer event の timeStamp は端末で基準が違うことがあるので、判定は g.clock で(既存どおり)
     const r = g.catchJudge.input(g.clock, tap, target, short);
     if (!r) return;
     if (tap) g.ui.tapRipple(tap.x, tap.y, JUDGE_COLOR[r]);
-    this.decide(r);
+    if (n.type === 'HOLD' && r !== Judge.MISS) {
+      this.noteState = 'holding';
+      this.startGrade = r;
+      this.holdEnd = this.arrival + (n.hold ?? Config.defence.hold.sec);
+      g.catchTarget.setHold?.(0);
+      return;
+    }
+    this.finishNote(r, g.catchJudge.describe());
   }
 
-  decide(r) {
+  onRelease(f) {
+    const g = this.g, n = this.note;
+    if (this.result) return;
+    if (this.noteState === 'holding') {
+      const D = Config.defence.hold, dt = g.clock - this.holdEnd, mul = D.releaseWindowMul ?? 2;
+      const rg = ORDER[Math.min(3, (() => { const a = Math.abs(dt) / mul; return a <= catchWin('perfectTime') ? 0 : a <= catchWin('greatTime') ? 1 : a <= catchWin('goodTime') ? 2 : 3; })())];
+      this.finishNote(worse(this.startGrade, rg), rg === Judge.MISS ? (dt < 0 ? '離すのが早い' : '離すのが遅い') : '');
+      return;
+    }
+    if (this.noteState === 'flicking') {
+      const F = Config.defence.flick, d = this.down, want = DIRS[n.dir] ?? DIRS.U;
+      const dist = (f?.distance ?? 0) / d.short;
+      const ang = f?.distance ? Math.acos(Math.max(-1, Math.min(1, (f.dx * want.x + f.dy * want.y) / f.distance))) * 180 / Math.PI : 180;
+      const quick = (g.clock - d.t) <= (F.maxSec ?? 0.45) + 0.05;
+      if (dist < F.minDist || !quick) { this.finishNote(Judge.MISS, dist < F.minDist ? 'フリックしていない' : '遅い'); return; }
+      if (ang > F.maxAngleDeg) { this.finishNote(Judge.MISS, '方向ちがい'); return; }
+      const tg = CatchJudgeTime(d.t - this.arrival);
+      const distN = d.tap && d.target ? Math.hypot(d.tap.x - d.target.x, d.tap.y - d.target.y) / d.short : 1;
+      const pg = distN <= catchWin('perfectRadius') ? 0 : distN <= catchWin('greatRadius') ? 1 : distN <= catchWin('goodRadius') ? 2 : 3;
+      if (d.tap) g.ui.tapRipple(d.tap.x, d.tap.y, JUDGE_COLOR[ORDER[Math.max(tg, pg)]]);
+      this.finishNote(ORDER[Math.max(tg, pg)], tg > 0 ? (d.t < this.arrival ? '早い' : '遅い') : pg > 0 ? '位置ズレ' : '');
+    }
+  }
+
+  /** キーボード(開発用):Space を離す = HOLD を離す */
+  onKeyRelease() { if (this.noteState === 'holding') this.onRelease(null); }
+
+  /** 1個のハートの判定が決まった */
+  finishNote(r, why = '') {
     const g = this.g;
-    this.result = r;
-    if (g.online) g.ui.hideCatchNotice();
-    // MULTI:1回の判定を自分が担当する生存キャラ全員へ(ダメージは各キャラの DEF で個別)
-    // HP は判定した時点の値から引く(サーバーの CATCH_PLAYER で先に同期されても二重に引かない)
-    if (g.online) this.hpBefore = new Map(g.turn.players.map((pl) => [pl, pl.hp]));
-    if (g.online && !g.online.isDown()) { const d = g.catchJudge.detail; const damages = {}; for (const i of g.online.myUnitIndexes()) { const pl = g.turn.players[i]; if (pl?.hp > 0) damages[i] = this.damageFor(pl, r); } g.online.sendCatch((d?.dt ?? 1) * 1000, r, damages); }
-    g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], g.catchJudge.describe());
+    this.noteGrade = r;
+    this.noteState = 'done';
+    this.noteWhy = why;
+    g.catchJudge.result = r;
+    g.catchTarget.setHold?.(null);
+    const multi = this.notes.length > 1;
+    g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], multi ? `${this.idx + 1} / ${this.notes.length}${why ? ` ・ ${why}` : ''}` : why);
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
-    g.fever.onCatch(r);   // FEVER ゲージ(FEVER 中は PERFECT で LEVEL UP)
-    if (r === Judge.PERFECT) g.setTimeScale(0.2); // 到達までスローモーション
-    if (r !== Judge.MISS && g.clock >= this.arrival) this.impact();
+    g.fever.onCatch(r);   // FEVER 中の PERFECT で FEVER LEVEL UP(既存)
+    if (r === Judge.PERFECT && !multi) g.setTimeScale(0.2); // 到達までスローモーション(1個の攻撃だけ)
+    if (r === Judge.MISS || g.clock >= this.arrival || this.note.type === 'HOLD') this.noteImpact();
   }
 
-  /** 攻撃の途中の変化を目で追えるように:加速 / 減速 / 曲がり始め / フェイントで止まる・再び来る */
+  /** 1個のハートが届いた(キャッチ / MISS)→ 次のハートへ / 全部終わったらダメージ */
+  noteImpact() {
+    const g = this.g, r = this.noteGrade, pos = g.ball.pos.clone(), p = g.turn.current;
+    if (this.noteImpacted === this.idx) return;
+    this.noteImpacted = this.idx;
+    g.setTimeScale(1);
+    g.catchTarget.flash(r !== Judge.MISS);
+    this.grades.push(r);
+    if (r === Judge.PERFECT) { g.hitstop(this.notes.length > 1 ? 0.06 : 0.2); g.cam.shake(0.3); g.ui.flash('#fff6c8', 0.4); g.effects.burst(pos, '#ffd23e', 30, 8, 0.35); g.effects.shockwave(pos, '#ffd23e', 1.4, g.cam.camera); g.audio.catchBall(); }
+    else if (r !== Judge.MISS) { g.hitstop(0.05); g.cam.shake(0.25); g.effects.burst(pos, p.color, 18, 6, 0.3); g.audio.catchBall(); }
+    else { g.cam.shake(0.5); g.ui.flash('#ff2040', 0.35); }
+    if (this.idx < this.notes.length - 1) {
+      // 次のハート:少し間を置いて発射(MULTI)
+      this.idx++;
+      g.ball.hide();
+      const n = this.note;
+      this.nextAt = g.clock + (Config.defence.multi.gap ?? 0.1);
+      this.pendingNote = n;
+      return;
+    }
+    this.result = this.grades.reduce(worse, Judge.PERFECT);
+    this.impact();
+  }
+
+  /** 攻撃の途中の変化(曲がり始めなど)の演出 */
   motionFx() {
     const g = this.g;
     if (!this.events?.length || g.ball.mode !== 'toPlayer') return;
@@ -219,36 +331,48 @@ export class PlayerDefenseState {
       const e = this.events.shift(), pos = g.ball.pos.clone(), F = Config.enemyAttacks.fx?.[e.kind];
       if (!F) continue;
       g.effects.burst(pos, F.color, F.count ?? 14, F.speed ?? 6, F.life ?? 0.4);
-      if (F.shockwave) g.effects.shockwave(pos, F.color, F.shockwave, g.cam.camera);
       if (F.boost) g.ball.pulseBoost(F.boost);
-      if (F.label) { const s = g.player.toScreen(pos); g.ui.damageNumber(s.x, s.y - 24, F.label, { color: F.color }); }
-      if (F.sound) g.audio[F.sound]?.();
     }
   }
 
   update() {
     const g = this.g;
-    this.motionFx();
-    const now = g.clock;
-    const judge = g.catchJudge;
-    const prog = judge.ringProgress(now);
-    if (!this.impacted) g.catchTarget.update(prog);
-
-    // 接近ビープ(3回)
-    const beepIdx = Math.ceil(prog * 3);
-    if (prog > 0 && prog <= 1 && beepIdx < this.lastBeep) { this.lastBeep = beepIdx; g.audio.incoming(); }
-    if (prog > 0 && prog < 0.5) g.cam.kickFov((0.5 - prog) * 5);
-
     if (this.impacted) return;
-    const timeout = judge.checkTimeout(now);
-    if (timeout) { if (g.online && g.online.isDown()) return; this.decide(timeout); this.impact(); return; }
-    if (this.result && this.result !== Judge.MISS && now >= this.arrival) this.impact();
-    if (this.result === Judge.MISS && now >= judge.lateLimit) this.impact();
+    if (this.pendingNote) {
+      if (g.clock < this.nextAt) return;
+      const n = this.pendingNote; this.pendingNote = null;
+      this.beginNote(this.idx, g.clock + n.duration);
+      return;
+    }
+    this.motionFx();
+    const now = g.clock, judge = g.catchJudge, prog = judge.ringProgress(now);
+    if (this.noteState !== 'done') g.catchTarget.update(prog);
+    if (prog > 0 && prog < 0.5) g.cam.kickFov((0.5 - prog) * 5);
+    // タイミングを知らせるカウント音は鳴らさない(見た目だけで判断する)
+    if (this.noteState === 'holding') {
+      const n = this.note, k = 1 - (this.holdEnd - now) / (n.hold ?? Config.defence.hold.sec);
+      g.catchTarget.setHold?.(Math.max(0, Math.min(1, k)));
+      g.ball.pinAt?.(n.world);
+      const late = (Config.defence.hold.releaseWindowMul ?? 2) * catchWin('goodTime');
+      if (now > this.holdEnd + late) this.finishNote(Judge.MISS, '離さなかった');
+      return;
+    }
+    if (this.noteState === 'done') { if (this.noteImpacted !== this.idx && now >= this.arrival) this.noteImpact(); return; }
+    if (now > judge.lateLimit) { if (g.online && g.online.isDown()) return; this.finishNote(Judge.MISS, this.noteState === 'flicking' ? 'フリックしていない' : 'タップなし'); }
   }
+
+  /** テスト / デバッグ:今のハートの判定を直接決める(1個だけの攻撃は全体が決まる)*/
+  decide(r) { if (!this.result && this.noteState !== 'done') this.finishNote(r); }
 
   damageFor(pl, r) {
     const g = this.g;
     return Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
+  }
+
+  /** 全部のハートの合計ダメージ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul。1個の攻撃は今までと同じ)*/
+  totalDamageFor(pl) {
+    const n = this.grades.length || 1, share = n > 1 ? (Config.defence.multi.damageMul ?? 1.5) / n : 1;
+    return Math.round(this.grades.reduce((a, r) => a + this.damageFor(pl, r) * share, 0));
   }
 
   impact() {
@@ -257,43 +381,20 @@ export class PlayerDefenseState {
     this.impacted = true;
     g.setTimeScale(1);
     const r = this.result;
-    g.catchTarget.flash(r !== Judge.MISS);
     setTimeout(() => g.catchTarget.hide(), 180);
-    const p = g.turn.current;
-    const pos = g.ball.pos.clone();
-    // Defense:判定ごとのペナルティを DEF で軽減(DefenseCalculator は差し替え可能)
-    // 難易度:PERFECT は常に 0。GREAT / GOOD / MISS の被ダメージだけ DifficultyData.damageTaken 倍
-    const damageFor = (pl) => this.damageFor(pl, r);
-
     if (r !== Judge.MISS) g.ui.tutorialDone('catch');
-    if (r === Judge.PERFECT) {
-      g.hitstop(0.2);
-      g.cam.shake(0.45);
-      g.cam.kickFov(-6);
-      g.ui.flash('#fff6c8', 0.55);
-      g.effects.burst(pos, '#ffd23e', 40, 9, 0.35);
-      g.effects.burst(pos, p.color, 24, 6, 0.3);
-      g.effects.shockwave(pos, '#ffd23e', 1.4, g.cam.camera);
-      g.audio.catchBall();
-    } else if (r === Judge.GREAT || r === Judge.GOOD) {
-      g.hitstop(0.08);
-      g.cam.shake(r === Judge.GREAT ? 0.3 : 0.4);
-      g.ui.flash('#ffffff', 0.25);
-      g.effects.burst(pos, p.color, 20, 6, 0.3);
-      g.audio.catchBall();
-    } else {
-      g.hitstop(0.1);
-      g.cam.shake(0.85);
-      g.ui.flash('#ff2040', 0.55);
-      g.turn.resetRally();
-    }
-
-    // ボスの反撃は全員へ:SOLO は1回の判定を生存している全員に適用(ダメージは各自の DEF で個別)/ MULTI は自分が担当するキャラだけ(1〜2人)
+    if (this.grades.some((x) => x === Judge.MISS)) g.turn.resetRally();
+    if (this.notes.length > 1) g.ui.showJudge(r === Judge.PERFECT ? 'ALL PERFECT!' : `${this.grades.filter((x) => x !== Judge.MISS).length} / ${this.grades.length} DEFENCE`, r === Judge.PERFECT ? 'perfect' : 'tier', JUDGE_COLOR[r], this.grades.join(' ・ '));
+    // MULTI:全部のハートの判定が決まってから1回だけ送る(HP は判定した時点の値から引く)
+    if (g.online) this.hpBefore = new Map(g.turn.players.map((pl) => [pl, pl.hp]));
+    if (g.online && !g.online.isDown()) { const damages = {}; for (const i of g.online.myUnitIndexes()) { const pl = g.turn.players[i]; if (pl?.hp > 0) damages[i] = this.totalDamageFor(pl); } g.online.sendCatch(0, r, damages); }
+    const pos = g.ball.pos.clone();
+    // ボスの反撃は全員へ:SOLO は生存している全員 / MULTI は自分が担当するキャラだけ(ダメージは各自の DEF で個別)
     const targets = (g.online ? g.online.myUnitIndexes().map((i) => g.turn.players[i]) : g.turn.players).filter((pl) => pl && (g.online ? this.hpBefore?.get(pl) ?? pl.hp : pl.hp) > 0);
     const s0 = g.player.toScreen(pos);
     const downs = [];
     targets.forEach((pl, k) => {
-      const dmg = damageFor(pl);
+      const dmg = this.totalDamageFor(pl);
       if (dmg <= 0) return;
       if (g.online) { pl.hp = Math.max(0, (this.hpBefore?.get(pl) ?? pl.hp) - dmg); g.bus.emit('playerHp', pl); } else g.turn.damage(pl, dmg);
       const i = g.turn.players.indexOf(pl);
@@ -301,12 +402,12 @@ export class PlayerDefenseState {
       g.ui.damageNumber(s0.x + (k - (targets.length - 1) / 2) * 46, s0.y + 40 + (k % 2) * 26, `-${dmg}`, { color: '#ff5a6e', label: pl.id });
       if (pl.hp <= 0) downs.push(pl);
     });
+    if (targets.some((pl) => this.totalDamageFor(pl) > 0)) { g.hitstop(0.1); g.cam.shake(0.6); }
     g.ui.setPlayers(g.turn.players, g.turn.index);
 
     if (!g.online && g.turn.allDown) { g.ball.hide(); g.sm.change(GameState.GAME_OVER); return; }
     if (downs.length) {
       g.ui.showJudge(`${downs.map((d) => d.id).join('・')} DOWN`, 'miss', '#ff3d5a');
-      // Online DOWN is finalized by the server from this player's CATCH result.
       if (g.online && g.online.myUnitIndexes().every((i) => !(g.turn.players[i]?.hp > 0))) { g.ball.hide(); g.sm.change(GameState.PLAYER_CATCH, { down: true }); return; }
     }
     g.sm.change(GameState.PLAYER_CATCH, { judge: r });
@@ -316,7 +417,14 @@ export class PlayerDefenseState {
     this.g.ui.hideCatchNotice?.();
     this.g.ui.showPrompt(null);
     this.g.catchJudge.reset();
+    this.g.catchTarget.setNote?.(null);
+    this.g.ball.setNoteLook?.(null);
   }
+}
+
+function CatchJudgeTime(dt) {
+  const a = Math.abs(dt);
+  return a <= catchWin('perfectTime') ? 0 : a <= catchWin('greatTime') ? 1 : a <= catchWin('goodTime') ? 2 : 3;
 }
 
 /** PLAYER_CATCH:キャッチしたボールを画面下の投球位置へ移動 */

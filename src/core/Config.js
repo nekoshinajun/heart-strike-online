@@ -495,6 +495,59 @@ export const Config = {
   // ---- 敵の攻撃(返球の球種)。難易度差は「全体を速くする」のではなく、攻撃の種類・組み合わせ・変化量で作る ----
   //   各攻撃:type / curve / speed / speedChange / changeTiming / feint / tell / weight{ NORMAL, HARD, HELL }(src/return/AttackMotion.js)
   //   敵ごとの個性は bossProfiles[].attackStyle(倍率)/ attacks(その敵だけの攻撃)。★ 数値はすべて仮(バランス調整用)
+  // ---- DEFENCE(ボスの攻撃を捌く)----
+  //   攻撃タイプは4つだけ:NORMAL(タップ)/ HOLD(到達で長押し → 終わりで離す)/ FLICK(到達で指定方向へ弾く)/ MULTI(複数のハートを続けて)
+  //   ★ = 「この戦闘でボスが何回攻撃したか」(1回目 ★1 … 5回目以降 ★5)。NORMAL / HARD / HELL とは別(どの難易度でも ★1 から上がる)
+  //   判定:PERFECT は全難易度共通で約 1F(Config.catch)・PERFECT はダメージ 0(既存のまま)。タイミングは見た目だけで判断(カウント音なし)
+  //   ボスごとに bossProfiles[id].defence.levels[★] で上書きできる(システム本体は書き換え不要)
+  /**
+   * ボス撃破時の余韻(GAME_CLEAR → リザルト)。秒はすべて撃破の瞬間から。合計 8〜12 秒
+   *   セリフ・リアクションは BossAffection の defeat(ボスごと。HELL は defeat.hell)
+   */
+  clear: {
+    hitstopSec: 0.22,     // 撃破の瞬間の止め
+    uiFadeAt: 0.35,       // バトル UI を消し始める
+    bgmFadeSec: 1.6,      // BGM のフェードアウト
+    reactionAt: 0.6,      // 撃破リアクション(表情 + 短い声)
+    reactionSec: 1.1,     // リアクションの声の表示時間(この後 lineAt まで何も表示しない)
+    lineAt: 3.4,          // 何も表示しない間(1〜2 秒)のあと、撃破セリフ
+    finalAt: 6.2,         // 最終表情(デレ)
+    completeAt: 7.2,      // 「HEART BREAK / 攻略完了」+ クリア SE
+    asmrAt: 8.9,          // HELL:ASMR UNLOCKED
+    resultAt: 9.8,        // リザルトへ(HELL は hellResultAt)
+    hellResultAt: 11.6,
+    skipAfter: 1.2,       // タップで早送りできるまで
+  },
+
+  defence: {
+    maxLevel: 5,
+    levelBannerSec: 1.1,       // 攻撃開始時の「ATTACK LEVEL ★★★☆☆」の表示時間
+    curveChance: 0.3,          // ★2 以降、ハートの軌道が左右に曲がる割合(見た目の変化だけ。タイミングは変わらない)
+    hold: { sec: 0.8, releaseWindowMul: 2, scale: 1.6, color: '#ffd23e' },   // ★ HOLD:長押しの長さ(秒)・離す判定の幅(押し始めの何倍)・見た目
+    flick: { minDist: 0.07, maxAngleDeg: 40, maxSec: 0.45, color: '#5ad8ff' },  // ★ FLICK:弾く距離(画面短辺比)・方向のずれの許容・押してから離すまで
+    multi: { damageMul: 1.5, gap: 0.1 },  // ★ MULTI:1回の攻撃全体のダメージ倍率(各ハートに 1/個数 ずつ)・次のハートまでの間(秒)
+    /**
+     * ★ごとの攻撃の候補(weight で抽選)。notes:'NORMAL' | 'HOLD' | 'FLICK' か { type, hold(秒), dir('L'|'R'|'U'|'D'|'random') }
+     *   interval … MULTI の2個目以降のハートが飛んでくる時間(秒)。短いほど忙しい
+     */
+    levels: {
+      1: [{ id: 'N', weight: 1, notes: ['NORMAL'] }],
+      2: [{ id: 'N', weight: 2, notes: ['NORMAL'] }, { id: 'H', weight: 1, notes: ['HOLD'] }],
+      3: [{ id: 'N', weight: 2, notes: ['NORMAL'] }, { id: 'H', weight: 1, notes: ['HOLD'] }, { id: 'F', weight: 1.6, notes: ['FLICK'] }],
+      4: [
+        { id: 'NNN', weight: 2, notes: ['NORMAL', 'NORMAL', 'NORMAL'], interval: 0.85 },
+        { id: 'NHN', weight: 1.5, notes: ['NORMAL', 'HOLD', 'NORMAL'], interval: 0.85 },
+        { id: 'NFN', weight: 1.5, notes: ['NORMAL', 'FLICK', 'NORMAL'], interval: 0.85 },
+        { id: 'F', weight: 0.8, notes: ['FLICK'] },
+      ],
+      5: [
+        { id: 'NFFN', weight: 1.5, notes: ['NORMAL', 'FLICK', 'FLICK', 'NORMAL'], interval: 0.72 },
+        { id: 'HNF', weight: 1.2, notes: ['HOLD', 'NORMAL', 'FLICK'], interval: 0.72 },
+        { id: 'NNFHN', weight: 1, notes: ['NORMAL', 'NORMAL', 'FLICK', 'HOLD', 'NORMAL'], interval: 0.68 },
+        { id: 'FNFN', weight: 1.2, notes: ['FLICK', 'NORMAL', 'FLICK', 'NORMAL'], interval: 0.66 },
+      ],
+    },
+  },
   enemyAttacks: {
     samples: 120,           // 動きの計算の細かさ
     // 途中の変化の演出(色・粒・表示・音)。加速 / 減速 / 曲がり始め / フェイントで止まる・再び来る

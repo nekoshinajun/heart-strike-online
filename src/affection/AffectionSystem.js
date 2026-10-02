@@ -188,7 +188,8 @@ export class AffectionSystem {
   onHeartChanged() {
     const rate = this.rate;
     let idx = 0;
-    this.data.stages.forEach((s, i) => { if (rate >= s.min) idx = i; });
+    // 100%(デレ)は撃破の余韻(GAME_CLEAR)で撃破セリフの後に出す。ここでは 75% までの段階
+    this.data.stages.forEach((s, i) => { if (rate >= s.min && s.min < 100) idx = i; });
     if (idx <= this.stageIndex) return;
     this.stageIndex = idx;
     const st = this.stage;

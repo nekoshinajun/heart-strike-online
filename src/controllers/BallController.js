@@ -200,6 +200,21 @@ export class BallController {
 
   hide() { this.mode = 'hidden'; this.setVisible(false); }
 
+  /** DEFENCE のハートの種類の見た目:HOLD = 大きく金色 / FLICK = シアン / それ以外(null)= 元の見た目 */
+  setNoteLook(type) {
+    const D = Config.defence ?? {}, look = type === 'HOLD' ? D.hold : type === 'FLICK' ? D.flick : null;
+    this.noteScale = type === 'HOLD' ? D.hold?.scale ?? 1.6 : 1;
+    this.noteType = look ? type : null;
+    if (look?.color) {
+      this.glow.material.color.set(look.color);
+      this.trail.forEach((t) => t.sprite.material.color.set(look.color));
+      if (this.isHeart) this.mesh.material.color.set(look.color);
+    } else if (!look && this.color) this.setStyle(this.color.getStyle(), this.styleLevel ?? 0);
+  }
+
+  /** HOLD 中:ハートをキャッチ地点に止めておく */
+  pinAt(world) { if (this.mode !== 'pinned') { this.mode = 'pinned'; this.setVisible(true); } this.pos.copy(world); }
+
   update(dt) {
     this.prev.copy(this.pos);
     switch (this.mode) {
@@ -248,6 +263,7 @@ export class BallController {
         }
         break;
       }
+      case 'pinned': break;
       case 'catching': {
         this.t += dt / this.dur;
         const k = Math.min(1, this.t);
@@ -282,7 +298,7 @@ export class BallController {
     }
     const grabbed = this.mode === 'grabbed';
     const sp = this.special ? Config.special.ballScale : 1;
-    this.mesh.scale.setScalar(this.mode === 'rebound' || this.mode === 'fade' ? this.mesh.scale.x : (grabbed ? 1.12 : 1) * sp);
+    this.mesh.scale.setScalar(this.mode === 'rebound' || this.mode === 'fade' ? this.mesh.scale.x : (grabbed ? 1.12 : 1) * sp * (this.noteScale ?? 1));
 
     // 見た目の位置 = 物理位置 + 合流オフセット(発射直後だけ)
     if (this.visOffset) { this.visOffset.multiplyScalar(Math.exp(-14 * dt)); if (this.visOffset.lengthSq() < 1e-4) this.visOffset = null; }

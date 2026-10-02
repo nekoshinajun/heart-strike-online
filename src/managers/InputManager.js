@@ -39,6 +39,10 @@ export class InputManager {
         this.bus.emit('tap', { time: performance.now(), key: true, x: h?.x, y: h?.y });
       }
     });
+    window.addEventListener('keyup', (e) => {
+      if (!devInput()) return;   // DEFENCE の HOLD を離す(開発用)
+      if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') this.bus.emit('keyrelease', { time: performance.now(), key: true });
+    });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
