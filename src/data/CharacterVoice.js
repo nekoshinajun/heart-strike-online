@@ -125,6 +125,15 @@ const EXT = {
     homeDialogue: { launch: ['ふふ、待っておったぞ'], tap: ['わらわの炎、見惚れるでないぞ'] },
     gacha: { obtainDialogue: { default: 'よう届けた。そなたのハート、確かに受け取ったぞ' } },
   },
+  yoruna: {
+    voiceStyle: 'proud', voiceNote: '甘えたがりのダークドラゴン',
+    homeDialogue: {
+      launch: ['ふふ、来てくれたんだ。…待ってたよ、ずっと', '今夜も、あなたのハートを焦がしちゃおうかな'],
+      tap: ['くすぐったい…♡ もっと近くにおいで', 'この翼？ あなたを包むためにあるの'],
+      afterClear: ['当然。わたしとあなたなら、どんな夜でも越えられる'],
+    },
+    gacha: { obtainDialogue: { default: '見つけた…♡ あなたのハート、もう離さないから', firstTime: '闇夜を越えて届いたハート…♡ ヨルナ、あなたのものになってあげる' } },
+  },
   nagi: {
     voiceStyle: 'gentle', voiceNote: '穏やかでやさしい',
     homeDialogue: { tap: ['のんびりいきましょう'] },

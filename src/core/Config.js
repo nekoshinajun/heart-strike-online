@@ -204,11 +204,10 @@ export const Config = {
 
   // ---- エネルギー / 必殺技 ----
   energy: {
-    label: 'HEART ENERGY', // 表示名(世界観に合わせて変更可)
-    // 1投の途中で取った Energy 数 → 命中時の HEART 倍率(★)
-    throwBonus: [1.0, 1.1, 1.25, 1.5, 2.0],
-    max: 100,              // ★
-    orbValue: 10,          // ★ Orb 1個
+    // Diamond(コース上の光る宝石)= 必殺技(SPECIAL)ゲージを溜めるためだけのもの。ダメージ倍率・FEVER には関係しない
+    label: 'DIAMOND',      // 表示名
+    max: 100,              // ★ SPECIAL ゲージ(0〜100%)
+    orbValue: 10,          // ★ Diamond 1個 = SPECIAL +10%(10個で MAX)
     orbRadius: 0.5,        // 取得判定の半径(ボール半径と合算)。奥の Orb が小さく見える分わずかに拡大(旧 0.42)
     // ルート定義:ルートごとの「お手本の1投」をシミュレーションして、その軌道上に Orb を置く(=必ず取れる配置)
     // target: 部位 / power: 0〜1 / spin: -1〜1(負=左カーブ ↑→←, 正=右カーブ ↑←→)/ count: 個数 / span: 軌道のどこに置くか
@@ -417,9 +416,11 @@ export const Config = {
     dokunOnLines: true,  // 重要なセリフ(「次の1投で答えて！」)でも控えめに心音
   },
 
-  // ---- FEVER TIME(ラリーを続けたご褒美:現在キャラから4人が1投ずつ強力に投げるボーナスラウンド)----
+  // ---- FEVER TIME(COMBO を続けたご褒美:現在キャラから4人が1投ずつ強力に投げるボーナスラウンド)----
+  //   ゲージの役割は1つだけ:ボスへの攻撃の連続 HIT(COMBO)で溜まる。FEVER = COMBO ÷ comboToFever(MISS で COMBO・ゲージとも 0)
+  //   Heart Gate(= ダメージ倍率)・Diamond(= SPECIAL ゲージ)・キャッチでは増えない
   fever: {
-    gain: { PERFECT: 15, GREAT: 12, GOOD: 8, MISS: 0 },   // ★ FeverGaugeGain(キャッチ成功ごと。%)
+    comboToFever: 12,            // ★ この COMBO で FEVER 100%(4人 × 3周 = 12投 すべて当てる)
     heartMul: [2.0, 2.5, 3.0],   // ★ FeverHeartMultiplier Lv.1 / Lv.2 / Lv.MAX(既存の全倍率の最後に掛ける)
     levelLabels: ['Lv.1', 'Lv.2', 'Lv.MAX'],
     missLevelDown: false,        // MISS で FEVER LEVEL を1段階下げるか(初期実装:維持)
@@ -612,7 +613,8 @@ export const Config = {
     log: params.get('log') === '1',  // [INIT] [SAVE] [HOME] [GACHA] … のコンソールログ(製品画面には出さない)
   },
 
-  // ラリー倍率テーブル(届く HEART の倍率・ハート玉の演出)
+  // ラリー段階(ハート玉の光り方の演出だけ。HEART の倍率には使わない:連続 HIT は COMBO → FEVER ゲージの役割)
+  //   mul は旧仕様の値(参照なし)。ラリー数そのものはボスの返球の強さ(returnTiers)に使う
   rallyTiers: [
     { min: 20, mul: 2.0, color: '#ff4dff', label: 'FEVER' },
     { min: 10, mul: 1.5, color: '#ff8a3d', label: 'HOT' },

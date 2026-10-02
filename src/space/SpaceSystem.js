@@ -402,7 +402,8 @@ export class SpaceSystem {
     g.audio.rallyUp();
     g.ball.pulseBoost(0.6);
     const s = g.player.toScreen(gt.pos);
-    g.ui.damageNumber(s.x, s.y, this.chain > 1 ? `CHAIN ${this.chain}` : 'GATE', { color: '#ffd23e', label: this.chain > 1 ? `GATE CHAIN ×${this.chainMul}` : gt.route ? `${gt.route === 'left' ? 'LEFT' : 'RIGHT'} GATE PASS!` : 'GATE PASS!' });
+    // Heart Gate の役割はダメージ倍率だけ:通った時点の倍率を表示(ボスに当たった時に掛かる)。FEVER / SPECIAL は増えない
+    g.ui.damageNumber(s.x, s.y, `GATE ×${this.chainMul}`, { color: '#ffd23e', label: this.chain > 1 ? `GATE CHAIN ${this.chain}` : gt.route ? `${gt.route === 'left' ? 'LEFT' : 'RIGHT'} GATE PASS!` : 'GATE PASS!' });
     g.stats.gates = (g.stats.gates ?? 0) + 1;
   }
 

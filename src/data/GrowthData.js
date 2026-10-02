@@ -43,13 +43,15 @@ export const STAT_MAX = 100;
  *   ★ 仮の方向性。最終バランスではない
  */
 export const CHARACTER_GROWTH = {
-  // ランクが高いほど合計が高いのが基本(4ステータスの合計 Lv1 / Lv100:SSR 230 / 355・SR 210 / 330・R 190 / 300)
-  //   キャラの個性(得意・不得意)は形で出す。hp = バトルの最大 HP(Lv1 → Lv100)
+  // ランクが高いほど合計が高いのが基本(4ステータスの合計 Lv1 / Lv100):
+  //   SSR 250 / 380・SR 210 / 330・R 190 / 300・N 170 / 270(N のキャラは今はいない)
+  //   キャラの個性(得意・不得意)は形で出す。hp = バトルの最大 HP(Lv1 → Lv100)。HP もランクが高いほど高いのが基本
   // ---- SSR ----
-  minamo: { hp: [112, 165], attack: [72, 100], defence: [53, 90], control: [65, 95], curve: [40, 70] },    // 高火力ストレート型
-  raimu: { hp: [106, 158], attack: [58, 88], defence: [40, 72], control: [52, 95], curve: [80, 100] },     // 超カーブ型
-  kagura: { hp: [115, 170], attack: [70, 100], defence: [45, 75], control: [50, 82], curve: [65, 98] },    // 火力カーブ型
+  yoruna: { hp: [125, 185], attack: [75, 100], defence: [55, 90], control: [55, 90], curve: [65, 100] },   // ダークドラゴン:火力とカーブ
   // ---- SR ----
+  minamo: { hp: [108, 160], attack: [68, 95], defence: [48, 84], control: [60, 90], curve: [34, 61] },     // 高火力ストレート型
+  raimu: { hp: [102, 152], attack: [53, 83], defence: [35, 66], control: [47, 81], curve: [75, 100] },     // 超カーブ型
+  kagura: { hp: [110, 162], attack: [65, 95], defence: [40, 70], control: [45, 77], curve: [60, 88] },     // 火力カーブ型
   hinoka: { hp: [104, 154], attack: [55, 85], defence: [52, 82], control: [48, 78], curve: [55, 85] },     // バランス型カーブ
   shizuku: { hp: [116, 172], attack: [40, 68], defence: [72, 100], control: [52, 82], curve: [46, 80] },   // 防御・安定型(HP も高い)
   kohaku: { hp: [98, 146], attack: [65, 95], defence: [45, 75], control: [60, 90], curve: [40, 70] },      // 速いストレート型
@@ -81,6 +83,7 @@ export const STAT_EFFECTS = {
  *   { kind: 'stat',    stat, add }            … ステータスに加算(表示にも反映)
  *   { kind: 'heart',   mul, when }            … 命中時の HEART 倍率(条件つき)
  *   { kind: 'curve',   mul, when }            … カーブの効き
+ *   { kind: 'specialCharge', mul }      … Diamond 1個で増える SPECIAL ゲージの量(投げた子が持っている時。ダメージ・FEVER には関係しない)
  *   { kind: 'drive',   mul, when }            … DRIVE の沈む量
  *   { kind: 'control', mul }                  … CONTROL の誤差(小さいほど正確)
  *   { kind: 'guard',   mul, when }            … 被ダメージ倍率
@@ -110,7 +113,8 @@ export const ABILITIES = {
   drive_master: { name: 'DRIVE MASTER', desc: 'DRIVE の沈みが ×1.2', effects: [{ kind: 'drive', mul: 1.2 }] },
   prespin_master: { name: 'PRE-SPIN MASTER', desc: 'PRE-SPIN を仕込んだカーブが ×1.15', effects: [{ kind: 'curve', mul: 1.15, when: { preSpin: true } }] },
   drive_heart: { name: 'DROP HEART', desc: 'DRIVE で命中すると HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { drive: true } }] },
-  energy_heart: { name: 'ENERGY HEART', desc: 'Energy を取って命中すると HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { energyMin: 1 } }] },
+  // 旧 ENERGY HEART(Diamond でダメージ ×1.08)→ SPECIAL CHARGE。ID はセーブ互換のためそのまま。Diamond の役割(SPECIAL ゲージ)は変えない
+  energy_heart: { name: 'SPECIAL CHARGE', desc: 'Diamond 1個で SPECIAL +12%(通常 +10%)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
   special_heart: { name: 'SPECIAL HEART+', desc: 'SPECIAL の HEART ×1.1', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
   fever_heart: { name: 'FEVER HEART+', desc: 'FEVER 中の HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { fever: true } }] },
   straight_master: { name: 'STRAIGHT MASTER', desc: 'ストレート(カーブなし)の命中 HEART ×1.08', effects: [{ kind: 'heart', mul: 1.08, when: { noSpin: true } }] },
@@ -124,6 +128,7 @@ export const ABILITIES = {
   ult_akane: { name: 'PINPOINT HEART', desc: 'CONTROL のブレ ×0.3・HEART ×1.08', ultimate: true, effects: [{ kind: 'control', mul: 0.3 }, { kind: 'heart', mul: 1.08 }] },
   ult_kohaku: { name: 'SPARK STRAIGHT', desc: 'ストレートの命中 HEART ×1.12・CONTROL のブレ ×0.6', ultimate: true, effects: [{ kind: 'heart', mul: 1.12, when: { noSpin: true } }, { kind: 'control', mul: 0.6 }] },
   ult_kagura: { name: 'FLAME ARC', desc: 'カーブ命中 HEART ×1.15', ultimate: true, effects: [{ kind: 'heart', mul: 1.15, when: { spin: true } }] },
+  ult_yoruna: { name: 'DRAGON HEART', desc: 'HEART ×1.12・カーブの効き ×1.2', ultimate: true, effects: [{ kind: 'heart', mul: 1.12 }, { kind: 'curve', mul: 1.2 }] },
   ult_nagi: { name: 'CALM WAVE', desc: '受けるダメージ ×0.85・CONTROL のブレ ×0.6', ultimate: true, effects: [{ kind: 'guard', mul: 0.85 }, { kind: 'control', mul: 0.6 }] },
 };
 
@@ -145,7 +150,7 @@ export const ABILITY_SLOTS = {
 export const CHARACTER_ABILITY_SLOTS = {};   // 例:{ minamo: { 40: ['power_heart', 'pure_straight', 'drive_master'] } }
 /** Lv100 の ULTIMATE(キャラ固有・選択なしで自動解放)*/
 export const ULTIMATE_LEVEL = 100;
-export const ULTIMATES = { minamo: 'ult_minamo', hinoka: 'ult_hinoka', raimu: 'ult_raimu', shizuku: 'ult_shizuku', akane: 'ult_akane', kohaku: 'ult_kohaku', kagura: 'ult_kagura', nagi: 'ult_nagi' };
+export const ULTIMATES = { minamo: 'ult_minamo', hinoka: 'ult_hinoka', raimu: 'ult_raimu', shizuku: 'ult_shizuku', akane: 'ult_akane', kohaku: 'ult_kohaku', kagura: 'ult_kagura', nagi: 'ult_nagi', yoruna: 'ult_yoruna' };
 
 /** アビリティ変更アイテム(★ 仮名称)。入手経路はまだ無い */
 export const ABILITY_RESET_ITEM = { id: 'reconnectHeart', name: 'リコネクトハート', icon: '💗' };

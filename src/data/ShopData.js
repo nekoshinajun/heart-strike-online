@@ -18,7 +18,7 @@ export const SHOPS = [
     tagline: '甘くて、ちょっと危険な大人のコンカフェ。',
     intro: '甘くて、ちょっと危険な大人のコンカフェ。今夜、特別な出会いを——',
     detail: 'シャンデリアの灯りとワインレッドのカーテン。小悪魔なキャストたちが、あなたのハートを待っている。',
-    casts: ['lilith', 'siren', 'milk'], soonSlots: 1, unlock: null,
+    casts: ['lilith', 'siren'], soonSlots: 1, unlock: null,
     map: { u: 0.36, v: 0.5, style: 'palace', size: 3, label: 'left' },
     theme: { accent: '#ff4fa3', glow: '#ff86c4', wall: '#3a1a33', roof: '#2b1030', window: '#ffc9a0',
       interior: { wall: '#2a0a18', wall2: '#4a0f26', curtain: '#7a1435', light: '#ffc9e0', sign: '#ff5fae' } },
@@ -44,8 +44,9 @@ export const SHOPS = [
   {
     id: 'lumiere', name: 'Lumière', ja: 'ルミエール',
     tagline: '光あふれる、お嬢様たちのサロン。',
-    intro: '光あふれる、お嬢様たちのサロン。',
-    casts: [], soonSlots: 3, unlock: { type: 'soon' },
+    intro: '光あふれる、お嬢様たちのサロン。きらめく灯りの下で、甘えん坊のキャストがお出迎え——',
+    detail: 'シャンパンゴールドの灯りとレースのカーテン。きらめくサロンで、とっておきのひとときを。',
+    casts: ['milk'], soonSlots: 2, unlock: null, badge: 'NEW',   // みるくは Éclat から Lumière へ移籍(所属はここだけで決まる)
     map: { u: 0.18, v: 0.72, style: 'dome', size: 3, label: 'right' },
     theme: { accent: '#ffc46b', glow: '#ffe0a8', wall: '#3a2a2c', roof: '#2a1f30', window: '#ffe2a8',
       interior: { wall: '#2a1a0c', wall2: '#4a3016', curtain: '#7a5420', light: '#fff0cc', sign: '#ffc46b' } },

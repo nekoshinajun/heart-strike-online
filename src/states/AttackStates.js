@@ -148,6 +148,8 @@ export class BallToBossState {
     if (g.answerExtraThrow) g.answerExtraThrow = false; else g.turn.markThrown();
     g.ui.tutorialDone('flick');
     if (special) {
+      // キャラ固有の SPECIAL 投球の見た目(CharacterData.specialThrowEffect。見た目だけ・ダメージは本体の1投だけ)
+      g.specialFx.start(g.turn.current.chara, th);
       g.ui.showJudge('SPECIAL HEART!', 'perfect', '#ff7ab8');
       g.cam.kickFov(14); g.cam.shake(0.7); g.ui.speedLines(true);
       g.ui.flash('#ffffff', 0.5);
@@ -199,18 +201,18 @@ export class BossHitState {
     if (result.type === 'hit') {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
-      // HeartGain = BaseHeart(部位) × Attack(ATTACK) × Attribute × Rally × Energy × Special × Ability(球速・引っ張り量では変えない)
+      // HeartGain = BaseHeart(部位) × Attack(ATTACK) × Attribute × Special × Gate × Bank × FEVER × Ability(球速・引っ張り量では変えない)
+      //   役割の分離:Heart Gate = ダメージ倍率 / Diamond = SPECIAL ゲージだけ / COMBO = FEVER ゲージだけ
+      //   → Diamond の数・COMBO(ラリー)は HEART の倍率に入れない
       const ch = g.turn.current.chara;
       const orbs = g.energy.throwCount;
-      const bonusTable = Config.energy.throwBonus;
-      const energyMul = bonusTable[Math.min(orbs, bonusTable.length - 1)];
       const sMul = special ? special.heartMul : 1;
       // アビリティ(条件つき):投げた子のアビリティ × この投球の内容(SPIN・球質・SPECIAL・FEVER・Energy)
       // ★ 統一ルール:引く量(球速)ではダメージは変わらない → HEART のアビリティ条件には pull を渡さない
       const abilityHeart = abilityMul(ch?.abilities, 'heart', { throwSpin: th.throwSpin ?? th.spin, effects: th.effects, special: !!special, fever: g.fever.active, energy: orbs });
       const hm = heartMultiplier({
         attack: ch?.stats?.attack ?? 50, ability: abilityHeart, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
-        rally: mul, energy: energyMul, special: sMul, fever: g.fever.heartMul,
+        rally: 1, energy: 1, special: sMul, fever: g.fever.heartMul,
         // 3D 空間:GATE CHAIN / BANK SHOT は「ボスに当たった時だけ」
         gate: Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)],
         bank: banks > 0 ? Config.space.bank.bonus : 1,
@@ -239,9 +241,8 @@ export class BossHitState {
         r.loveSpot ? 'LOVE SPOT' : '',
         hm.relation === 'advantage' ? 'EFFECTIVE♡' : hm.relation === 'disadvantage' ? 'RESIST' : '',
         hm.fever > 1 ? `FEVER ×${hm.fever}` : '',
-        gates > 0 ? `GATE×${gates} ×${hm.gate}` : '',
+        gates > 0 ? `GATE ×${hm.gate}` : '',
         banks > 0 ? `BANK SHOT ×${hm.bank}` : '',
-        orbs > 0 ? `ENERGY ×${energyMul}` : '',
         th.spin ? 'CURVE' : '',
       ].filter(Boolean).join(' ');
       g.ui.damageNumber(scr.x, scr.y, `+${r.heartGain} HEART`, {
@@ -249,12 +250,14 @@ export class BossHitState {
         label: perfect ? `PERFECT HIT! ${tags}` : (tags || r.part.label),
       });
       if (banks > 0) { g.stats.banks = (g.stats.banks ?? 0) + 1; g.ui.showJudge('BANK SHOT!', 'tier', '#b6ff5c', `HEART ×${hm.bank}`); }
-      else if (gates >= 2) g.ui.showJudge(`GATE CHAIN ×${gates}`, 'tier', '#ffd23e', `HEART ×${hm.gate}`);
+      else if (gates >= 1) g.ui.showJudge(`GATE ×${hm.gate}`, 'tier', '#ffd23e', gates >= 2 ? `GATE CHAIN ${gates} ・ HEART ×${hm.gate}` : `HEART ×${hm.gate}`);
+      // COMBO:HIT → 「N COMBO」→ FEVER ゲージへ(12 COMBO で FEVER!)
+      this.comboHit(scr);
       g.ui.setHeart(g.boss.heart, g.boss.maxHeart, true);
       g.ui.setParts(g.boss.parts, partId);
       g.cam.shake(0.2 + (power - 0.8) * 0.4 + (mul - 1) * 0.2);
       g.hitstop(special ? special.hitstop : 0.05 + power * 0.04 + (perfect ? 0.04 : 0));
-      if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); }
+      if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); g.specialFx.hit(point); }
       g.ui.flash('#ffe6f2', 0.1 + (mul - 1) * 0.12);
       g.audio.heart(power, perfect);
 
@@ -278,7 +281,12 @@ export class BossHitState {
     } else {
       // 外れ:自動補正はしない。ラリーは途切れる
       // Gate を通っても最後にボスへ当たらなければ GATE CHAIN のボーナスは無し
-      g.ui.showJudge(MISS_LABEL[result.type] ?? 'MISS', 'miss', '#b9b0ff', gates > 0 ? `GATE ×${gates} ボーナスなし` : '');
+      g.specialFx.miss();
+      // MISS:COMBO 0・FEVER ゲージ 0%
+      const lost = g.fever.onMiss();
+      g.ui.setCombo(0, { broke: lost > 0 });
+      g.fever.updateUI(lost > 0);
+      g.ui.showJudge(MISS_LABEL[result.type] ?? 'MISS', 'miss', '#b9b0ff', lost > 0 ? `${lost} COMBO → 0` : gates > 0 ? 'GATE ボーナスなし' : '');
       g.turn.resetRally();
       g.stats.throwMiss++;
       if (result.type === 'short') g.ball.fadeOut(); else g.ball.hide();
@@ -286,6 +294,23 @@ export class BossHitState {
       this.wait = 0.8;
     }
     g.cam.reset();
+  }
+
+  /** HIT → COMBO +1。「N COMBO」のハートが FEVER ゲージへ飛び、着いたらゲージが増える。12 COMBO で FEVER! */
+  comboHit(scr) {
+    const g = this.g, F = g.fever;
+    const r = F.onHit();
+    g.ui.setCombo(r.combo, { hit: true });
+    const pct = r.max ? 'MAX' : F.active || F.pendingStart ? '' : `${Math.round(F.gaugeFor(r.combo))}%`;
+    g.ui.flyTo(scr.x, scr.y + 34, 'feverBar', `<b>${r.combo}</b> COMBO${pct ? `<small>FEVER ${pct}</small>` : ''}`, 'combo', 560).then(() => {
+      F.updateUI(true);
+      if (r.max) {
+        // 12 COMBO → FEVER MAX → (次のフェーズの最初に)FEVER 突入
+        g.ui.showJudge('♡ FEVER! ♡', 'fevermax', '#ff4fa8', `${r.combo} COMBO → FEVER MAX`);
+        g.ui.flash('#ffd0ea', 0.35);
+        g.audio.rallyUp();
+      }
+    });
   }
 
   update(dt) {

@@ -15,7 +15,7 @@ export function mulberry32(seed) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const RANK_ORDER = ['R', 'SR', 'SSR'];
+const RANK_ORDER = ['N', 'R', 'SR', 'SSR'];
 
 export class GachaService {
   constructor(progress) {
@@ -24,7 +24,36 @@ export class GachaService {
     for (const b of Config.gacha.banners) this.pools.set(b.id, this.buildPool(b));
   }
 
-  banner(id) { return Config.gacha.banners.find((b) => b.id === id) ?? Config.gacha.banners[0]; }
+  banner(id) { return Config.gacha.banners.find((b) => b.id === id) ?? this.defaultBanner; }
+  get defaultBanner() { return Config.gacha.banners.find((b) => b.isDefault) ?? Config.gacha.banners[0]; }
+
+  /** 開催中のガチャ(期間内)を TOP の並び順で */
+  activeBanners(now = Date.now()) {
+    const t = (v) => (v ? Date.parse(v) : NaN);
+    return Config.gacha.banners
+      .filter((b) => !(t(b.startAt) > now) && !(t(b.endAt) <= now))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  /**
+   * 実際の排出率(表示・テスト用)→ { rarity: { rate, chars: [{ characterId, rate, pickup }] } }
+   *   rates を Pool にいるレアリティだけで割り直し、その中を pickupRate と weight で分ける(抽選 draw と同じ計算)
+   */
+  odds(bannerId) {
+    const b = this.banner(bannerId), pool = this.pool(b.id);
+    const keys = RANK_ORDER.filter((k) => pool.some((e) => e.rarity === k) && (b.rates[k] ?? 0) > 0);
+    const total = keys.reduce((a, k) => a + b.rates[k], 0);
+    const out = {};
+    for (const k of keys) {
+      const rr = b.rates[k] / total, list = pool.filter((e) => e.rarity === k);
+      const pu = list.filter((e) => e.pickup), rest = list.filter((e) => !e.pickup);
+      const share = pu.length ? (rest.length ? Math.min(1, Math.max(0, b.pickupRate?.[k] ?? 0)) : 1) : 0;
+      const part = (l, w) => { const tw = l.reduce((a, e) => a + e.weight, 0); return l.map((e) => ({ characterId: e.characterId, pickup: !!e.pickup, rate: tw ? (rr * w * e.weight) / tw : 0 })); };
+      // pickupRate が無い(0)のに PICK UP がいる時は、通常の weight で全員一緒に引く
+      out[k] = { rate: rr, chars: share > 0 ? [...part(pu, share), ...part(rest, 1 - share)] : part(list, 1) };
+    }
+    return out;
+  }
 
   /** Pool = banner.pool のうち最新 CharacterData に実在するキャラだけ(存在しない ID は除外して警告)*/
   buildPool(b) {
@@ -43,14 +72,17 @@ export class GachaService {
     const pool = this.pool(banner.id);
     const rates = banner.rates;
     const pickRarity = (min = null) => {
-      const keys = RANK_ORDER.filter((k) => pool.some((e) => e.rarity === k) && (!min || RANK_ORDER.indexOf(k) >= RANK_ORDER.indexOf(min)));
+      const keys = RANK_ORDER.filter((k) => pool.some((e) => e.rarity === k) && (rates[k] ?? 0) > 0 && (!min || RANK_ORDER.indexOf(k) >= RANK_ORDER.indexOf(min)));
       const total = keys.reduce((a, k) => a + (rates[k] ?? 0), 0);
       let r = rng() * total;
       for (const k of keys) { r -= rates[k] ?? 0; if (r <= 0) return k; }
       return keys[keys.length - 1];
     };
+    // そのレアリティの中から1人:PICK UP がいて pickupRate が決まっていれば、まず PICK UP かどうかを引く
     const pickChar = (rar) => {
-      const c = pool.filter((e) => e.rarity === rar);
+      let c = pool.filter((e) => e.rarity === rar);
+      const pu = c.filter((e) => e.pickup), rest = c.filter((e) => !e.pickup), share = banner.pickupRate?.[rar] ?? 0;
+      if (pu.length && share > 0) c = !rest.length || rng() < share ? pu : rest;
       const tw = c.reduce((a, e) => a + e.weight, 0);
       let r = rng() * tw;
       for (const e of c) { r -= e.weight; if (r <= 0) return e.characterId; }

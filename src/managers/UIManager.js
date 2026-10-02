@@ -17,7 +17,7 @@ export class UIManager {
   constructor(players) {
     this.el = {
       heartFill: $('heartFill'), heartPct: $('heartPct'), heartBar: $('heartBar'),
-      rally: $('rally'), rallyNum: $('rallyNum'), rallyMul: $('rallyMul'),
+      combo: $('combo'), comboNum: $('comboNum'),
       judge: $('judge'), prompt: $('prompt'), promptSub: $('promptSub'), promptMain: $('promptMain'),
       turn: $('turnBanner'), turnName: $('turnName'),
       hint: $('swipeHint'), dmg: $('dmgLayer'), flash: $('flash'), speed: $('speedLines'),
@@ -124,15 +124,49 @@ export class UIManager {
     if (bump) { const b = this.el.heartBar; b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); }
   }
 
-  setRally(rally, tier, { tierUp = false, reset = false } = {}) {
-    const r = this.el.rally;
-    this.el.rallyNum.textContent = rally;
-    this.el.rallyMul.textContent = tier.mul > 1 ? `HEART ×${tier.mul.toFixed(1)}` : '';
-    r.style.setProperty('--rc', tier.color);
-    r.dataset.level = tier.label;
-    r.classList.remove('pop', 'broke'); void r.offsetWidth;
-    r.classList.add(reset ? 'broke' : 'pop');
-    if (tierUp) this.showJudge(`RALLY ${tier.label}!`, 'tier', tier.color);
+  /**
+   * COMBO(ボスへの攻撃の連続 HIT)の表示。0 で消える
+   *   hit … HIT で増えた(ポンと弾む)/ broke … MISS で途切れた(割れて消える)
+   */
+  setCombo(n, { hit = false, broke = false } = {}) {
+    const c = this.el.combo;
+    if (!c) return;
+    c.classList.remove('pop', 'broke');
+    void c.offsetWidth;
+    if (broke) { c.classList.add('broke'); c.dataset.n = '0'; return; }
+    this.el.comboNum.textContent = n;
+    c.dataset.n = String(n);
+    if (hit && n > 0) c.classList.add('pop');
+  }
+
+  /**
+   * 画面上の (x, y) から HUD の要素(SPECIAL / FEVER ゲージ)へ小さなチップを飛ばす → 着いたら resolve
+   *   「何を取ったから、どのゲージが増えたか」を見て分かるようにする演出。transform / opacity だけ
+   */
+  flyTo(x, y, target, html, cls = '', ms = 520) {
+    return new Promise((resolve) => {
+      const t = typeof target === 'string' ? document.getElementById(target) : target;
+      const root = this.el.dmg;
+      if (!t || !root || t.offsetParent === null) { resolve(); return; }
+      const rr = root.getBoundingClientRect(), tr = t.getBoundingClientRect();
+      const tx = tr.left - rr.left + tr.width * 0.5, ty = tr.top - rr.top + tr.height * 0.5;
+      const d = document.createElement('div');
+      d.className = `flychip ${cls}`;
+      d.innerHTML = html;
+      d.style.left = '0px'; d.style.top = '0px';
+      root.appendChild(d);
+      let done = false;
+      const end = () => { if (done) return; done = true; d.remove(); resolve(); };
+      const mx = (x + tx) / 2 + (tx > x ? -40 : 40), my = Math.min(y, ty) - 40;   // 少し弧を描いて飛ぶ
+      const a = d.animate?.([
+        { transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(.6)`, opacity: 0 },
+        { transform: `translate(${x}px, ${y - 18}px) translate(-50%, -50%) scale(1.15)`, opacity: 1, offset: 0.18 },
+        { transform: `translate(${mx}px, ${my}px) translate(-50%, -50%) scale(.95)`, opacity: 1, offset: 0.55 },
+        { transform: `translate(${tx}px, ${ty}px) translate(-50%, -50%) scale(.45)`, opacity: 0.9 },
+      ], { duration: ms, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' });
+      if (a) a.finished.then(end, end); else end();
+      setTimeout(end, ms + 400);   // 完了イベントが来ない環境の保険
+    });
   }
 
   showJudge(text, kind = '', color = '', sub = '') {
@@ -339,8 +373,9 @@ export class UIManager {
     const el = document.getElementById('energy');
     if (!el) return;
     el.querySelector('i').style.transform = `scaleX(${Math.min(1, value / max)})`;
-    el.querySelector('b').textContent = `${Math.round(value)} / ${max}`;
-    el.querySelector('em').textContent = '♡ SPECIAL';
+    // SPECIAL ゲージ:Diamond 1個 = +10%(10個で MAX)。MAX で「SPECIAL READY」(タップで必殺技)
+    el.querySelector('b').textContent = `${Math.round(Math.min(1, value / max) * 100)}%`;
+    el.querySelector('em').textContent = armed ? '♡ SPECIAL ON!' : ready ? '♡ SPECIAL READY' : '♡ SPECIAL';
     el.classList.toggle('ready', ready);
     el.classList.toggle('armed', armed);
     if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }

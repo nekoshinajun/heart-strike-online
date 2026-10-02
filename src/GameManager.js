@@ -35,6 +35,7 @@ import { MenuFlow } from './screens/MenuFlow.js';
 import { SpecialCutIn } from './screens/SpecialCutIn.js';
 import { devInput, safe, Log } from './app/Platform.js';
 import { FeverSystem } from './fever/FeverSystem.js';
+import { SpecialThrowFx } from './effects/SpecialThrowEffects.js';
 import { SpaceSystem } from './space/SpaceSystem.js';
 import { Spotlight } from './world/Spotlight.js';
 import { AffectionSystem } from './affection/AffectionSystem.js';
@@ -63,6 +64,7 @@ export class GameManager {
     this.cam = new CameraController(1);
     this.arena = new Arena(this.scene);
     this.effects = new Effects(this.scene);
+    this.specialFx = new SpecialThrowFx(this);   // SPECIAL 投球の見た目(キャラごと。見た目だけ)
     this.hitMarker = new HitMarker();   // 着弾マーク(実際に当たった位置に約1秒)
     this.boss = new BossController(this.scene);
     this.ball = new BallController(this.scene);
@@ -119,11 +121,8 @@ export class GameManager {
     this.bus.on('dragstart', (e) => this.sm.dispatch('onDragstart', e));
     this.bus.on('drag', (e) => this.sm.dispatch('onDrag', e));
     this.bus.on('release', (e) => this.sm.dispatch('onRelease', e));
-    this.bus.on('rally', (e) => {
-      this.ui.setRally(e.rally, e.tier, e);
-      if (e.tierUp) { this.audio.rallyUp(); this.cam.kickFov(5); }
-      this.ball.setStyle(this.turn.current.color, this.turn.tierLevel);
-    });
+    // ラリー(内部:ボスの返球の強さ)はハート玉の光り方だけに使う。画面の数字は COMBO(FeverSystem)
+    this.bus.on('rally', () => this.ball.setStyle(this.turn.current.color, this.turn.tierLevel));
 
     // デバッグ切替(キー / 画面右上ボタン)
     window.addEventListener('keydown', (e) => {
@@ -236,12 +235,13 @@ export class GameManager {
     this.stats = { perfect: 0, great: 0, good: 0, miss: 0, throwMiss: 0, loveSpots: 0, orbs: 0, heart: 0, startTime: performance.now() };
     this.energy?.reset();
     this.fever?.reset();
+    this.specialFx?.end();
     this.affection?.reset();
     this.preview?.hideGhost();
     this.ui.setPlayers(this.turn.players, 0);
     this.ui.setHeart(this.boss.heart, this.boss.maxHeart);
     this.ui.setParts(this.boss.parts);
-    this.ui.setRally(0, this.turn.tier);
+    this.ui.setCombo(0);
     this.returnBall.reset();
     this.catchTarget.hide();
     this.cam.setPlayerX(this.turn.current.x);
@@ -478,6 +478,7 @@ export class GameManager {
       this.heartTrailT = (this.heartTrailT ?? 0) - dt;
       if (this.heartTrailT <= 0) { this.heartTrailT = Config.special.trailHearts; this.effects.heartBurst(this.ball.pos, 2, 1.4, 0.22); }
     }
+    this.specialFx.update(dt, realDt);
     this.effects.update(dt);
     this.hitMarker.update();
     this.arena.update(dt, this.clock);
