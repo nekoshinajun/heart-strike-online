@@ -1,7 +1,7 @@
 import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById, DEFAULT_SPECIAL } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
-import { STAT_KEYS, STAT_LABELS, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
+import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
 import { staminaNextMs, HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { cardHTML, staminaHTML } from '../screens/MenuFlow.js';
@@ -139,7 +139,7 @@ export class AppScreens {
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
     const active = ch.abilities ?? [];
     // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
-    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: ch.stats[k], max: 100 }))]);
+    const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)[k], max: STAT_DISPLAY_MAX }))]);   // 表示はレベル + アビリティの合計
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
         <div class="td-bg"></div>
@@ -228,7 +228,7 @@ export class AppScreens {
     if (this.trainSheet && !this.app.sheet.root.hidden) this.renderTrainSheet();
   }
 
-  /** アビリティ:Lv10〜90 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)*/
+  /** アビリティ:Lv10〜100 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)も */
   abilityBoardHTML(id) {
     const rows = this.p.abilityBoard(id), items = this.p.abilityResetItems, I = ABILITY_RESET_ITEM;
     const open = this.abilityOpen ?? null;
@@ -288,7 +288,7 @@ export class AppScreens {
     host.querySelector('.ab-burst')?.remove();
     const el = document.createElement('div');
     el.className = 'ab-burst';
-    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.filter((lv) => lv < 100).map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
+    el.innerHTML = `<div class="au-fx" aria-hidden="true">${'<i>♡</i>'.repeat(8)}</div><small>${r.ultimate ? 'ULTIMATE ABILITY UNLOCKED' : 'NEW ABILITY UNLOCKED ♡'}</small><b>${r.newAbilitySlots.map((lv) => `Lv.${lv}`).join(' / ')}${r.ultimate ? ' ULTIMATE' : ''}</b>`;
     host.appendChild(el);
     this.app.audio?.loveMax?.();
     setTimeout(() => el.remove(), 2600);

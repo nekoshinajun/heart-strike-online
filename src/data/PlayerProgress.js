@@ -1,8 +1,8 @@
 import { CHARACTERS, DEFAULT_PARTY, LEGACY_CHARACTER_IDS, STAGES, characterById } from './GameData.js';
 import { Config } from '../core/Config.js';
 import { HEROINES, REWARD_VOICE_SLOTS, rewardUnlock, heroineById, heroineByStage, giftById, giftExp } from './RomanceData.js';
-import { STAMINA, ABILITY_RESET_ITEM, STAT_KEYS } from './GrowthData.js';
-import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, statsAt, hpAt, activeAbilities, abilitySlots, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
+import { STAMINA, ABILITY_RESET_ITEM, STAT_KEYS, STAT_MAX, GROWTH_VERSION } from './GrowthData.js';
+import { abilityById as ABILITY_BY_ID, ultimateFor as ULT_FOR, affectionProgress, maxAffectionExp, levelFromExp, statsAt, hpAt, abilityStats, totalStats, activeAbilities, abilitySlots, recoverStamina, battleReward, expAfterStamina } from './Growth.js';
 import { storage, Log } from '../app/Platform.js';
 
 /**
@@ -11,8 +11,9 @@ import { storage, Log } from '../app/Platform.js';
  *       ← 固定 Character ID(表示名は使わない)。親密度 = レベル(AFFECTION Lv.1〜100)
  *       affectionExp … 累計の親密度 EXP(Lv はここから計算。affectionLevel は表示・確認用に同じ値を保存)
  *       stamina / lastStaminaUpdate … キャラごとの STAMINA と最後に更新した時刻(アプリを閉じている間の回復はここから計算)
- *       selectedAbilities … { '10': abilityId, … }(Lv10〜90 で選んだアビリティ)
- *       legacyGrowth … 旧セーブの { level, exp, intimacy }(移行の記録。使わない)
+ *       selectedAbilities … { '10': abilityId, … }(Lv10〜100 で選んだアビリティ。その枠の候補に無い ID は読み込み時に消す)
+ *       growthVersion … 育成データの版(GrowthData.GROWTH_VERSION)。古い / 無いキャラは Lv1 / EXP 0 / アビリティなしから始める
+ *         ★ 正式リリース前のため、旧育成(旧 Lv / EXP / 旧アビリティ)は引き継がない
  *   inventory = { presents: { giftId: 所持数 }, abilityResetItems: 数 }(旧 items はここへ移す)
  *   heroines[heroineId] = { voiceUnlocked: { voiceId: 解放時刻 }, voiceSeen: { voiceId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)のクリア報酬ボイス
  *       (旧 asmrUnlocked / asmrSeen は読み込み時に voiceUnlocked / voiceSeen へ移す)
@@ -37,29 +38,27 @@ export class ProgressRepository {
 }
 
 const now = () => Date.now();
-// 旧仕様(キャラ Lv1〜50:次の Lv まで 100 + 50×(Lv−1))。移行の計算だけに使う
-const legacyNextExp = (lv) => 100 + (lv - 1) * 50;
-/** 旧セーブのキャラ Lv / EXP と親密度ポイントを、親密度 EXP(累計)へ移す:旧レベルまでに使った EXP + 今の EXP + 親密度ポイント */
-export function legacyAffectionExp(level, exp, intimacy) {
-  const lv = Math.max(1, Math.min(50, Math.floor(Number(level) || 1)));
-  let total = 0;
-  for (let l = 1; l < lv; l++) total += legacyNextExp(l);
-  return Math.min(maxAffectionExp(), total + Math.max(0, Math.floor(Number(exp) || 0)) + Math.max(0, Math.floor(Number(intimacy) || 0)));
-}
-/** 味方キャラの保存枠(欠けを埋める・旧フィールドは移す。何度呼んでも同じ)*/
-const charEntry = (o = {}) => {
-  const { level, exp, intimacy, bonus, ...rest } = o;
-  const hasLegacy = !Number.isFinite(rest.affectionExp) && (level != null || exp != null || intimacy != null);
-  const affectionExp = Number.isFinite(rest.affectionExp) ? Math.min(maxAffectionExp(), Math.max(0, Math.floor(rest.affectionExp))) : hasLegacy ? legacyAffectionExp(level, exp, intimacy) : 0;
+/**
+ * 味方キャラの保存枠(欠けを埋める。何度呼んでも同じ)。id = キャラ ID(EXP カーブはレアリティで決まる)
+ *   growthVersion が今より古い(または無い)= 旧育成のセーブ → Lv1 / EXP 0 / アビリティなしから(旧 Lv / EXP / アビリティは引き継がない)
+ *   所持・入手日・STAMINA などの育成以外はそのまま
+ */
+const charEntry = (o = {}, id = null) => {
+  const { level, exp, intimacy, bonus, legacyGrowth, growthMigration, ...rest } = o;   // 旧育成のフィールドは捨てる
+  const fresh = !((Number(rest.growthVersion) || 0) >= GROWTH_VERSION);
+  const slots = abilitySlots(id);
+  const picks = !fresh && rest.selectedAbilities && typeof rest.selectedAbilities === 'object' ? rest.selectedAbilities : {};
+  const selectedAbilities = Object.fromEntries(Object.entries(picks).filter(([lv, ab]) => (slots[lv] ?? []).includes(ab)));   // 今の候補に無い ID は残さない
+  const affectionExp = fresh ? 0 : Math.min(maxAffectionExp(id), Math.max(0, Math.floor(Number(rest.affectionExp) || 0)));
   return {
     owned: false, obtainedAt: null, obtainedVia: null, firstHomeSetAt: null, introducedAt: null,
     ...rest,
+    growthVersion: GROWTH_VERSION,
     affectionExp,
-    affectionLevel: levelFromExp(affectionExp),
+    affectionLevel: levelFromExp(affectionExp, id),
     stamina: Number.isFinite(rest.stamina) ? Math.max(0, Math.min(STAMINA.max, rest.stamina)) : STAMINA.max,
     lastStaminaUpdate: Number.isFinite(rest.lastStaminaUpdate) ? rest.lastStaminaUpdate : now(),
-    selectedAbilities: rest.selectedAbilities && typeof rest.selectedAbilities === 'object' ? { ...rest.selectedAbilities } : {},
-    ...(hasLegacy ? { legacyGrowth: { level: level ?? null, exp: exp ?? null, intimacy: intimacy ?? null } } : {}),
+    selectedAbilities,
   };
 };
 const heroineEntry = ({ asmrUnlocked, asmrSeen, ...o } = {}) => ({ ...o, voiceUnlocked: { ...(asmrUnlocked ?? {}), ...(o.voiceUnlocked ?? {}) }, voiceSeen: { ...(asmrSeen ?? {}), ...(o.voiceSeen ?? {}) } });
@@ -69,7 +68,7 @@ export const contentKeys = () => STAGES.flatMap((s) => [`stage:${s.id}`, ...DIFF
 
 function blankSave() {
   const characters = {};
-  for (const c of CHARACTERS) characters[c.id] = charEntry();
+  for (const c of CHARACTERS) characters[c.id] = charEntry({ growthVersion: GROWTH_VERSION }, c.id);
   return {
     version: 2,
     createdAt: now(),
@@ -105,19 +104,11 @@ export function migrateV1(d1) {
   if (!d1 || typeof d1 !== 'object') throw new Error('v1 save is not an object');
   const d = blankSave();
   d.migratedFrom = 'squash-titan-progress-v1';
-  const chars = { ...(d1.characters ?? {}) };
-  for (const [oldId, newId] of Object.entries(LEGACY_CHARACTER_IDS)) {       // 旧キャラクター名(アクア等)の移行
-    if (chars[oldId] && !chars[newId]) chars[newId] = chars[oldId];
-    delete chars[oldId];
-  }
   const t = now();
   for (const c of CHARACTERS) {
-    const o = chars[c.id] ?? {};
-    const lv = Number.isFinite(o.level) ? Math.max(1, Math.min(50, Math.floor(o.level))) : 1;
-    const exp = Number.isFinite(o.exp) ? Math.max(0, Math.floor(o.exp)) : 0;
     // v23 で使えていたキャラ(= legacyRoster)は所持扱いで移行。取り上げない
     const usable = Config.ownership.legacyRoster.includes(c.id);
-    d.characters[c.id] = charEntry({ owned: usable, level: lv, exp, obtainedAt: usable ? t : null, obtainedVia: usable ? 'legacy' : null, introducedAt: usable ? t : null });   // 旧 Lv / EXP → 親密度 EXP
+    d.characters[c.id] = charEntry({ owned: usable, obtainedAt: usable ? t : null, obtainedVia: usable ? 'legacy' : null, introducedAt: usable ? t : null }, c.id);   // 育成は Lv1 から(旧 Lv / EXP は引き継がない)
   }
   let party = Array.isArray(d1.party) ? d1.party.map((id) => LEGACY_CHARACTER_IDS[id] ?? id) : null;
   if (!party || party.length !== 4 || party.some((id) => !characterById(id)) || new Set(party).size !== 4) party = [...DEFAULT_PARTY];
@@ -183,7 +174,7 @@ export function normalizeV2(d) {
   const known = new Set(d.knownContent ?? []);
   for (const k of contentKeys()) if (!known.has(k)) { if (!d.navPulse.unseen.includes(k)) d.navPulse.unseen.push(k); known.add(k); }
   d.knownContent = [...known];
-  for (const c of CHARACTERS) d.characters[c.id] = charEntry(d.characters[c.id] ?? {});
+  for (const c of CHARACTERS) d.characters[c.id] = charEntry(d.characters[c.id] ?? { growthVersion: GROWTH_VERSION }, c.id);
   for (const h of HEROINES) d.heroines[h.id] = heroineEntry(d.heroines[h.id] ?? {});
   // インベントリ:旧 items(プレゼントの所持数)を inventory.presents へ移す
   const inv = d.inventory && typeof d.inventory === 'object' && !Array.isArray(d.inventory) ? d.inventory : {};
@@ -197,6 +188,8 @@ export function normalizeV2(d) {
   return d;
 }
 
+/** MULTI の最大 HP の上限(サーバーの cleanProfile と同じ値)*/
+export const PROFILE_MAX_HP = 600;
 const ABILITY_DEF = (id) => { const a = ABILITY_BY_ID(id); return a ? { name: a.name, desc: a.desc, effects: a.effects, ultimate: !!a.ultimate } : {}; };
 const ULT_DEF = (charId) => ULT_FOR(charId);
 
@@ -359,22 +352,25 @@ export class PlayerProgress {
   /**
    * 表示・戦闘用のキャラ情報(マスター + 親密度 Lv + ステータス + アビリティ + STAMINA)
    *   affectionLevel(= level)/ affectionExp(累計)/ expInto・expNeed(今の Lv の中の進み)/ maxLevel
-   *   stats { attack, defence, control, curve }(アビリティの加算込み)/ abilities(有効なもの)
+   *   stats { attack, defence, control, curve }(レベルの基礎)/ bonusStats(アビリティの加算。戦闘では別枠の倍率)/ totalStats(表示用の合計)
+   *   maxHp(基礎 + VITAL UP など)/ abilities(有効なもの)
    *   stamina(自然回復を反映した今の値。保存は spend / recover の時)/ tired(STAMINA 0:獲得 EXP ×10%)
    */
   character(id, at = now()) {
     const base = characterById(id);
-    const p = this.data.characters[id] ?? charEntry();
-    const prog = affectionProgress(p.affectionExp);
+    const p = this.data.characters[id] ?? charEntry({ growthVersion: GROWTH_VERSION }, id);
+    const prog = affectionProgress(p.affectionExp, id);
     const abilities = activeAbilities(id, prog.level, p.selectedAbilities);
+    const stats = statsAt(id, prog.level), bonusStats = abilityStats(abilities);
     const st = recoverStamina(p.stamina, p.lastStaminaUpdate, at);
     return {
       ...base,
       owned: p.owned,
       affectionLevel: prog.level, level: prog.level,
       affectionExp: prog.total, expInto: prog.into, expNeed: prog.need, maxLevel: prog.max,
-      stats: statsAt(id, prog.level, abilities),
-      maxHp: hpAt(id, prog.level),
+      stats, bonusStats, totalStats: totalStats(stats, bonusStats),
+      baseMaxHp: hpAt(id, prog.level),
+      maxHp: hpAt(id, prog.level) + bonusStats.hp,
       abilities,
       selectedAbilities: { ...p.selectedAbilities },
       stamina: st.stamina, staminaMax: STAMINA.max, tired: st.stamina <= 0,
@@ -389,8 +385,8 @@ export class PlayerProgress {
     const p = this.data.characters[id];
     if (!p) return null;
     const before = this.character(id);
-    p.affectionExp = Math.min(maxAffectionExp(), Math.max(0, p.affectionExp + Math.max(0, Math.floor(Number(amount) || 0))));
-    p.affectionLevel = levelFromExp(p.affectionExp);
+    p.affectionExp = Math.min(maxAffectionExp(id), Math.max(0, p.affectionExp + Math.max(0, Math.floor(Number(amount) || 0))));
+    p.affectionLevel = levelFromExp(p.affectionExp, id);
     const after = this.character(id);
     const slots = Object.keys(abilitySlots(id)).map(Number);
     const newAbilitySlots = slots.filter((lv) => before.level < lv && after.level >= lv);
@@ -462,7 +458,7 @@ export class PlayerProgress {
     if (!p || !this.isOwned(id)) return { ok: false, reason: 'invalid' };
     const lv = String(level), ids = abilitySlots(id)[lv];
     if (!ids || !ids.includes(abilityId)) return { ok: false, reason: 'invalid' };
-    if (levelFromExp(p.affectionExp) < Number(lv)) return { ok: false, reason: 'locked' };
+    if (levelFromExp(p.affectionExp, id) < Number(lv)) return { ok: false, reason: 'locked' };
     const cur = p.selectedAbilities[lv];
     if (cur === abilityId) return { ok: false, reason: 'same' };
     if (cur) {
@@ -475,7 +471,7 @@ export class PlayerProgress {
   }
 
   // ---------------- MULTI:自分のキャラの戦闘データ(他プレイヤーへ送る)----------------
-  /** 戦闘で使う値だけ(Lv / ステータス / 有効なアビリティの ID)*/
+  /** 戦闘で使う値だけ(Lv / レベルの基礎ステータス / 最大 HP(VITAL UP 込み)/ 有効なアビリティの ID。アビリティの加算は受け取った側で別枠に計算)*/
   combatProfile(id) {
     const ch = this.character(id);
     return { characterId: id, level: ch.level, maxHp: ch.maxHp, stats: { ...ch.stats }, abilities: ch.abilities.map((a) => a.id) };
@@ -485,10 +481,11 @@ export class PlayerProgress {
     const base = characterById(id) ?? characterById(DEFAULT_PARTY[0]);
     const lv = Math.max(1, Math.min(100, Math.floor(Number(profile?.level) || 1)));
     const stats = {};
-    for (const k of STAT_KEYS) stats[k] = Math.max(0, Math.min(100, Math.round(Number(profile?.stats?.[k] ?? statsAt(base.id, lv)[k]))));
+    for (const k of STAT_KEYS) stats[k] = Math.max(0, Math.min(STAT_MAX, Math.round(Number(profile?.stats?.[k] ?? statsAt(base.id, lv)[k]))));
     const abilities = (Array.isArray(profile?.abilities) ? profile.abilities : []).map((x) => (ABILITY_DEF(x).name ? { id: x, ...ABILITY_DEF(x) } : null)).filter(Boolean);
-    const maxHp = Math.max(1, Math.min(300, Math.round(Number(profile?.maxHp) || hpAt(base.id, lv))));
-    return { ...base, owned: true, affectionLevel: lv, level: lv, stats, maxHp, abilities, stamina: STAMINA.max, staminaMax: STAMINA.max, tired: false, remote: true };
+    const bonusStats = abilityStats(abilities);
+    const maxHp = Math.max(1, Math.min(PROFILE_MAX_HP, Math.round(Number(profile?.maxHp) || hpAt(base.id, lv) + bonusStats.hp)));
+    return { ...base, owned: true, affectionLevel: lv, level: lv, stats, bonusStats, totalStats: totalStats(stats, bonusStats), maxHp, abilities, stamina: STAMINA.max, staminaMax: STAMINA.max, tired: false, remote: true };
   }
 
   // ---------------- プレゼント(所持数 / 渡す)----------------
