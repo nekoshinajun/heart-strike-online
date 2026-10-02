@@ -5,7 +5,7 @@ import { Config } from '../core/Config.js';
  *
  * 状態(ここに集約):
  *   combo               COMBO(ボスへの攻撃の連続 HIT 数)。HIT で +1 / MISS で 0
- *   gauge               FeverGauge 0〜100 = combo ÷ comboToFever(浮動小数を足し続けない。COMBO から毎回計算)
+ *   gauge               FeverGauge 0〜100。HIT ごとに COMBO 数に応じた量(Config.fever.comboGain)を足す。MISS では減らない
  *                       ★ ゲージを増やすのは COMBO だけ(Heart Gate・Diamond・キャッチでは増えない)
  *   pendingStart        12 COMBO(100%)に達した → 次のフェーズの最初の投球前に FEVER_INTRO を挟む(到達したら確定)
  *   active (IsFever)    FEVER 中
@@ -47,31 +47,33 @@ export class FeverSystem {
   }
 
   // ---------------- COMBO → ゲージ ----------------
-  get comboToFever() { return Math.max(1, Math.round(this.F.comboToFever ?? 12)); }
-  /** COMBO → ゲージ %(0〜100) */
-  gaugeFor(combo) { return Math.min(100, (combo / this.comboToFever) * 100); }
+  /** その HIT の COMBO 数 → 増える FEVER(%)。COMBO が続くほど大きい */
+  gainFor(combo) {
+    const list = [...(this.F.comboGain ?? [{ min: 1, gain: 5 }])].sort((a, b) => b.min - a.min);
+    return Math.max(0, (list.find((t) => combo >= t.min) ?? list[list.length - 1]).gain);
+  }
 
   /**
-   * ボスへの攻撃が HIT(BOSS_HIT)→ COMBO +1 → ゲージ。12 COMBO で FEVER MAX(次のフェーズの最初に FEVER 突入)
-   *   FEVER 中も COMBO は数える(表示だけ。ゲージは FEVER の残り投球数を表示)
-   * → { combo, gauge, max(この HIT で 100% に到達)}。ゲージの表示(updateUI)は呼び出し側が演出に合わせて行う
+   * ボスへの攻撃が HIT(BOSS_HIT)→ COMBO +1 → COMBO 数に応じた量だけゲージが増える。100% で FEVER MAX(次のフェーズの最初に FEVER 突入)
+   *   FEVER 中も COMBO は数える(ゲージは FEVER の残り投球数を表示)
+   * → { combo, gauge, gain(この HIT で増えた %), max(この HIT で 100% に到達)}。ゲージの表示(updateUI)は呼び出し側が演出に合わせて行う
    */
   onHit() {
     this.combo++;
-    let max = false;
+    let max = false, gain = 0;
     if (!this.active && !this.pendingStart) {
-      this.gauge = this.gaugeFor(this.combo);
+      gain = this.gainFor(this.combo);
+      this.gauge = Math.min(100, this.gauge + gain);
       if (this.gauge >= 100) { this.pendingStart = true; max = true; }
     }
     if (this.g.stats) this.g.stats.maxCombo = Math.max(this.g.stats.maxCombo ?? 0, this.combo);
-    return { combo: this.combo, gauge: this.gauge, max };
+    return { combo: this.combo, gauge: this.gauge, gain, max };
   }
 
-  /** 攻撃が MISS → COMBO 0・ゲージ 0%(FEVER MAX に達していた分は確定済みなので取り消さない)*/
+  /** 攻撃が MISS → COMBO だけ 0 に戻る(溜まった FEVER ゲージは減らない)*/
   onMiss() {
     const had = this.combo;
     this.combo = 0;
-    if (!this.active && !this.pendingStart) this.gauge = 0;
     return had;
   }
 
@@ -194,7 +196,7 @@ export class FeverSystem {
     const b = this.bar;
     b.classList.toggle('on', this.active);
     b.classList.toggle('ready', this.pendingStart);
-    b.style.setProperty('--fn', this.comboToFever);
+    b.style.setProperty('--fn', 10);   // 目盛り = 10% ごと
     b.querySelector('i').style.transform = `scaleX(${this.active ? this.throwsRemaining / this.throwsTotal : this.gauge / 100})`;
     b.querySelector('.flabel').textContent = this.active ? `♡ FEVER ${this.levelLabel}` : 'FEVER';
     b.querySelector('.fval').textContent = this.active ? `${this.throwsTotal - this.throwsRemaining} / ${this.throwsTotal}` : this.pendingStart ? 'MAX!' : `${Math.floor(this.gauge)}%`;
