@@ -1,6 +1,7 @@
 import { Config } from '../core/Config.js';
 import { STAGES, characterById } from '../data/GameData.js';
 import { shopOfStage } from '../data/ShopData.js';
+import { castArtData } from '../screens/CaptureScreens.js';
 import { artUrl } from '../data/CharacterArt.js';
 import '../data/CharacterVoice.js';
 import { PlayerProgress } from '../data/PlayerProgress.js';
@@ -67,7 +68,7 @@ export class App {
     R.register('trainGift', { kind: KIND.SHEET, show: () => S.openTrainSheet('gift'), hide: () => { S.trainSheet = null; this.sheet.close(); } });
     R.register('gachaConfirm', { kind: KIND.SHEET, show: (p) => this.gacha.showConfirm(p), hide: () => this.sheet.close() });
     R.register('gachaRates', { kind: KIND.SHEET, show: () => this.gacha.showRates(), hide: () => this.sheet.close() });
-    R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });
+    R.register('gachaSeq', { kind: KIND.FLOW, layer: 'gacha', opaque: true, noNav: true, show: () => this.gacha.section('stage'), hide: () => this.gacha.director.stop() });
     R.register('gachaResult', { kind: KIND.FLOW, layer: 'gacha', opaque: true, show: (p) => this.gacha.showResult(p) });
     // 3D ゲームが使えない環境でも HOME / ガチャは動く(攻略・編成は案内だけ)
     for (const id of ['stage', 'partyTab']) R.register(id, { kind: id === 'stage' ? KIND.TAB_ROOT : KIND.SUB, layer: 'app', opaque: true, show: () => this.showGameUnavailable() });
@@ -173,6 +174,8 @@ export class App {
   }
 
   bossThumb(stage) { return BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? ''; }
+  /** サムネイルを顔に合わせる CSS 変数(GameData の boss.art.face)*/
+  bossFocus(stage) { const f = castArtData(stage).face; return `--fu:${f.u};--fv:${f.v}`; }
 
   toast(text) {
     const t = this.toastEl;

@@ -43,17 +43,21 @@ export const STAT_MAX = 100;
  *   ★ 仮の方向性。最終バランスではない
  */
 export const CHARACTER_GROWTH = {
-  minamo: { attack: [65, 100], defence: [45, 75], control: [60, 95], curve: [25, 45] },   // 高火力ストレート型
-  hinoka: { attack: [55, 85], defence: [55, 85], control: [50, 75], curve: [55, 90] },    // バランス型カーブ
-  raimu: { attack: [50, 80], defence: [35, 65], control: [45, 75], curve: [70, 100] },    // 超カーブ型
-  shizuku: { attack: [40, 70], defence: [70, 100], control: [60, 90], curve: [50, 75] },  // 防御・安定型
-  akane: { attack: [45, 75], defence: [45, 75], control: [70, 100], curve: [55, 85] },    // 高精度型
-  // 以下3人は指定なし(★ 仮:タイプと説明文から置いた値)
-  kohaku: { attack: [60, 90], defence: [45, 75], control: [55, 85], curve: [30, 55] },
-  kagura: { attack: [60, 95], defence: [40, 70], control: [45, 75], curve: [65, 95] },
-  nagi: { attack: [40, 70], defence: [65, 95], control: [65, 95], curve: [35, 60] },
+  // ランクが高いほど合計が高いのが基本(4ステータスの合計 Lv1 / Lv100:SSR 230 / 355・SR 210 / 330・R 190 / 300)
+  //   キャラの個性(得意・不得意)は形で出す。hp = バトルの最大 HP(Lv1 → Lv100)
+  // ---- SSR ----
+  minamo: { hp: [112, 165], attack: [72, 100], defence: [53, 90], control: [65, 95], curve: [40, 70] },    // 高火力ストレート型
+  raimu: { hp: [106, 158], attack: [58, 88], defence: [40, 72], control: [52, 95], curve: [80, 100] },     // 超カーブ型
+  kagura: { hp: [115, 170], attack: [70, 100], defence: [45, 75], control: [50, 82], curve: [65, 98] },    // 火力カーブ型
+  // ---- SR ----
+  hinoka: { hp: [104, 154], attack: [55, 85], defence: [52, 82], control: [48, 78], curve: [55, 85] },     // バランス型カーブ
+  shizuku: { hp: [116, 172], attack: [40, 68], defence: [72, 100], control: [52, 82], curve: [46, 80] },   // 防御・安定型(HP も高い)
+  kohaku: { hp: [98, 146], attack: [65, 95], defence: [45, 75], control: [60, 90], curve: [40, 70] },      // 速いストレート型
+  // ---- R ----
+  akane: { hp: [90, 134], attack: [40, 62], defence: [40, 63], control: [65, 100], curve: [45, 75] },       // 高精度型
+  nagi: { hp: [100, 148], attack: [38, 62], defence: [60, 90], control: [62, 92], curve: [30, 56] },       // 安定・守り型
 };
-export const GROWTH_DEFAULT = { attack: [50, 80], defence: [50, 80], control: [50, 80], curve: [50, 80] };
+export const GROWTH_DEFAULT = { hp: [100, 150], attack: [50, 80], defence: [50, 80], control: [50, 80], curve: [50, 80] };
 export const GROWTH_EXPONENT = 1;
 
 /**

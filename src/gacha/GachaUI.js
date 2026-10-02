@@ -2,10 +2,10 @@ import { Config } from '../core/Config.js';
 import { characterById, ATTRIBUTES, TYPES, RANKS, CHARACTERS } from '../data/GameData.js';
 import { artUrl, portraitStyle, isPlaceholderArt } from '../data/CharacterArt.js';
 import { GachaService } from './GachaService.js';
-import { GachaSequencePlanner } from './GachaPlanner.js';
 import { GachaDirector } from './GachaDirector.js';
 import { Log } from '../app/Platform.js';
 import { roleTag } from '../app/Roles.js';
+import { rarityBadge, raritySparkle } from '../app/Rarity.js';
 import { GIFTS, giftById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
 
 /** プレゼント1個の表示(アイコン / 画像・名前・ランク)*/
@@ -36,9 +36,8 @@ export class GachaUI {
     this.app = app;
     this.p = app.progress;
     this.service = new GachaService(this.p);
-    this.planner = new GachaSequencePlanner();
     this.bridge = new GachaHomeBridge(app);
-    this.debug = { forceItems: null, forceRoute: null, seed: null, fragmentHintMode: null, revealOrderMode: null };   // テスト / Debug 専用
+    this.debug = { forceItems: null, seed: null };   // テスト / Debug 専用
     layer.innerHTML = '<section class="ga-topv"></section><section class="ga-stage" hidden></section><section class="ga-result" hidden></section>';
     this.topEl = layer.querySelector('.ga-topv');
     this.stageEl = layer.querySelector('.ga-stage');
@@ -107,16 +106,14 @@ export class GachaUI {
     if (r.status !== 'COMMITTED') { this.app.toast(r.reason === 'GEM' ? 'HEART GEM が足りません' : 'まだ表示していない結果があります'); if (r.reason === 'PENDING_REVEAL') this.restore(); return; }
     const first = !this.p.flag('gachaTutorialShown');
     if (first) this.p.setFlag('gachaTutorialShown');
-    this.playTx(r.result, { mode: this.p.data.settings.gachaPlaybackMode, firstTime: first });
+    void first;
+    this.playTx(r.result, { mode: this.p.data.settings.gachaPlaybackMode });
   }
 
-  playTx(tx, { mode = 'FULL', firstTime = false } = {}) {
-    const d = this.debug;
-    const plan = this.planner.plan(tx, { mode, forceRoute: d.forceRoute, fragmentHintMode: d.fragmentHintMode, revealOrderMode: d.revealOrderMode });
-    this.lastPlan = plan;
+  playTx(tx, { mode = 'FULL' } = {}) {
     this.app.router.go('gachaSeq', { txId: tx.txId });
     this.app.audio?.unlock?.();
-    this.director.play(plan, tx, { firstTime, onDone: () => this.revealed(tx.txId) });
+    this.director.play(tx, { mode, onDone: () => this.revealed(tx.txId) });
   }
 
   /** 起動時:COMMITTED + pendingReveal → 最低保証 Reveal(初獲得 SSR)→ Result */
@@ -159,7 +156,7 @@ export class GachaUI {
       { act: 'toHome', label: 'ホームへ' },
     ];
     const btn = (b, cls) => `<button type="button" class="${cls}" data-act="${b.act}" ${b.disabled ? 'disabled' : ''}>${esc(b.label)}</button>`;
-    const info = `<div class="gz-info"><span class="gz-rank" style="color:${RANKS[ch.rank].color}">${ch.rank}</span><b>${esc(ch.name)}</b><span>${ATTRIBUTES[ch.attribute].label} / ${TYPES[ch.type].label}</span>${it.isNew ? '<em class="gz-new">NEW!</em>' : ''}</div>`;
+    const info = `<div class="gz-info">${rarityBadge(ch.rank, 'gz-rank')}<b>${esc(ch.name)}</b><span>${ATTRIBUTES[ch.attribute].label} / ${TYPES[ch.type].label}</span>${it.isNew ? '<em class="gz-new">NEW!</em>' : ''}</div>`;
     // プレゼント(キャラと同じ1回分)。10連は全10個のまとめも出す
     const presents = tx.items.map((x) => x.present).filter(Boolean);
     const sum = new Map(); for (const p of presents) sum.set(p.giftId, (sum.get(p.giftId) ?? 0) + 1);
@@ -170,7 +167,7 @@ export class GachaUI {
     this.resEl.innerHTML = `
       <div class="gz-sky"></div>
       <div class="gz-fig" data-rarity="${ch.rank}"><div class="gz-halo"></div><img src="${artUrl(ch, 'cutout')}" alt="${esc(ch.name)}" draggable="false"></div>
-      ${ten ? `<div class="gz-grid">${tx.items.map((x) => { const c = characterById(x.characterId); const ps = portraitStyle(c); return `<button type="button" class="gz-ic${x.drawIndex === this.sel ? ' sel' : ''}" data-i="${x.drawIndex}" data-rarity="${x.rarity}" aria-label="${esc(c.name)}"><span class="gz-face"${ps ? ` style="${ps}"` : ''}>${ps ? '' : esc(c.name[0])}</span>${x.isNew ? '<i class="gz-nb">NEW</i>' : ''}${x.present ? `<i class="gz-pb">${giftIcon(giftById(x.present.giftId))}</i>` : ''}</button>`; }).join('')}</div>` : ''}
+      ${ten ? `<div class="gz-grid">${tx.items.map((x) => { const c = characterById(x.characterId); return `<button type="button" class="gz-ic rar-frame${x.drawIndex === this.sel ? ' sel' : ''}" data-i="${x.drawIndex}" data-rarity="${x.rarity}" aria-label="${esc(c.name)}"><span class="gz-face"><img src="${artUrl(c, 'cutout')}" alt="" draggable="false"></span>${rarityBadge(x.rarity, 'gz-ib')}${raritySparkle(x.rarity)}${x.isNew ? '<i class="gz-nb">NEW</i>' : ''}${x.present ? `<i class="gz-pb">${giftIcon(giftById(x.present.giftId))}</i>` : ''}</button>`; }).join('')}</div>` : ''}
       <div class="gz-bottom">${info}${bonus}${btn(primary, 'gz-primary')}<div class="gz-sec">${secondary.map((b) => btn(b, 'gz-s')).join('')}</div></div>`;
     for (const b of this.resEl.querySelectorAll('[data-act]')) b.addEventListener('click', () => this.act(b.dataset.act));
     for (const b of this.resEl.querySelectorAll('[data-i]')) this.bindIcon(b);

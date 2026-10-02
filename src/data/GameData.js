@@ -10,11 +10,12 @@ export const ATTRIBUTES = {
 
 // 属性倍率(有利 1.3 / 通常 1.0 / 不利 0.7)は Config.battle.attributeMul(★ 調整パネルから変更可)
 
-/** ランク(R / SR / SSR …追加可)。order は並び順、color は枠色 */
+// レアリティ(枠の色・光は全カード共通:src/app/Rarity.js + online.html の「レアリティ」)。color は小さな文字表示用
 export const RANKS = {
-  R:   { id: 'R',   order: 1, color: '#9fb4d0' },
-  SR:  { id: 'SR',  order: 2, color: '#ffd23e' },
-  SSR: { id: 'SSR', order: 3, color: '#ff7ad9' },
+  N:   { id: 'N',   order: 0, color: '#a7aebb' },
+  R:   { id: 'R',   order: 1, color: '#5d9bf2' },
+  SR:  { id: 'SR',  order: 2, color: '#a576f5' },
+  SSR: { id: 'SSR', order: 3, color: '#f7a23e' },
 };
 
 /**
@@ -119,6 +120,8 @@ export const DEFAULT_PARTY = ['minamo', 'hinoka', 'raimu', 'shizuku'];
 /**
  * ステージ(StageData)
  *   boss.image … 同梱画像キー(assets/bossImages.js)/ boss.layout … 当たり判定レイアウト
+ *   boss.art   … 画像の見せ方(省略時はリリスの画像と同じ構図):face = 顔の位置と幅(画像の割合 u / v / w。カードやアイコンは顔を中心に切り抜く)
+ *                stage = 攻略画面の立ち絵(x = 横位置 translateX の割合 / h = 高さの倍率)
  *   boss.profile … 返球プロファイル(Config.bossProfiles)
  *   boss.affection … 好感度の表情・会話イベントの設定(data/BossAffection.js のキー)
  *   space … 3D 空間の特徴:patterns(使う RoutePattern。重複で出やすさ)/ energyDensity / gateCount / obstacleCount / obstacleSpeed
@@ -142,8 +145,9 @@ export const STAGES = [
   },
   {
     id: 'stage03', no: '03', name: '甘い夜のおねだり',
-    // 添付イラストを正式素材化するまでは stage03 専用画像キーを使用（未登録時は安全にフォールバック）
-    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 18000 },
+    // 専用イラスト(assets/boss_milk.webp)・専用の当たり判定(colliderLayouts.milk)・専用の表情位置(BossAffection.milk)
+    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 18000,
+      art: { face: { u: 0.43, v: 0.43, w: 0.3 }, stage: { x: -0.24, h: 0.74 } } },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
     concept: '甘え上手な猫系の女の子。きらめくプレミアムコンカフェを舞台に、ハートを届けて口説き落とす。',
     line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)

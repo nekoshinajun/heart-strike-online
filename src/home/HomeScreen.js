@@ -147,6 +147,7 @@ export class HomeScreen {
       card.style.setProperty('--dc', D.color);
       card.style.setProperty('--ac', ATTRIBUTES[st.boss.attribute].color);
       card.querySelector('.pk-thumb').style.backgroundImage = `url('${this.app.bossThumb(st)}')`;
+      card.querySelector('.pk-thumb').style.cssText += `;${this.app.bossFocus(st)}`;
       card.querySelector('.pk-t').innerHTML = `${esc(st.boss.name)} <b style="--dc:${D.color}">${D.label}</b>`;
       // 初回クリア報酬(Config.rewards。受取済みならそう表示)
       const gem = Config.rewards.firstClearGem?.[a.pick.difficulty] ?? 0;

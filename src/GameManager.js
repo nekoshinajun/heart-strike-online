@@ -183,7 +183,7 @@ export class GameManager {
   }
   useLayout(name) {
     if (name === 'lulu') return this.useBuiltinBoss();
-    if (name === 'demon') return this.loadBundledImage('demon');
+    if (BOSS_IMAGES[name]) return this.loadBundledImage(name);
   }
   /** 同梱画像(data URI)を読み込んでボスにする */
   loadBundledImage(name) {
@@ -227,7 +227,6 @@ export class GameManager {
       D.showLastTrajectory = D.showTrajectoryPreview;
       if (!D.showTrajectoryPreview) { this.preview.hideLive(); this.preview.hideGhost(); }
     }
-    if (key === 'curve') Config.curve.enableCurveBall = !Config.curve.enableCurveBall;
     this.ui.setDebugState(D);
     this.affection?.refreshZoneDebug();
   }
@@ -306,8 +305,6 @@ export class GameManager {
     else this.sm.change(S.BOSS_TAUNT);
   }
 
-  /** 投球ルート:今は選択なし(下へ引く量だけで球質が変わる)。将来の拡張用に Config.throwRoute.default を返す */
-  get throwRoute() { return Config.throwRoute.default; }
 
   /** このステージの攻略対象の攻撃ボイス(データ:RomanceData の attackVoices。ファイルのあるものだけ)*/
   attackVoices() { return (heroineByStage(this.stage?.id)?.attackVoices ?? []).filter((v) => v?.src); }

@@ -91,24 +91,21 @@ export const APP_CONFIG = {
         startAt: null, endAt: null,
       },
     ],
-    // SSR の「演出ルート」の出やすさ。レアリティ抽選とは完全に独立(SSR 提供割合に影響しない)。初期値は実機テスト後に決定
-    presentationWeights: { R: { R_NORMAL: 1 }, SR: { SR_NORMAL: 1 }, SSR: { SSR_DIRECT: 3, R_TO_SSR: 1, SR_TO_SSR: 1 } },
-    fragmentHintMode: 'GOLD_ONLY',  // 10連の分裂時のヒント:NONE | GOLD_ONLY | RAINBOW_FLASH | MIXED(初期値は実機テスト後)
-    revealOrderMode: 'DRAW_ORDER',  // DRAW_ORDER | SSR_LAST | NEW_SSR_LAST | PROMOTION_LAST | RARITY_ASCENDING(一覧は常に抽選順)
-    particleScale: 1,               // 低スペック端末は 0.5
-    camera: { followLag: 0.3, fovKick: 0.04, maxRollDeg: 8, promoRollDeg: 6 },
+    particleScale: 1,               // 演出の光の粒の量(低スペック端末は 0.5)
     haptic: true,
-    // 演出時間(秒・Release = 0.0 の実時間。TimeScale 非依存)
-    timing: {
-      enter: 0.5, guideAfter: 2.0,
-      gate1: 0.55, gate2: 0.95, gate3: 1.35, arriveR: 1.6, arriveSR: 1.7,
-      ssr: { stop: 1.40, silenceEnd: 1.90, beat1: 1.90, beat2: 2.55, rainbowGate: 2.95, accel: 3.35, enter: 3.75, arrive: 3.90 },
-      promo: { pulse: 1.35, silence: 1.45, beat1: 1.95, beat2: 2.60, route: 2.90, curve: 3.20, enter: 3.80, arrive: 3.95 },
-      catch: 0.8, burst: 0.3, revealTap: { R: 1.2, SR: 1.6, SSR: 2.4 }, ssrUiDelay: 0.4,
-      ten: { gate1: 0.5, split: 0.6, glintEnd: 0.75, flyEnd: 1.8, silhouetteEnd: 2.2, reveal: { R: 0.5, SR: 0.9, SSR: 3.5, PROMO: 4.5 }, beatInterval: 0.65, beatIntervalRepeat: 0.45, list: 1.0 },
-      skipFloorSSR: 2.0,
-      fast: { gateScale: 0.5, revealRS: 0.3 },   // FAST:Gate 区間 2倍速 / R・SR Reveal 0.3秒 / SSR の静寂とドクンは縮めない
-      tapForward: 3,                              // 演出中タップ:Gate 区間を 3 倍速
+    // ---- 演出(src/gacha/GachaDirector.js)。抽選には一切使わない ----
+    show: {
+      ssrDisguise: { SR: 0.7, R: 0.3 },   // SSR のハートが開ける前に見せる色(SR かな? → 昇格)
+      fastScale: 0.55,                    // FAST:時間をこの倍率に(SSR の昇格の流れは残す)
+      // 時間(ミリ秒)
+      timing: {
+        intro: 380, seed: 420, beat: 520, gather: 1250, settle: 380,
+        crack: 420, leak: 520, burst: 420, freeze: 380, dark: 420, dokun: 700, relight: 650, ripple: 900, whiteout: 700,
+        silhouette: 620, unveil: 620, info: 260, hold: { N: 900, R: 1100, SR: 1600, SSR: 3600 },
+        splitFly: 780, openSmall: 300, cardIn: 260, gridHold: 900, present: 70, presentHold: 1600,
+      },
+      // 正式な SE が入ったらファイルを書く(null の間は合成音)。heartAppear / heartbeat / gather / crack / burst / charAppear / sr / ssrPromote / ssrConfirm / cardOpen / present
+      sfx: { heartAppear: null, heartbeat: null, gather: null, crack: null, burst: null, charAppear: null, sr: null, ssrPromote: null, ssrConfirm: null, cardOpen: null, present: null },
     },
     keepTransactions: 20,
   },

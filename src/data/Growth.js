@@ -48,6 +48,13 @@ export function statsAt(charId, level, abilities = []) {
   }
   return out;
 }
+/** Lv のバトルの最大 HP(キャラごと・Lv で伸びる。ランクが高いほど高いのが基本)*/
+export const HP_MAX = 200;   // 表示(五角形)の最大
+export function hpAt(charId, level) {
+  const [a, b] = (CHARACTER_GROWTH[charId] ?? GROWTH_DEFAULT).hp ?? GROWTH_DEFAULT.hp;
+  const u = Math.pow((clamp(level, 1, AFFECTION.maxLevel) - 1) / (AFFECTION.maxLevel - 1), GROWTH_EXPONENT);
+  return Math.round(a + (b - a) * u);
+}
 /** ステータス → 性能(STAT_EFFECTS の 0 / 50 / 100 を直線でつなぐ。100 を超えた分は伸ばさない)*/
 export function statEffect(key, value) {
   const [a, m, b] = STAT_EFFECTS[key];
