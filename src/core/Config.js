@@ -417,10 +417,13 @@ export const Config = {
   },
 
   // ---- FEVER TIME(COMBO を続けたご褒美:現在キャラから4人が1投ずつ強力に投げるボーナスラウンド)----
-  //   ゲージの役割は1つだけ:ボスへの攻撃の連続 HIT(COMBO)で溜まる。FEVER = COMBO ÷ comboToFever(MISS で COMBO・ゲージとも 0)
+  //   ゲージの役割は1つだけ:ボスへの攻撃の HIT で溜まる。COMBO(連続 HIT)が続くほど1回の増え方が大きい
+  //   MISS で COMBO は 0 に戻るが、溜まったゲージは減らない(次の HIT はまた 1 COMBO の増え方から)
   //   Heart Gate(= ダメージ倍率)・Diamond(= SPECIAL ゲージ)・キャッチでは増えない
   fever: {
-    comboToFever: 12,            // ★ この COMBO で FEVER 100%(4人 × 3周 = 12投 すべて当てる)
+    // ★ HIT 1回で増える FEVER(%)。その HIT の COMBO 数が min 以上の一番上の段を使う
+    //   当て続ける:5 → 10 → 18 → 26 → 34 → 45 → 56 → 67 → 81 → 95 → 100(11 HIT)/ COMBO が続かない:5% ずつ(20 HIT)
+    comboGain: [{ min: 1, gain: 5 }, { min: 3, gain: 8 }, { min: 6, gain: 11 }, { min: 9, gain: 14 }],
     heartMul: [2.0, 2.5, 3.0],   // ★ FeverHeartMultiplier Lv.1 / Lv.2 / Lv.MAX(既存の全倍率の最後に掛ける)
     levelLabels: ['Lv.1', 'Lv.2', 'Lv.MAX'],
     missLevelDown: false,        // MISS で FEVER LEVEL を1段階下げるか(初期実装:維持)

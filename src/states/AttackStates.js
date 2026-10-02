@@ -281,10 +281,9 @@ export class BossHitState {
       // 外れ:自動補正はしない。ラリーは途切れる
       // Gate を通っても最後にボスへ当たらなければ GATE CHAIN のボーナスは無し
       g.specialFx.miss();
-      // MISS:COMBO 0・FEVER ゲージ 0%
+      // MISS:COMBO だけ 0(FEVER ゲージはそのまま)
       const lost = g.fever.onMiss();
       g.ui.setCombo(0, { broke: lost > 0 });
-      g.fever.updateUI(lost > 0);
       g.ui.showJudge(MISS_LABEL[result.type] ?? 'MISS', 'miss', '#b9b0ff', lost > 0 ? `${lost} COMBO → 0` : gates > 0 ? 'GATE ボーナスなし' : '');
       g.turn.resetRally();
       g.stats.throwMiss++;
@@ -295,17 +294,17 @@ export class BossHitState {
     g.cam.reset();
   }
 
-  /** HIT → COMBO +1。「N COMBO」のハートが FEVER ゲージへ飛び、着いたらゲージが増える。12 COMBO で FEVER! */
+  /** HIT → COMBO +1。「N COMBO / FEVER +n%」が FEVER ゲージへ飛び、着いたらゲージが増える(COMBO が続くほど増え方が大きい)。100% で FEVER! */
   comboHit(scr) {
     const g = this.g, F = g.fever;
     const r = F.onHit();
     g.ui.setCombo(r.combo, { hit: true });
-    const pct = r.max ? 'MAX' : F.active || F.pendingStart ? '' : `${Math.round(F.gaugeFor(r.combo))}%`;
-    g.ui.flyTo(scr.x, scr.y + 34, 'feverBar', `<b>${r.combo}</b> COMBO${pct ? `<small>FEVER ${pct}</small>` : ''}`, 'combo', 560).then(() => {
+    const pct = r.gain > 0 ? `FEVER +${r.gain}%${r.max ? ' MAX!' : ''}` : '';
+    g.ui.flyTo(scr.x, scr.y + 34, 'feverBar', `<b>${r.combo}</b> COMBO${pct ? `<small>${pct}</small>` : ''}`, 'combo', 560).then(() => {
       F.updateUI(true);
       if (r.max) {
-        // 12 COMBO → FEVER MAX → (次のフェーズの最初に)FEVER 突入
-        g.ui.showJudge('♡ FEVER! ♡', 'fevermax', '#ff4fa8', `${r.combo} COMBO → FEVER MAX`);
+        // 100% → FEVER MAX → (次のフェーズの最初に)FEVER 突入
+        g.ui.showJudge('♡ FEVER! ♡', 'fevermax', '#ff4fa8', 'FEVER MAX');
         g.ui.flash('#ffd0ea', 0.35);
         g.audio.rallyUp();
       }
