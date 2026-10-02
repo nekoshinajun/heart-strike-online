@@ -121,6 +121,7 @@ export class GameManager {
     this.bus.on('dragstart', (e) => this.sm.dispatch('onDragstart', e));
     this.bus.on('drag', (e) => this.sm.dispatch('onDrag', e));
     this.bus.on('release', (e) => this.sm.dispatch('onRelease', e));
+    this.bus.on('keyrelease', (e) => this.sm.dispatch('onKeyRelease', e));
     // ラリー(内部:ボスの返球の強さ)はハート玉の光り方だけに使う。画面の数字は COMBO(FeverSystem)
     this.bus.on('rally', () => this.ball.setStyle(this.turn.current.color, this.turn.tierLevel));
 
@@ -232,6 +233,7 @@ export class GameManager {
 
   newGame() {
     this.turn.reset();
+    this.bossAttacks = 0;
     this.stats = { perfect: 0, great: 0, good: 0, miss: 0, throwMiss: 0, loveSpots: 0, orbs: 0, heart: 0, startTime: performance.now() };
     this.energy?.reset();
     this.fever?.reset();

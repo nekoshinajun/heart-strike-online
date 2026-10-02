@@ -1,4 +1,6 @@
 import { GameState } from '../core/StateMachine.js';
+import { Config } from '../core/Config.js';
+import { heroineByStage } from '../data/RomanceData.js';
 
 /**
  * TITLE(= メニュー中):STAGE SELECT / PARTY EDIT / CHARACTER SELECT は MenuFlow が表示する。
@@ -32,40 +34,113 @@ export function resultStats(g) {
   ];
 }
 
+/**
+ * GAME_CLEAR:ボス撃破 → 余韻(8〜12 秒)→ リザルト。時間は Config.clear、セリフはボスごとの BossAffection.defeat
+ *   ヒットストップ → ハート命中の演出 → バトル UI / BGM をフェードアウト → 撃破リアクション → 何も出さない間
+ *   → 撃破セリフ → 最終表情 → 「HEART BREAK / 攻略完了」+ クリア SE →(HELL:ASMR UNLOCKED)→ 少し間 → リザルト
+ *   表情は HEART 75%(照れ)から続けて、撃破リアクションで一瞬崩れ → 最後にデレ(100%)
+ *   タップで早送り(skipAfter 秒以降):まだなら「攻略完了」まで進める → もう一度でリザルト
+ */
 export class GameClearState {
   constructor(g) { this.g = g; }
   enter() {
-    const g = this.g;
+    const g = this.g, C = Config.clear;
+    this.hell = g.difficulty === 'HELL';
+    const D = g.affection.data?.defeat ?? {};
+    this.lines = { ...D, ...(this.hell ? D.hell ?? {} : {}) };
+    this.lines.line ??= g.affection.data?.loveMax?.line ?? null;
+    this.beats = [
+      [0, () => this.impact()],
+      [C.uiFadeAt, () => { document.getElementById('ui')?.classList.add('afterglow'); g.audio.stopBgm(C.bgmFadeSec); }],
+      [C.reactionAt, () => this.reaction()],
+      [C.reactionAt + C.reactionSec, () => g.affection.hideLine()],
+      [C.lineAt, () => { if (this.lines.line) g.affection.showTalk(this.lines.line, { big: this.hell }); }],
+      [C.finalAt, () => this.finalFace()],
+      [C.completeAt, () => { g.affection.hideTalk(); g.ui.showClearBanner?.('complete', { hell: this.hell }); g.audio.clear(); }],
+      ...(this.hell ? [[C.asmrAt, () => this.asmr()]] : []),
+      [this.hell ? C.hellResultAt : C.resultAt, () => this.toResult()],
+    ];
+    this.next = 0;
+    this.t0 = performance.now();   // 演出は実時間(フレームレートに左右されない)
+    this.skip = 0;
+    this.elapsed = 0;
+    this.shower = 0;
+    this.shown = false;
+    this.complete = false;
+  }
+  impact() {
+    const g = this.g, head = g.boss.partCenter('head');
+    g.setTimeScale(1);
     g.fever.abort();
     g.space.clear();
+    g.energy?.clear();
     g.ball.hide();
+    g.catchTarget.hide();
+    g.affection.answerMode = null;
+    g.affection.showAnswerHint(false);
+    g.affection.hideLine();
+    g.hitstop(Config.clear.hitstopSec);
     g.cam.shake(1);
     g.ui.flash('#ffffff', 0.9);
-    // LOVE MAX ♡:完全にデレた表情 + セリフ + ハートとキラキラ → 数秒後にリザルト
-    g.affection.onLoveMax();
-    g.cam.focusOn(g.boss.partCenter('head'), 12);
-    g.ui.showLoveMax();
-    this.shower = 0;
-    g.audio.clear();
-    this.wait = 3.6;
-    this.elapsed = 0;
-    this.shown = false;
+    g.effects.heartBurst(head, 40, 12, 1.4);
+    g.effects.shockwave?.(head, '#ff5fa2', 3.2, g.cam.camera);
+    g.boss.view.playHit?.('head', 1.6);
+    g.cam.focusOn(head, 12);
+    g.audio.heart?.(1, true);
+    // 表情は 75%(照れ)のまま余韻へ(最終表情 = デレは撃破セリフの後)
+    const A = g.affection, i75 = A.data.stages.findIndex((st) => st.min >= 75);
+    if (i75 >= 0) { A.stageIndex = i75; A.tempExpr = null; A.applyStage(A.stage); }
+  }
+  reaction() {
+    const g = this.g;
+    g.affection.flashExpr('flustered', 1.2);   // 75% の照れから一瞬崩れる → 照れに戻る
+    g.boss.view.playHit?.('chest', 1.2);
+    g.cam.shake(0.4);
+    if (this.lines.reaction) g.affection.showLine(this.lines.reaction);
+  }
+  finalFace() {
+    const g = this.g;
+    g.affection.hideLine();
+    g.affection.stageIndex = g.affection.data.stages.length - 1;
+    g.affection.tempExpr = null;
+    g.affection.applyStage(g.affection.stage);   // 最終表情(デレ)
+    g.effects.heartBurst(g.boss.partCenter('head'), 20, 6, 1.4);
+    this.showering = true;
+  }
+  asmr() {
+    const g = this.g, h = heroineByStage(g.stage?.id), v = h?.rewardVoices?.HELL ?? null;
+    g.ui.showClearBanner?.('asmr', { title: v?.title ?? `${g.stage?.boss?.name ?? ''} HELL ASMR`, ready: !!v?.src });
+    g.audio.loveMax?.();
+  }
+  toResult() {
+    if (this.shown) return;
+    const g = this.g;
+    this.shown = true;
+    g.affection.hideTalk();
+    g.ui.showClearBanner?.(null);
+    document.getElementById('ui')?.classList.remove('afterglow');
+    g.cam.reset();
+    g.onStageClear(resultStats(g));
   }
   update(dt) {
-    this.wait -= dt;
-    // ハートがあふれる
-    this.shower -= dt;
-    if (this.shower <= 0 && this.wait > -1) {
-      this.shower = 0.12;
-      const g = this.g;
-      const c = g.boss.partCenter(['head', 'chest', 'stomach'][Math.floor(Math.random() * 3)]);
-      g.effects.heartBurst(c, 14, 9, 1.2);
+    this.elapsed = (performance.now() - this.t0) / 1000 + this.skip;
+    while (this.next < this.beats.length && this.elapsed >= this.beats[this.next][0]) this.beats[this.next++][1]();
+    if (this.showering && !this.shown) {
+      this.shower -= dt;
+      if (this.shower <= 0) { this.shower = 0.16; const g = this.g; g.effects.heartBurst(g.boss.partCenter(['head', 'chest', 'stomach'][Math.floor(Math.random() * 3)]), 10, 7, 1.2); }
     }
-    this.elapsed = (this.elapsed ?? 0) + dt;
-    if (this.wait <= 0 && !this.shown) { this.shown = true; this.g.affection.hideTalk(); this.g.ui.showLoveMax(false); this.g.cam.reset(); this.g.onStageClear(resultStats(this.g)); }
   }
-  /** LOVE MAX 演出はタップ / Enter で早送りできる(1.2 秒以降) */
-  onTap() { if (!this.shown && this.elapsed > 1.2) this.wait = Math.min(this.wait, 0); }
+  /** タップで早送り:「攻略完了」まで → もう一度でリザルト */
+  onTap() {
+    if (this.shown || this.elapsed < Config.clear.skipAfter) return;
+    const C = Config.clear, to = this.elapsed < C.completeAt ? C.completeAt : this.hell && this.elapsed < C.asmrAt ? C.asmrAt : Infinity;
+    if (to === Infinity) return this.toResult();
+    this.skip += to - this.elapsed;
+  }
+  exit() {
+    document.getElementById('ui')?.classList.remove('afterglow');
+    this.g.ui.showClearBanner?.(null);
+  }
 }
 
 export class GameOverState {

@@ -293,7 +293,7 @@ export class UIManager {
   showPrompt(type, playerColor) {
     const p = this.el.prompt;
     // 説明はチュートリアル中(最初の数回)だけ。通常プレイ中はボス・Orb を隠さないよう出さない
-    const key = type === 'catch' ? 'catch' : 'flick';
+    const key = type?.startsWith('catch') ? 'catch' : 'flick';
     if (type && (this.tutorial?.[key] ?? 0) <= 0) type = null;
     if (!type) { p.hidden = true; this.el.hint.hidden = true; return; }
     p.hidden = false;
@@ -303,6 +303,8 @@ export class UIManager {
       flick: ['FLICK!', 'ハートを持って、投げたい方へフリック'],
       grab: ['THROW!', 'くるくる回すとカーブ(時計回り=右 / 反時計回り=左)'],
       catch: ['CATCH!', 'リングが重なる瞬間にタップ'],
+      catchHold: ['HOLD!', 'リングが重なったら押し続けて、ゲージが満ちたら離す'],
+      catchFlick: ['FLICK!', 'リングが重なったら、矢印の方へ弾く'],
     }[type];
     this.el.promptMain.textContent = text[0];
     this.el.promptSub.textContent = text[1];
@@ -430,6 +432,43 @@ export class UIManager {
     t.style.setProperty('--pc', player.color);
     this.el.turnName.innerHTML = `<small>${label}</small>${player.name}`;
     t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  }
+
+  /** ボスの攻撃開始時に小さく「ATTACK LEVEL ★★★☆☆」(★ = この戦闘での攻撃回数。★5 は特別表示)*/
+  showAttackLevel(level, max = Config.defence?.maxLevel ?? 5) {
+    let el = document.getElementById('atkLevel');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'atkLevel';
+      document.getElementById('ui').appendChild(el);
+    }
+    const lv = Math.max(1, Math.min(max, level | 0));
+    el.dataset.level = lv;
+    el.classList.toggle('max', lv >= max);
+    el.innerHTML = `<small>${lv >= max ? 'MAX ' : ''}ATTACK LEVEL</small><b>${'<i class="on">★</i>'.repeat(lv)}${'<i>☆</i>'.repeat(max - lv)}</b>`;
+    el.style.setProperty('--dur', `${Config.defence?.levelBannerSec ?? 1.1}s`);
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+
+  /**
+   * ボス撃破の余韻:'complete' = 「HEART BREAK / 攻略完了」/ 'asmr' = HELL の「ASMR UNLOCKED」/ null = 消す
+   *   バトル UI がフェードアウトした後も見えるよう #ui 直下の #clearFx に出す
+   */
+  showClearBanner(kind, { hell = false, title = '', ready = true } = {}) {
+    let el = document.getElementById('clearFx');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'clearFx';
+      el.innerHTML = '<div class="cf-complete"><b>HEART BREAK</b><span>攻略完了</span></div><div class="cf-asmr"><small>HELL CLEAR REWARD</small><b>ASMR UNLOCKED</b><span class="cf-title"></span></div>';
+      document.getElementById('ui').appendChild(el);
+    }
+    if (!kind) { el.hidden = true; el.className = ''; return; }
+    el.hidden = false;
+    el.classList.toggle('hell', hell || kind === 'asmr');
+    if (kind === 'asmr') el.querySelector('.cf-title').textContent = ready ? title : `${title}(音声準備中)`;
+    const box = el.querySelector(kind === 'asmr' ? '.cf-asmr' : '.cf-complete');
+    box.classList.remove('show'); void box.offsetWidth; box.classList.add('show');
+    if (kind === 'asmr') el.querySelector('.cf-complete').classList.add('up');
   }
 
   showCatchNotice(player, mine = false) {

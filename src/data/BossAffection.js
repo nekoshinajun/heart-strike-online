@@ -14,6 +14,7 @@
  *                              part = HEART 計算に使う既存の部位 / line = 命中時のセリフ / expr = リアクションの表情段階
  *                    miss … 回答エリアに当たらなかった時のセリフ
  *   loveMax       … 100% 攻略時のセリフ
+ *   defeat        … 撃破時の余韻:{ reaction(撃破の瞬間の短い声), line(撃破セリフ), hell: { reaction, line }(HELL 撃破)}
  *   heart50Expression … HEART 50% 会話中の表情(stages の id。stages[].image に表情差分を登録すれば画像で差し替わる)
  *   talks[].opening … 質問の前のひとこと(暗転 →「ドクン……」の後)
  */
@@ -73,6 +74,7 @@ export const BOSS_AFFECTION = {
       },
     ],
     loveMax: { line: '……もう、あなたの勝ち。ちゃんと責任とってよね♡' },
+    defeat: { reaction: 'ひゃっ……！', line: '……もう、あなたの勝ち。ちゃんと責任とってよね♡', hell: { reaction: '……うそ。ここまで、本気で……？', line: '……もう逃げない。今夜は、あなたにだけ囁いてあげる♡' } },
   },
   siren: {
     name: 'セイレーン',
@@ -102,6 +104,7 @@ export const BOSS_AFFECTION = {
       },
     ],
     loveMax: { line: '……あなたのためだけに、歌ってあげる♡' },
+    defeat: { reaction: 'あっ……！', line: '……あなたのためだけに、歌ってあげる♡', hell: { reaction: '……歌が、止まっちゃった……', line: '……今夜は、あなたの耳元でだけ歌ってあげる♡' } },
   },
   milk: {
     name: 'みるく',
@@ -131,6 +134,7 @@ export const BOSS_AFFECTION = {
       },
     ],
     loveMax: { line: '……もう、あなたの猫になってあげる。ずっと甘えさせてね♡' },
+    defeat: { reaction: 'にゃっ……！', line: '……もう、あなたの猫になってあげる。ずっと甘えさせてね♡', hell: { reaction: '……にゃ……ぜんぶ、負けちゃった……', line: '……今夜はずっと、耳元でごろごろしてあげる♡' } },
   },
 };
 

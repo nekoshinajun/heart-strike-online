@@ -1,6 +1,6 @@
 import * as THREE from '../lib/three.js';
 import { Config, bossProfile, returnTier } from '../core/Config.js';
-import { pickAttack, fitMotion } from './AttackMotion.js';
+import { fitMotion } from './AttackMotion.js';
 
 /**
  * ボスの返球計画。攻撃モーションに依存せず「どこへ・どの速さで・どう飛ばすか」だけを決める。
@@ -66,10 +66,29 @@ export class ReturnBallController {
   }
 
   /**
+   * ★ の攻撃パターンを1つ選ぶ(ボスの defence.levels → Config.defence.levels。★5 以降は ★5 のまま)
+   *   → { id, notes: [{ type, hold?, dir? }], interval }
+   */
+  pickSequence(level, prof = bossProfile()) {
+    const D = Config.defence, lv = Math.max(1, Math.min(D.maxLevel ?? 5, Math.floor(level) || 1));
+    const list = prof.defence?.levels?.[lv] ?? D.levels[lv] ?? D.levels[1];
+    if (this.forceSequence) return norm(this.forceSequence);
+    const tw = list.reduce((a, x) => a + (x.weight ?? 1), 0);
+    let r = this.random() * tw, pick = list[list.length - 1];
+    for (const x of list) { r -= x.weight ?? 1; if (r <= 0) { pick = x; break; } }
+    return norm(pick);
+    function norm(x) {
+      const notes = (x.notes ?? ['NORMAL']).map((n) => (typeof n === 'string' ? { type: n } : { ...n }));
+      for (const n of notes) if (n.type === 'HOLD') n.hold ??= D.hold.sec;
+      return { id: x.id ?? notes.map((n) => n.type[0]).join(''), notes, interval: x.interval ?? 0.8 };
+    }
+  }
+
+  /**
    * 返球計画を作る
    * @returns { screenN, world, lateEnd, spawn, chargeTime, duration, markerLead, ctrlOffset, power }
    */
-  plan(rally, forcedScreenN = null, forcedSeed = null) {
+  plan(rally, forcedScreenN = null, forcedSeed = null, level = 1) {
     const oldRandom = this.random;
     if (forcedSeed != null) {
       let x = (Number(forcedSeed) || 1) >>> 0;
@@ -98,9 +117,12 @@ export class ReturnBallController {
 
     // 攻撃の球種:難易度の weight × 敵の個性で抽選 → 左右 → 動き(MULTI は共有 seed の乱数なので全員同じ)
     const difficulty = Config.runtime?.difficulty ?? 'NORMAL';
-    const picked = this.forceAttack && (Config.enemyAttacks.patterns[this.forceAttack] || prof.attacks?.[this.forceAttack])
-      ? { id: this.forceAttack, def: Config.enemyAttacks.patterns[this.forceAttack] ?? prof.attacks[this.forceAttack] }
-      : pickAttack(this.random, difficulty, prof);
+    // DEFENCE:★(ボスの攻撃回数)ごとの攻撃パターン(NORMAL / HOLD / FLICK / MULTI)。ハートの軌道は STRAIGHT / CURVE だけ(タイミングは変えない)
+    const seq = this.pickSequence(level, prof);
+    const pathOf = () => (level >= 2 && this.random() < (Config.defence.curveChance ?? 0.3) ? 'CURVE' : 'STRAIGHT');
+    const forcedPath = this.forceAttack && Config.enemyAttacks.patterns[this.forceAttack] ? this.forceAttack : null;
+    const pathId = forcedPath ?? pathOf();
+    const picked = { id: pathId, def: Config.enemyAttacks.patterns[pathId] };
     const side = this.random() < 0.5 ? -1 : 1;
     // 画面からはみ出す曲がり方は逆側へ / 小さく(最後まで見えてキャッチできる。乱数は使わないので MULTI でも全員同じ)
     const spawn = this.boss.spawnPoint();
@@ -108,7 +130,7 @@ export class ReturnBallController {
     const restCam = this.player.cam.restCamera();
     const restTo = this.player.screenToWorld(sx, sy, depth, new THREE.Vector3(), restCam);
     const motion = fitMotion(picked.def, { duration, side, from: this.boss.restSpawnPoint(), to: restTo, toScreen: (p) => this.player.toScreen(p, restCam), viewport: this.viewport, margin: Config.enemyAttacks.screenMargin ?? 0.04 });
-    const attack = { id: picked.id, type: picked.def.type, label: picked.def.label ?? picked.id, side: motion.side, tell: picked.def.tell ?? null, difficulty };
+    const attack = { id: picked.id, type: picked.def.type, label: picked.def.label ?? picked.id, side: motion.side, tell: picked.def.tell ?? null, difficulty, level, pattern: seq.id, kinds: seq.notes.map((n) => n.type) };
     const ctrlOffset = null;
 
     let plan = {
@@ -122,6 +144,21 @@ export class ReturnBallController {
       power: prof.returnPower,
       speedMul,
     };
+    // ハート1個ずつの計画(1個目 = 上の計画。2個目以降は位置・左右・軌道を同じ乱数で決める → MULTI でも全員同じ)
+    plan.notes = seq.notes.map((n, k) => {
+      if (k === 0) return { ...n, screenN, world: landWorld, markerWorld: world, lateEnd, motion, duration: motion.total, markerLead: plan.markerLead, attack };
+      const sn = this.pickPosition();
+      const nx = sn.x * w, ny = sn.y * h;
+      const nWorld = this.player.screenToWorld(nx, ny, depth);
+      const nLate = this.player.screenToWorld(nx, ny, depth * R.lateDepthScale);
+      const pid = pathOf(), nside = this.random() < 0.5 ? -1 : 1;
+      const dur = Math.max(0.4, seq.interval ?? 0.8);
+      const nRest = this.player.screenToWorld(nx, ny, depth, new THREE.Vector3(), restCam);
+      const m = fitMotion(Config.enemyAttacks.patterns[pid], { duration: dur, side: nside, from: this.boss.restSpawnPoint(), to: nRest, toScreen: (p) => this.player.toScreen(p, restCam), viewport: this.viewport, margin: Config.enemyAttacks.screenMargin ?? 0.04 });
+      return { ...n, screenN: sn, world: nWorld, markerWorld: nWorld, lateEnd: nLate, motion: m, duration: m.total, markerLead: Math.min(R.markerLead, m.total * 0.9), attack: { ...attack, id: pid, side: m.side } };
+    });
+    // FLICK の方向('random' は同じ乱数で決める)
+    for (const n of plan.notes) if (n.type === 'FLICK' && (!n.dir || n.dir === 'random')) n.dir = ['L', 'R', 'U', 'D'][Math.floor(this.random() * 4) % 4];
     for (const m of this.modifiers) plan = m(plan, { rally, profile: prof }) ?? plan;
     this.random=oldRandom;
     return plan;
