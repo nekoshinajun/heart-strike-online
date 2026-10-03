@@ -117,7 +117,7 @@ export class MinionWave {
     // HP バー(画面上で雑魚の頭の上に付いていく)
     u.el = document.createElement('div');
     u.el.className = 'mn-hp';
-    u.el.innerHTML = `<b>${esc(def.name)}</b><i><s></s></i><em>${def.hp}</em>`;
+    u.el.innerHTML = `<b>${esc(def.name)}</b><i><s></s></i><em>HP ${def.hp}<small> / ${def.hp}</small></em>`;
     this.hud.appendChild(u.el);
     u.fill = u.el.querySelector('s'); u.num = u.el.querySelector('em');
     return u;
@@ -129,7 +129,7 @@ export class MinionWave {
     u.hp -= gain;
     u.hitT = 0.25;
     u.fill.style.transform = `scaleX(${u.hp / u.maxHp})`;
-    u.num.textContent = String(u.hp);
+    u.num.innerHTML = `HP ${u.hp}<small> / ${u.maxHp}</small>`;
     u.el.classList.remove('bump'); void u.el.offsetWidth; u.el.classList.add('bump');
     const defeated = u.hp <= 0 && u.alive;
     if (defeated) {

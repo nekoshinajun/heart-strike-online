@@ -561,9 +561,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .mn-hud { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .mn-hp { position: absolute; left: 0; top: 0; width: 132px; text-align: center; transition: opacity .3s ease; }
 .mn-hp b { display: block; font-size: 12px; font-weight: 900; color: #fff; letter-spacing: .04em; text-shadow: 0 0 6px #b46bff, 0 1px 2px #000; white-space: nowrap; }
-.mn-hp i { display: block; height: 9px; margin-top: 2px; border-radius: 99px; background: rgba(20,8,30,.72); border: 1.5px solid rgba(255,255,255,.85); overflow: hidden; box-shadow: 0 1px 4px #0008; }
+.mn-hp i { display: block; height: 11px; margin-top: 2px; border-radius: 99px; background: rgba(20,8,30,.72); border: 1.5px solid rgba(255,255,255,.85); overflow: hidden; box-shadow: 0 1px 4px #0008; }
 .mn-hp s { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #ff4f9a, #ff9bd0); transition: transform .25s ease; }
-.mn-hp em { display: block; font-style: normal; font-family: var(--display); font-size: 11px; color: #ffe2f1; text-shadow: 0 1px 2px #000; }
+.mn-hp em { display: block; font-style: normal; font-family: var(--display); font-size: 15px; font-weight: 900; color: #fff; text-shadow: 0 0 6px #ff4f9a, 0 1px 2px #000; }
+.mn-hp em small { font-size: 11px; opacity: .8; }
 .mn-hp.bump i { animation: mnBump .3s ease; }
 .mn-hp.down { opacity: 0; transition-delay: .3s; }
 @keyframes mnBump { 40% { transform: scale(1.12); } }
