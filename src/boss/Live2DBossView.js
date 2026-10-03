@@ -3,8 +3,8 @@ import { loadLive2DModel } from '../live2d/Live2DModel.js';
 
 /**
  * Live2D のボスの「見た目」だけを担当するビュー(BossView2D と同じインターフェース)。ロジック・当たり判定は持たない。
- *   ・Live2D モデル(data/Live2DData.js の定義)を自分専用のキャンバスに描き、3D 空間の板ポリに貼って表示する
- *   ・idle モーションはずっとループ。HIT の瞬間だけ reactions.hit のパラメータをワンショットで動かす(onHeartHit)
+ *   ・Live2D モデル(data/CharacterAssets.js の live2d)を自分専用のキャンバスに描き、3D 空間の板ポリに貼って表示する
+ *   ・motions.idle はずっとループ。HIT の瞬間だけ parameters.hit をワンショットで動かす(onHeartHit)
  *   ・当たり判定は従来どおり Collider(Config.colliderLayouts)だけ。Live2D の ArtMesh は判定に使わない
  *     (imageMesh を持たないので BossHitPlane のアルファ判定も使われない)
  */
@@ -55,20 +55,22 @@ export class Live2DBossView {
   /** Collider を配置する親(すべて body。Live2D は体の中で動くので部位ごとの親は持たない) */
   get anchors() { return { body: this.body, head: this.body, rightArm: this.body, leftArm: this.body }; }
 
-  /** ハートが HIT した瞬間(BossController.addHeart から。MISS では呼ばれない)*/
-  onHeartHit() { this.model?.trigger('hit'); }
+  // ---- ゲームのイベント → 定義(CharacterAssets の live2d)にあるものだけ再生。無ければ何もしない ----
+  /** ハートが HIT した瞬間(BossController.addHeart から。MISS では呼ばれない):parameters.hit + motions.damage */
+  onHeartHit() { this.model?.trigger('hit'); this.model?.playMotion('damage'); }
+  /** ボス攻撃の溜め(DefenseStates。何度か呼ばれるので再生中なら続ける):motions.attack */
+  playCharge() { this.model?.playMotion('attack', { restart: false }); }
+  /** 表情(AffectionSystem / BossController の 'normal' / 'happy' / 'love' など):expressions[名前] */
+  setExpression(expr) { this.model?.setExpression(expr); }
+  /** TotalHeart 100%:motions.defeat(BossView2D と同じく軽く弾む) */
+  setHeartMax() { this.heartMax = true; this.clearT = 0; this.model?.playMotion('defeat'); }
 
-  // ---- BossView2D と共通のインターフェース(今は Live2D 側に対応する動きが無いものは何もしない)----
-  // 将来:表情(expressions)・攻撃モーション(playCharge)・撃破(setHeartMax)などを定義から再生する
+  // ---- BossView2D と共通のインターフェースで、Live2D では使わないもの ----
   setPartAnchors() {}
   setPartState() {}
-  setExpression() {}
   playHit() {}
-  playCharge() {}
   playSpeak() {}
   setLook() {}
-  /** TotalHeart 100%:喜びのリアクション(BossView2D と同じく軽く弾む) */
-  setHeartMax() { this.heartMax = true; this.clearT = 0; }
 
   update(dt) {
     this.time += dt;

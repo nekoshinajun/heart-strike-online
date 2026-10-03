@@ -5,17 +5,15 @@ import { startCubism, CUBISM_SHADER_PATH } from './Live2DRuntime.js';
  * ゲーム側(Three.js)はこのキャンバスをテクスチャとして板ポリに貼る → ボスは3D空間の中に表示され、ハートは手前を飛ぶ。
  *
  *   ・model3.json の参照(moc3 / テクスチャ / physics3 / pose3)はファイルの中身どおりに読む(パスを推測しない)
- *   ・idle モーション(定義の idle.motion)をループ再生し続ける
+ *   ・motions.idle をループ再生し続ける。他のモーション(damage / attack / defeat …)は playMotion で1回再生 → idle に戻る
+ *   ・expressions(exp3.json)は setExpression で切り替え
  *   ・パラメータのワンショット(pulse):モーションの上からパラメータを一時的に上書きする(例:hit 0 → 1 → 0)
  *     モーションを切り替えないので idle は止まらない。再生中にもう一度呼べば最初からやり直す
  *
- * 定義(data/Live2DData.js の1件)
- *   model     … model3.json のパス
- *   idle      … { motion: model3.json のフォルダからの相対パス, fadeIn, fadeOut }
- *   reactions … { 名前: { param, value, attackSec, holdSec, releaseSec } }
- *   view      … 描画範囲(モデルのキャンバスに対する割合 u0 / v0 / u1 / v1。v は上から)と解像度(heightPx)
+ * 定義 = data/CharacterAssets.js の live2d(modelPath / motions / expressions / parameters / view)。
+ * キャラ固有の名前やファイル名はコードに書かない
  */
-const PRIORITY_IDLE = 1;
+const PRIORITY_IDLE = 1, PRIORITY_ACTION = 3;
 
 async function fetchBuffer(url) {
   const res = await fetch(url);
@@ -75,14 +73,16 @@ const defineModelClass = ({ CubismUserModel, CubismModelSettingJson, CubismMatri
   constructor(def) {
     super();
     this.def = def;
-    this.dir = def.model.slice(0, def.model.lastIndexOf('/') + 1);
+    this.dir = def.modelPath.slice(0, def.modelPath.lastIndexOf('/') + 1);
     this.pulses = {};
+    this.motions = {};
+    this.expressions = {};
     this.projection = new CubismMatrix44();
   }
 
   async loadAssets() {
     const def = this.def;
-    const settingBuf = await fetchBuffer(def.model);
+    const settingBuf = await fetchBuffer(def.modelPath);
     const setting = new CubismModelSettingJson(settingBuf, settingBuf.byteLength);
     this.setting = setting;
 
@@ -96,26 +96,31 @@ const defineModelClass = ({ CubismUserModel, CubismModelSettingJson, CubismMatri
     const pose = setting.getPoseFileName();
     if (pose) { const b = await fetchBuffer(this.dir + pose); this.loadPose(b, b.byteLength); }
 
-    // idle モーション(ループ)
-    if (def.idle?.motion) {
-      const b = await fetchBuffer(this.dir + def.idle.motion);
-      const motion = this.loadMotion(b, b.byteLength, 'idle');
-      // model3.json の Groups(EyeBlink / LipSync)を渡す(モーション側の目パチ・口パクの対象)
-      const eye = Array.from({ length: setting.getEyeBlinkParameterCount() }, (_, i) => setting.getEyeBlinkParameterId(i));
-      const lip = Array.from({ length: setting.getLipSyncParameterCount() }, (_, i) => setting.getLipSyncParameterId(i));
+    // モーション(idle はループ、他は1回)。model3.json の Groups(EyeBlink / LipSync)を渡す(目パチ・口パクの対象)
+    const eye = Array.from({ length: setting.getEyeBlinkParameterCount() }, (_, i) => setting.getEyeBlinkParameterId(i));
+    const lip = Array.from({ length: setting.getLipSyncParameterCount() }, (_, i) => setting.getLipSyncParameterId(i));
+    for (const [name, file] of Object.entries(def.motions ?? {})) {
+      if (!file) continue;
+      const b = await fetchBuffer(this.dir + file);
+      const motion = this.loadMotion(b, b.byteLength, name);
       motion.setEffectIds(eye, lip);
-      motion.setLoop(true);
-      motion.setLoopFadeIn(false);   // ループの継ぎ目でフェードし直さない
-      if (def.idle.fadeIn != null) motion.setFadeInTime(def.idle.fadeIn);
-      if (def.idle.fadeOut != null) motion.setFadeOutTime(def.idle.fadeOut);
-      this.idleMotion = motion;
+      if (name === 'idle') { motion.setLoop(true); motion.setLoopFadeIn(false); }   // ループの継ぎ目でフェードし直さない
+      this.motions[name] = motion;
+    }
+    this.idleMotion = this.motions.idle ?? null;
+
+    // 表情(exp3.json)
+    for (const [name, file] of Object.entries(def.expressions ?? {})) {
+      if (!file) continue;
+      const b = await fetchBuffer(this.dir + file);
+      this.expressions[name] = this.loadExpression(b, b.byteLength, name);
     }
 
-    // リアクション(パラメータのワンショット)
+    // パラメータのワンショット
     const ids = CubismFramework.getIdManager();
-    for (const [name, r] of Object.entries(def.reactions ?? {})) {
-      const id = ids.getId(r.param);
-      if (this._model.getParameterIndex(id) < 0) { console.warn(`Live2D: parameter "${r.param}" not found`); continue; }
+    for (const [name, r] of Object.entries(def.parameters ?? {})) {
+      const id = ids.getId(r.id);
+      if (this._model.getParameterIndex(id) < 0) { console.warn(`Live2D: parameter "${r.id}" not found`); continue; }
       this.pulses[name] = new ParamPulse(id, r);
     }
 
@@ -167,8 +172,26 @@ const defineModelClass = ({ CubismUserModel, CubismModelSettingJson, CubismMatri
     if (this.idleMotion) this._motionManager.startMotionPriority(this.idleMotion, false, PRIORITY_IDLE);
   }
 
-  /** リアクション(パラメータのワンショット)を最初から再生 */
+  /** パラメータのワンショットを最初から再生(定義に無い名前は何もしない)*/
   trigger(name) { this.pulses[name]?.trigger(); }
+
+  /** モーションを1回再生 → 終わったら idle に戻る(定義に無い名前は何もしない)*/
+  playMotion(name, { restart = true } = {}) {
+    const m = name !== 'idle' ? this.motions[name] : null;
+    if (!m) return false;
+    if (!restart && this.actionName === name) return true;   // 同じモーションの再生中は続ける
+    this.actionName = name;
+    this._motionManager.startMotionPriority(m, false, PRIORITY_ACTION);
+    return true;
+  }
+
+  /** 表情を切り替え(定義に無い名前は何もしない)*/
+  setExpression(name) {
+    const e = this.expressions[name];
+    if (!e || this.expressionName === name) return;
+    this.expressionName = name;
+    this._expressionManager.startMotion(e, false);
+  }
 
   /** パラメータの今の値(確認用) */
   paramValue(name) { return this._model.getParameterValueById(CubismFramework.getIdManager().getId(name)); }
@@ -178,9 +201,10 @@ const defineModelClass = ({ CubismUserModel, CubismModelSettingJson, CubismMatri
     if (!model) return;
     // idle:モーションの値 → 保存(次のフレームはここから)
     model.loadParameters();
-    if (this.idleMotion && this._motionManager.isFinished()) this.startIdle();   // 念のため(ループなので通常は終わらない)
+    if (this._motionManager.isFinished()) { this.actionName = null; if (this.idleMotion) this.startIdle(); }   // 1回だけのモーションが終わったら idle に戻る
     this._motionManager.updateMotion(model, dt);
     model.saveParameters();
+    this._expressionManager.updateMotion(model, dt);
     // リアクション:モーションの上から一時的に上書き(保存しないので次のフレームには残らない)
     for (const p of Object.values(this.pulses)) {
       p.update(dt);
