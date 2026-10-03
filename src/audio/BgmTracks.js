@@ -10,6 +10,10 @@ export const BGM_SLOTS = {
     tracks: [
       { src: 'assets/bgm/battle_01_heart_no_bug.mp3', title: 'ハートのバグ' },
       { src: 'assets/bgm/battle_02.mp3', title: null },
+      { src: 'assets/bgm/battle_03.mp3', title: null },
+      { src: 'assets/bgm/battle_04.mp3', title: null },
+      { src: 'assets/bgm/battle_05.mp3', title: null },
+      { src: 'assets/bgm/battle_06.mp3', title: null },
     ],
     pick: 'random',
   },
