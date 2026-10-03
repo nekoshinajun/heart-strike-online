@@ -18,7 +18,7 @@ const polyD = (pts) => pts.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.
  *  - HOLD   … 塗りつぶした「押す面」+ 外周の空のゲージ(押し続けると一周 → 光ったら離す)
  *  - FLICK  … osu! のスライダーと同じ見た目:縁取りの太いトラック(本体)+ 開始のヒットサークル(外側のアプローチサークルが縮む)
  *              + 終点のサークル。押すとスライダーボール(= ハート)がトラックを slideSec で進み、まわりのフォローサークルの中に指を保つ
- *  - MULTI  … 次のハートのマーカーを薄く先に見せる(setNext)
+ *  - MULTI  … osu! と同じくサークルに番号(1, 2, 3 …)。次のハートのマーカーも番号付きで薄く先に見せる(setNext)
  */
 export class CatchTargetController {
   constructor(player, cam, viewport) {
@@ -31,6 +31,7 @@ export class CatchTargetController {
     this.zone = document.getElementById('cmZone');
     this.holdRing = document.getElementById('cmHold');
     this.pad = document.getElementById('cmPad');
+    this.num = document.getElementById('cmNum');
     this.world = null;
     this.note = null;
     this.next = null;
@@ -49,7 +50,8 @@ export class CatchTargetController {
     this.fxNextEnd = svg('circle', { class: 'nf-next-end', r: 8 });
     this.fxNextRing = svg('circle', { class: 'nf-next-ring', r: 20 });
     this.fxNextPad = svg('circle', { class: 'nf-next-pad', r: 14 });
-    this.fxNext.append(this.fxNextEdge, this.fxNextPath, this.fxNextEnd, this.fxNextRing, this.fxNextPad);
+    this.fxNextNum = svg('text', { class: 'nf-next-num', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    this.fxNext.append(this.fxNextEdge, this.fxNextPath, this.fxNextEnd, this.fxNextRing, this.fxNextPad, this.fxNextNum);
     // osu! のスライダー:縁(白)→ 本体(色)→ 中心の明るい帯 の順に重ねた太い線 = トラック
     this.fxPath = svg('g', { class: 'nf-path' });
     this.fxEdge = svg('path', { class: 'nf-edge' });
@@ -72,6 +74,7 @@ export class CatchTargetController {
     this.el.dataset.note = t;
     this.el.classList.remove('holding', 'ready', 'early', 'sliding');
     if (this.pad) this.pad.hidden = t !== 'HOLD';
+    if (this.num) { this.num.textContent = note?.combo ?? ''; this.num.hidden = !note?.combo; }
     this.setHold(t === 'HOLD' ? 0 : null);
     this.slide = null;
     if (this.fx) this.fx.dataset.note = t;
@@ -148,6 +151,7 @@ export class CatchTargetController {
     this.zone.style.width = this.zone.style.height = `${zr * 2}px`;
     if (this.holdRing) this.holdRing.style.width = this.holdRing.style.height = `${r * 2 + 30}px`;
     if (this.pad) this.pad.style.width = this.pad.style.height = `${r * 2 - 6}px`;
+    if (this.num) this.num.style.fontSize = `${Math.max(18, ri * 0.95).toFixed(1)}px`;
     this.el.classList.toggle('near', Math.abs(progress) < 0.08);
     this.drawFx(r);
   }
@@ -190,6 +194,8 @@ export class CatchTargetController {
       for (const c of [this.fxNextRing, this.fxNextPad]) { c.setAttribute('cx', p.x.toFixed(1)); c.setAttribute('cy', p.y.toFixed(1)); }
       this.fxNextRing.setAttribute('r', rr.toFixed(1)); this.fxNextPad.setAttribute('r', (rr * 0.72).toFixed(1));
       this.fxNextPad.style.display = nx.type === 'HOLD' ? '' : 'none';
+      this.fxNextNum.textContent = nx.combo ?? '';
+      this.fxNextNum.setAttribute('x', p.x.toFixed(1)); this.fxNextNum.setAttribute('y', p.y.toFixed(1)); this.fxNextNum.style.fontSize = `${(rr * 0.95).toFixed(1)}px`;
       const np = nx.type === 'FLICK' ? this.pathPoly(nx) : null;
       this.fxNextPath.setAttribute('d', np ? polyD(np) : ''); this.fxNextPath.style.strokeWidth = `${(rr * 1.6).toFixed(1)}px`;
       this.fxNextEdge.setAttribute('d', np ? polyD(np) : ''); this.fxNextEdge.style.strokeWidth = `${(rr * 2).toFixed(1)}px`;

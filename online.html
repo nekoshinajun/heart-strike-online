@@ -265,6 +265,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #noteFx .nf-path.fail .nf-body { stroke: rgb(90,20,35); }
 #noteFx .nf-path.fail .nf-core { stroke: rgb(255,61,90); }
 #noteFx .nf-path.fail .nf-end { stroke: #ff3d5a; }
+/* MULTI:osu! のコンボ番号(押したら消える) */
+#catchMarker #cmNum { border-radius: 0; font: 900 24px/1 var(--round, sans-serif); color: #fff; -webkit-text-stroke: 1px rgba(0,0,0,.6); text-shadow: 0 0 2px #000, 0 1px 3px rgba(0,0,0,.9), 0 0 10px var(--pc); pointer-events: none; }
+#catchMarker:is(.holding, .ready, .early, .sliding, .hit, .miss) #cmNum { opacity: 0; transition: opacity .1s; }
+#noteFx .nf-next-num { fill: #fff; font: 900 20px/1 var(--round, sans-serif); paint-order: stroke; stroke: rgba(0,0,0,.7); stroke-width: 3px; }
 /* MULTI:次のハート(薄く) */
 #noteFx .nf-next { opacity: .55; }
 #noteFx .nf-next-ring { fill: none; stroke: #ffffff; stroke-width: 3px; stroke-dasharray: 5 5; }
@@ -2052,7 +2056,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       <div id="combo" data-n="0" aria-live="polite"><i class="cb-h">♥</i><b id="comboNum">0</b><span>COMBO</span></div>
     </div>
     <div id="partsWrap"><div id="partsCount">LOVE MAX 0/7</div><div id="parts"></div></div>
-    <div id="catchMarker" hidden><span id="cmZone"></span><span id="cmOuter"></span><span id="cmHold" hidden></span><span id="cmPad" hidden></span><span id="cmInner"></span></div>
+    <div id="catchMarker" hidden><span id="cmZone"></span><span id="cmOuter"></span><span id="cmHold" hidden></span><span id="cmPad" hidden></span><span id="cmInner"></span><span id="cmNum" hidden></span></div>
     <div id="callout" class="callout"></div>
     <div id="colLabels" hidden></div>
     <div id="dmgLayer"></div>

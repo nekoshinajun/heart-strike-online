@@ -140,6 +140,8 @@ export class BossReturnState {
     this.chargeFx = 0;
     // 到達時刻は計画時点で確定 → マーカーはすぐ出して「どこへ来るか」を先に見せる
     plan.arrival = g.clock + plan.chargeTime + plan.duration;
+    // 連続攻撃(MULTI)は osu! のコンボ番号と同じく 1, 2, 3 … をサークルに付ける(1個だけの攻撃は付けない)
+    (plan.notes ?? []).forEach((n, k, a) => { n.combo = a.length > 1 ? k + 1 : null; });
     g.catchJudge.begin(plan.arrival, plan.markerLead);
     g.catchTarget.show(plan.markerWorld, g.turn.current.color);
     g.catchTarget.setNote?.(plan.notes?.[0]);
