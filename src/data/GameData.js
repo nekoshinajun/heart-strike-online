@@ -194,8 +194,8 @@ export const STAGES = [
     id: 'stage01', no: '01', name: 'はじまりの告白',
     boss: { name: 'リリス', characterId: 'lilith', attribute: 'FIRE', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 2700 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 100,
-    // 雑魚戦(テスト):悪魔と天使を左右に同時配置 → 2匹とも倒すとリリス登場
-    waves: [{ minions: [{ id: 'devil', x: -3.5, y: 16.6 }, { id: 'angel', x: 3.5, y: 18.4 }] }],
+    // 雑魚戦(テスト):悪魔(左下)と天使(右上)を上下にずらして同時配置 → 2匹とも倒すとリリス登場
+    waves: [{ minions: [{ id: 'devil', x: -3.2, y: 13.4 }, { id: 'angel', x: 3.2, y: 21.6 }] }],
     // 3D 空間の特徴:シンプルな3Dルート(動く障害物は無し、Gate は最大2)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'LOW_ROUTE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
       energyDensity: 1.0, gateCount: 2, obstacleCount: 2, obstacleSpeed: 0.8 },

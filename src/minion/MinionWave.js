@@ -117,9 +117,10 @@ export class MinionWave {
     // HP バー(画面上で雑魚の頭の上に付いていく)
     u.el = document.createElement('div');
     u.el.className = 'mn-hp';
-    u.el.innerHTML = `<b>${esc(def.name)}</b><i><s></s></i><em>HP ${def.hp}<small> / ${def.hp}</small></em>`;
+    // メロメロ度メーター(HP を減らす見せ方ではなく、ハートで溜まっていく。満タン = メロメロ = 撃破)
+    u.el.innerHTML = `<b>${esc(def.name)}</b><i><s></s><u>♡</u></i><em>メロメロ 0%</em>`;
     this.hud.appendChild(u.el);
-    u.fill = u.el.querySelector('s'); u.num = u.el.querySelector('em');
+    u.fill = u.el.querySelector('s'); u.fill.style.transform = 'scaleX(0)'; u.num = u.el.querySelector('em');
     return u;
   }
 
@@ -128,8 +129,9 @@ export class MinionWave {
     const gain = Math.max(0, Math.min(u.hp, Math.round(Number(damage) || 0)));
     u.hp -= gain;
     u.hitT = 0.25;
-    u.fill.style.transform = `scaleX(${u.hp / u.maxHp})`;
-    u.num.innerHTML = `HP ${u.hp}<small> / ${u.maxHp}</small>`;
+    const love = 1 - u.hp / u.maxHp;
+    u.fill.style.transform = `scaleX(${love})`;
+    u.num.textContent = u.hp > 0 ? `メロメロ ${Math.floor(love * 100)}%` : 'メロメロ MAX♡';
     u.el.classList.remove('bump'); void u.el.offsetWidth; u.el.classList.add('bump');
     const defeated = u.hp <= 0 && u.alive;
     if (defeated) {
@@ -139,7 +141,7 @@ export class MinionWave {
       this.g.effects.heartBurst(p, 40, 9, 1.1);
       this.g.effects.burst(p, '#ffffff', 24, 10, 0.7);
       this.g.effects.shockwave(p, '#ffd0ea', 6, this.g.cam.camera);
-      this.g.ui.partCallout?.(`${u.def.name} DOWN!`, 'break');
+      this.g.ui.partCallout?.(`${u.def.name} メロメロ♡`, 'break');
       this.g.audio.loveMax?.();
       this.g.syncWaveTarget();
     }
