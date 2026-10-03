@@ -141,23 +141,23 @@ function renderCasts(m, s) {
   for (const b of list.querySelectorAll('[data-stage]')) b.addEventListener('click', () => m.router.go('cast', { stageId: b.dataset.stage }));
 }
 
-/** キャスト = このお店で働く攻略相手。アニメゲームのキャラクター選択のカード(立ち絵 + 名前 + 難易度の進み)*/
+/** キャスト = このお店で働く攻略相手。1行1人の横長カード(左に大きな立ち絵 / 名前・攻略状態・難易度 / 右に遷移アイコン)*/
 function castCard({ heroine, stage, st }, k) {
-  const cleared = st.filter((x) => x.clear).length;
-  return `<button type="button" class="cc" data-cast="${esc(heroine.id)}" data-stage="${esc(stage.id)}" style="--i:${k}">
-    <span class="cc-art face-crop">${faceCrop(stage)}<i class="cc-no">No.${esc(stage.no ?? k + 1)}</i><i class="cc-heart" aria-hidden="true">♥</i></span>
+  const all = st.every((x) => x.clear), open = st.some((x) => x.open);
+  const state = all ? ['done', '♛ 完全攻略'] : open ? ['open', '♡ 攻略可能'] : ['lock', '🔒 ロック中'];
+  return `<button type="button" class="cc" data-cast="${esc(heroine.id)}" data-stage="${esc(stage.id)}" style="--i:${k}" aria-label="${esc(stage.boss.name)}(${state[1].slice(2)})">
+    <span class="cc-art face-crop">${faceCrop(stage)}</span>
     <span class="cc-body">
-      <span class="cc-name"><b>${esc(stage.boss.name)}</b>${heroine.roman ? `<em class="script">${esc(heroine.roman)}</em>` : ''}</span>
-      <p>${phrase(`「${castLine(heroine, stage)}」`)}</p>
-      <span class="cc-diffs">${st.map((x) => `<i class="${x.clear ? 'clear' : x.open ? 'open' : 'lock'}" style="--dc:${x.D.color}">${x.D.label}${x.clear ? ' ✓' : x.open ? '' : ' 🔒'}</i>`).join('')}</span>
-      <span class="cc-hearts" aria-label="攻略 ${cleared} / ${st.length}">${st.map((x) => `<i class="${x.clear ? 'on' : ''}">♥</i>`).join('')}</span>
+      <span class="cc-name"><b>${esc(stage.boss.name)}</b></span>
+      <span class="cc-state ${state[0]}">${state[1]}</span>
+      <span class="cc-diffs">${st.map((x) => `<i class="${x.clear ? 'clear' : x.open ? 'open' : 'lock'}" style="--dc:${x.D.color}">${x.D.label}${x.clear ? '<b>✓</b>' : x.open ? '' : '<b>🔒</b>'}</i>`).join('')}</span>
     </span>
     <i class="cc-go" aria-hidden="true">›</i></button>`;
 }
 function soonCard(k) {
-  return `<div class="cc soon" style="--i:${k}" aria-label="近日登場">
+  return `<div class="cc soon" style="--i:${k}" aria-label="近日登場(未解放)">
     <span class="cc-art"><i class="cc-soon">COMING<br>SOON</i></span>
-    <span class="cc-body"><span class="cc-name"><b>？？？</b></span><p>「…………」</p><span class="cc-diffs"><i>???</i><i>???</i><i>???</i></span></span>
+    <span class="cc-body"><span class="cc-name"><b>？？？</b></span><span class="cc-state lock">🔒 未解放</span><span class="cc-diffs"><i>???</i><i>???</i><i>???</i></span></span>
     <i class="cc-go" aria-hidden="true">🔒</i></div>`;
 }
 
