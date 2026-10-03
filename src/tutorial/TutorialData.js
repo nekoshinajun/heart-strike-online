@@ -32,7 +32,7 @@ export const TUTORIAL_LESSONS = [
       {
         coach: '残りのメンバーも投げてみよう。全員が投げたらボスの反撃!',
         wait: (e) => e === 'bossAttack',
-        card: { title: 'ボスの反撃', text: 'ハートが飛んでくるよ。外の輪が縮んで、真ん中の円にぴったり重なった瞬間にタップ!', points: ['PERFECT ならダメージ 0', 'ボスの攻撃はパーティ全員に当たる(DEF が高い子ほど痛くない)', 'タイミングは見た目だけで判断(カウント音はない)'] },
+        card: { title: 'ボスの反撃', text: 'ハートが飛んでくるよ。外の輪が縮んで、真ん中の円にぴったり重なった瞬間にタップ!', points: ['PERFECT ならダメージ 0', 'ボスの攻撃はパーティ全員に当たる(4人の DEF の合計が高いほど、全員が痛くない)', 'タイミングは見た目だけで判断(カウント音はない)'] },
       },
       { coach: '輪が重なった瞬間にタップ!', wait: (e) => e === 'defenseEnd' },
     ],
@@ -183,7 +183,7 @@ export const TUTORIAL_LESSONS = [
 
 /** 読み物(バトルなし)。チュートリアル画面の下に並べる */
 export const TUTORIAL_HELP = [
-  { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL)', 'DEF:ボスの攻撃で受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる'] },
+  { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL)', 'DEF:4人の合計がパーティの防御力。全員の受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる'] },
   { title: '属性の相性', lines: ['💧WATER は 🔥FIRE に、🔥FIRE は ⚡THUNDER に、⚡THUNDER は 💧WATER に強い', '有利 ×1.3(EFFECTIVE♡)/ 不利 ×0.7(RESIST)'] },
   { title: 'アビリティ', lines: ['レベルアップで覚える。例:POWER UP(ダメージ +10%)/ GUARD UP(DEF +20)/ VITAL UP(HP +30)', 'SPECIAL MASTER(SPECIAL ×1.1)/ SPECIAL CHARGE(Diamond で溜まる量 ×1.2)/ GATE MASTER(ゲート命中 ×1.1)', 'キャラごとの ULTIMATE もある'] },
   { title: '難易度', lines: ['NORMAL / HARD / HELL で変わるのは、ハートゲートの大きさと受けるダメージだけ', 'キャッチの判定の幅はどの難易度も同じ', 'HARD・HELL ほど変化する攻撃が多い'] },

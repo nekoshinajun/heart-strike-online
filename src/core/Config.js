@@ -532,7 +532,9 @@ export const Config = {
     //   pathLen … 軌道の長さ(画面の短辺比)/ slideSec … 理想の運ぶ時間(ガイドがこの時間で終点へ)/ tol … 軌道から離れてよい距離(短辺比)
     //   endRadius … 終点に着いたとみなす距離 / endWindowMul … 終点で離すタイミングの判定幅(開始の判定の何倍)
     flick: { pathLen: 0.5, pathMargin: 0.1, pathTop: 0.22, slideSec: 0.7, tol: 0.13, endRadius: 0.075, endWindowMul: 3, color: '#5ad8ff' },
-    multi: { damageMul: 1.5, gap: 0.1 },  // ★ MULTI:1回の攻撃全体のダメージ倍率(各ハートに 1/個数 ずつ)・次のハートまでの間(秒)
+    multi: { damageMul: 1.5, gap: 0.1 },
+    partySize: 4,           // ★ パーティ DEF(4人の DEF の合計)をこの人数で割って DEF のカーブに当てる(合計 200 = 等倍 / 400 = ×0.75)
+    damageSpread: 0.1,      // ★ 被ダメージのゆらぎ:キャラごとに別々に ×(1 ± 0.1)  // ★ MULTI:1回の攻撃全体のダメージ倍率(各ハートに 1/個数 ずつ)・次のハートまでの間(秒)
     /**
      * ★ごとの攻撃の候補(weight で抽選)。notes:'NORMAL' | 'HOLD' | 'FLICK' か { type, hold(秒), dir('L'|'R'|'U'|'D'|'random') }
      *   interval … MULTI の2個目以降のハートが飛んでくる時間(秒)。短いほど忙しい
