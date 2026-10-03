@@ -13,7 +13,7 @@ import { statEffect, abilityMul, abilityStatMul, abilityPowerMul } from './Growt
  *     着弾倍率      … 敵の中央縦ラインからの横方向の距離だけで決まる(Config.landing:PERFECT 1.5 / GREAT 1.3 / GOOD 1.15 / HIT 1.0 / 当たらなければ 0)
  *   部位・球速・引っ張り量・STRAIGHT/CURVE・COMBO・SOLO/MULTI は与ダメージに使わない
  *
- * 属性相性(有利 1.3 / 通常 1.0 / 不利 0.7)・SPECIAL・FEVER は通常攻撃の式の「後」に掛ける別枠(finalDamage)。SPECIAL 固有の効果(回復など)は
+ * 属性相性(有利 1.3 / 通常 1.0 / 不利 0.7)・SPECIAL は通常攻撃の式の「後」に掛ける別枠(finalDamage)。FEVER はダメージを増やさない。SPECIAL 固有の効果(回復など)は
  * 最終ダメージが確定した後に effects/SpecialEffects.js が行う。丸めは最後に1回だけ(四捨五入)
  */
 
@@ -57,12 +57,12 @@ export function normalDamage({ atk, ability = 1, gate = 1, landing = 1 }) {
 }
 
 /**
- * 最終ダメージ = 通常攻撃(丸める前)× 属性 × SPECIAL × FEVER → 最後に1回だけ四捨五入
- *   属性 / SPECIAL / FEVER は通常攻撃の式とは別枠(通常攻撃の内訳には入れない)
+ * 最終ダメージ = 通常攻撃(丸める前)× 属性 × SPECIAL → 最後に1回だけ四捨五入
+ *   属性 / SPECIAL は通常攻撃の式とは別枠(通常攻撃の内訳には入れない)
  */
-export function finalDamage(normal, { attribute = 1, special = 1, fever = 1 } = {}) {
+export function finalDamage(normal, { attribute = 1, special = 1 } = {}) {
   // 1e-9 のずれ(1.1 + 0.1 = 1.2000000000000002 など)で四捨五入の向きが変わらないよう、小数第6位で揃えてから丸める
-  return Math.round(Math.round(normal.raw * attribute * special * fever * 1e6) / 1e6);
+  return Math.round(Math.round(normal.raw * attribute * special * 1e6) / 1e6);
 }
 
 /**
