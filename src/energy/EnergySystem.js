@@ -302,9 +302,9 @@ export class EnergySystem {
       const dk = o.depth ?? 0.5;
       o.slot.halo.material.opacity = (0.95 - dk * 0.35) + Math.sin(this.time * 5 + o.phase) * 0.15;
       o.slot.core.scale.setScalar(1.2 - dk * 0.35);
-      // FEVER 中は少しだけ強く発光(Lv が上がるほど)。形・位置は変えない(視認性優先)
-      const fl = this.g.fever?.active ? this.g.fever.level : 0;
-      o.slot.halo.scale.setScalar(1.3 * (1.15 - dk * 0.3) * (1 + fl * 0.1) * (fl ? 1 + Math.sin(this.time * 8 + o.phase) * 0.06 : 1));
+      // FEVER 中は少しだけ強く発光。形・位置は変えない(視認性優先)
+      const fv = !!this.g.fever?.active;
+      o.slot.halo.scale.setScalar(1.3 * (1.15 - dk * 0.3) * (fv ? 1.1 * (1 + Math.sin(this.time * 8 + o.phase) * 0.06) : 1));
     }
   }
 }

@@ -327,7 +327,6 @@ export class PlayerDefenseState {
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], multi ? `${this.idx + 1} / ${this.notes.length}${why ? ` ・ ${why}` : ''}` : why);
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
-    g.fever.onCatch(r);   // FEVER 中の PERFECT で FEVER LEVEL UP(既存)
     g.tutorial?.emit('catch', { grade: r, why, type: this.note.type });
     if (r === Judge.PERFECT && !multi) g.setTimeScale(0.2); // 到達までスローモーション(1個の攻撃だけ)
     if (r === Judge.MISS || g.clock >= this.arrival || this.note.type !== 'NORMAL') this.noteImpact();
