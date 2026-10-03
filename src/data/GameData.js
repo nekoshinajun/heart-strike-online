@@ -46,10 +46,11 @@ export const TYPES = {
  *       name / description / highlight(強調する数値・効果)/ note(補足)
  *       effectType … 効果の種類(src/effects/SpecialEffects.js):'attack' = 通常の SPECIAL だけ / 'healAll' = 命中で味方全員を回復 / 今後:防御・バフ・デバフ・蘇生…
  *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.1 = 10%)
+ *       damageMul … SPECIAL の1投のダメージ倍率(通常攻撃の式の後に掛ける:BattleCalc.finalDamage)。省略 = Config.special.heartMul
  *       visualEffect … 見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない
  *       requiredDiamonds … SPECIAL 発動までに必要な Diamond の個数(画面の「💎 発動まで ×○」はここだけを見る。省略 = DEFAULT_SPECIAL の値)
  *                          実際のゲージもこの個数で MAX になる(data/SpecialGauge.js の specialGaugeSpec:最大値 = 個数 × Config.energy.orbValue)
- *     省略したキャラは DEFAULT_SPECIAL(全員共通の SPECIAL HEART)
+ *     省略したキャラは DEFAULT_SPECIAL(SSR 以外の全員共通の SPECIAL HEART:ハートが大きくなってダメージ ×2)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
 export const CHARACTERS = [
@@ -159,12 +160,14 @@ export const CHARACTERS = [
 
 ];
 
-/** SPECIAL を持たないキャラの必殺技(全員共通の SPECIAL HEART。効果の数値は Config.special.heartMul と同じ)*/
+/** SPECIAL を持たないキャラの必殺技(SSR 以外の全員共通の SPECIAL HEART:ハートが大きくなってダメージ ×damageMul)*/
 export const DEFAULT_SPECIAL = {
   name: 'SPECIAL HEART',
-  description: 'SPECIAL ゲージ MAX(アイコンのリングが光る)で、手番のキャラのアイコンをタップして予約。次の1投が大きなハートになり、届く HEART が大きく増える。',
-  highlight: { value: 'HEART ×{heartMul}', label: 'SPECIAL' },   // {heartMul} は表示時に Config.special.heartMul に置き換える
-  note: null, effectType: 'attack', effectValue: null, visualEffect: null,
+  description: 'ハートが大きくなって、ダメージが {damageMul}倍になります。',
+  highlight: { value: 'ダメージ ×{damageMul}', label: 'BIG HEART' },   // {damageMul} は表示時にこの SPECIAL の damageMul に置き換える
+  note: '※ SPECIAL ゲージ MAX(アイコンのリングが光る)で手番のキャラのアイコンをタップ → 次の1投で発動。',
+  effectType: 'attack', effectValue: null, visualEffect: null,
+  damageMul: 2,
   requiredDiamonds: 10,
 };
 for (const c of CHARACTERS) c.special ??= { ...DEFAULT_SPECIAL };

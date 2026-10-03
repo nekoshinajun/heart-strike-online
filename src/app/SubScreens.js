@@ -13,6 +13,7 @@ import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from '.
 import { rarityAttr, rarityBadge, raritySparkle, charAccent } from './Rarity.js';
 import { collectionItems, itemCategory } from '../data/ItemCatalog.js';
 import { COLLECTION_SORTS, COLLECTION_FILTERS, currentSort, nextSort, sortLabel, sortList, currentFilter, filterLabel, filterList } from './CollectionSort.js';
+import { specialDamageMul } from '../effects/SpecialEffects.js';
 
 /** コレクションの上部カテゴリ(表示順。開いた時は先頭の「所持アイテム」)*/
 const COLLECTION_TABS = [
@@ -45,16 +46,16 @@ export const TRAINING_FEATURES = [
 ];
 
 
-/** 必殺技の表示用(CharacterData.special → 画面用の文字)。{heartMul} などは Config から */
+/** 必殺技の表示用(CharacterData.special → 画面用の文字)。{damageMul} はこの SPECIAL のダメージ倍率 */
 export function specialView(ch) {
-  const sp = ch?.special ?? DEFAULT_SPECIAL;
-  const fill = (t) => String(t ?? '').replace(/\{heartMul\}/g, String(Config.special.heartMul));
+  const sp = ch?.special ?? DEFAULT_SPECIAL, mul = specialDamageMul(ch);
+  const fill = (t) => String(t ?? '').replace(/\{damageMul\}/g, String(mul));
   const custom = sp !== DEFAULT_SPECIAL && sp.name !== DEFAULT_SPECIAL.name;
   return {
     name: sp.name, requiredDiamonds: specialRequiredDiamonds(ch), description: fill(sp.description), note: sp.note ? fill(sp.note) : null, effectType: sp.effectType ?? 'attack',
     highlight: { value: fill(sp.highlight?.value ?? ''), label: fill(sp.highlight?.label ?? '') },
-    // 固有の必殺技も、土台は共通の SPECIAL HEART(次の1投の HEART 倍率)
-    base: custom ? `＋ SPECIAL HEART:届く HEART ×${Config.special.heartMul}` : null,
+    // 固有の必殺技も、土台は次の1投のダメージ倍率
+    base: custom ? `＋ ダメージ ×${mul}` : null,
   };
 }
 /** 育成画面のキャラ詳細の「SPECIAL / 必殺技名 ›」(1行。タップで詳細のシート:必殺技名・効果・重要な数値・固有効果)*/

@@ -107,7 +107,7 @@ export const TUTORIAL_LESSONS = [
       },
       {
         wait: (e, d) => ANY_THROW_END(e) && d.special, tries: 1,   // SPECIAL で投げなかった時(tries で先へ進めた時)は出さない
-        card: { title: 'SPECIAL HEART', text: '必殺技はダメージ ×3。キャラごとの演出と効果つき!', points: ['例:セラは味方全員の HP を回復', '使った子のゲージだけ 0 に戻る'] },
+        card: { title: 'SPECIAL HEART', text: '必殺技はハートが大きくなってダメージ ×2!SSR はキャラ固有の演出と効果つき。', points: ['例:セラは味方全員の HP を回復', '使った子のゲージだけ 0 に戻る'] },
       },
     ],
     done: 'SPECIAL は温存もできるよ。ここぞという時に使おう。',

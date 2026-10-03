@@ -1,4 +1,4 @@
-import { applySpecialEffect } from '../effects/SpecialEffects.js';
+import { applySpecialEffect, specialDamageMul } from '../effects/SpecialEffects.js';
 import * as THREE from '../lib/three.js';
 import { GameState } from '../core/StateMachine.js';
 import { Config } from '../core/Config.js';
@@ -208,7 +208,7 @@ export class BossHitState {
       const normal = normalDamage({ atk: ch?.stats?.attack ?? 50, ability, gate: gateMul, landing: land.mul });
       // 属性 / SPECIAL は通常攻撃の式の後に掛ける別枠。丸めは最後に1回だけ(FEVER はダメージを増やさない:Diamond を集めるための時間)
       const relation = attributeRelation(ch?.attribute, g.stage?.boss.attribute), aMul = attributeMultiplier(ch?.attribute, g.stage?.boss.attribute);
-      const sMul = special ? special.heartMul : 1;
+      const sMul = special ? specialDamageMul(ch) : 1;   // CharacterData.special.damageMul(SSR 以外の共通 SPECIAL は ×2)
       const damage = finalDamage(normal, { attribute: aMul, special: sMul });
       const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
       const r = g.boss.addHeart(partId, damage, gateMul * land.mul * sMul);
