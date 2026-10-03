@@ -22,7 +22,6 @@ export function resultStats(g) {
   return [
     ['TIME', `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`],
     ['LOVE', `${Math.floor(g.boss.heartRate * 100)}%`],
-    ['INTEREST', g.affection.interestLabel],
     ['MAX COMBO', s.maxCombo ?? 0],
     ['LOVE MAX', `${g.boss.parts.maxCount} / ${g.boss.parts.list.length}`],
     ['DIAMOND', s.orbs ?? 0],
@@ -76,8 +75,6 @@ export class GameClearState {
     g.energy?.clear();
     g.ball.hide();
     g.catchTarget.hide();
-    g.affection.answerMode = null;
-    g.affection.showAnswerHint(false);
     g.affection.hideLine();
     g.hitstop(Config.clear.hitstopSec);
     g.cam.shake(1);
@@ -148,7 +145,6 @@ export class GameOverState {
   enter() {
     this.g.fever.abort();
     this.g.affection.hideTalk();
-    this.g.affection.showAnswerHint(false);
     this.g.catchTarget.hide();
     this.g.ui.showJudge('TRY AGAIN', 'miss', '#ff9ccc');
     this.wait = 1.4; this.shown = false;

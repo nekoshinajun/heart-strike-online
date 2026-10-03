@@ -505,12 +505,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pcard.fdone::after { content: "✓"; position: absolute; left: -6px; top: -4px; width: 15px; height: 15px; border-radius: 50%; background: #ff4fa8; color: #fff; font: 800 10px/15px var(--body); text-align: center; box-shadow: 0 0 0 1.5px #000; }
 #game.fever .pcard.active::before { content: "FEVER ▶"; background: #ff4fa8; }
 
-/* ---- HEART 50% 会話:静けさと緊張感(ボスだけが浮かび上がる)---- */
-#focusVig { position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(ellipse 58% 48% at 50% 36%, rgba(0,0,0,0) 55%, rgba(4,2,10,.55) 85%, rgba(4,2,10,.8) 100%); }
-#game .bossbar, #game #players, #game #energy, #game #feverFx, #game #bossLine { transition: filter 450ms ease, opacity 450ms ease; }
-#game.talkmood .bossbar, #game.talkmood #players, #game.talkmood #energy, #game.talkmood #feverFx { filter: brightness(.45) saturate(.6); opacity: .6; }
-#game.talkmood #talkBox { background: linear-gradient(180deg, rgba(24,10,26,.86), rgba(10,6,18,.92)); border-color: rgba(255,156,204,.7); box-shadow: 0 0 0 2px #000, 0 0 18px rgba(255,95,162,.25); }
 /* ---- 好感度(LOVE)・会話 ---- */
 #bossLine { position: absolute; left: 50%; top: calc(96px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); max-width: 84%; padding: 8px 14px; border-radius: 14px; background: rgba(255,255,255,.94); color: #3b1d3f; font-size: 13px; font-weight: 800; line-height: 1.4; box-shadow: 0 4px 0 rgba(0,0,0,.35), 0 0 0 2px #ff9ccc; pointer-events: none; text-align: center; }
 #bossLine::after { content: ""; position: absolute; left: 50%; top: -8px; margin-left: -8px; border: 8px solid transparent; border-top: 0; border-bottom-color: rgba(255,255,255,.94); }
@@ -525,9 +519,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #talkBox .tb-next { position: absolute; right: 12px; bottom: 6px; font-size: 11px; color: #ff9ccc; animation: breathe 600ms ease-in-out infinite alternate; }
 #talkBox.pop { animation: tbpop 260ms cubic-bezier(.2,1.6,.4,1); }
 @keyframes tbpop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
-#answerHint { position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; max-width: 92%; top: calc(92px + env(safe-area-inset-top, 0px)); display: grid; justify-items: center; gap: 2px; padding: 6px 14px; border-radius: 12px; background: rgba(40,10,34,.8); border: 1.5px solid #ff7ab8; box-shadow: 0 0 16px rgba(255,79,168,.45); pointer-events: none; white-space: nowrap; animation: breathe 800ms ease-in-out infinite alternate; }
-#answerHint b { font-family: var(--display); font-weight: 400; font-size: 15px; color: #ff9ccc; letter-spacing: .06em; }
-#answerHint span { font-size: 11px; font-weight: 800; color: #fff; }
 #loveMax { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
 #loveMax .lm-text { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-family: var(--display); font-size: 52px; line-height: 1; color: #fff; -webkit-text-stroke: 2px #000; text-shadow: 0 5px 0 #000, 0 0 30px #ff4fa8, 0 0 60px #ffd23e; }
 #loveMax .lm-text span { color: #ff5fa2; }
@@ -621,7 +612,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 :where(.app-light) button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }   /* :where = 詳細度 0。個別のボタン指定が必ず勝つ */
 .ic { width: 24px; height: 24px; fill: currentColor; display: block; }
 /* HOME / ガチャ / メニュー等の不透明な画面の間は、下のインゲーム UI と 3D を描かない(隠れたアニメーションの再描画を止める)*/
-#game.app-opaque > #view, #game.app-opaque > #focusVig { visibility: hidden; }
+#game.app-opaque > #view { visibility: hidden; }
 #game.app-opaque #ui > :not(#menu):not(#inspector):not(#debug) { display: none; }
 
 /* ---- 下部ナビ(5項目固定)。二重の細枠 + 上部中央の飾り + 専用アイコン。選択中はピンクに発光 ---- */
@@ -2131,7 +2122,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 <div id="rotateHint">📱<br>縦向きにしてプレイしてね</div>
 <div id="game" data-state="TITLE">
   <canvas id="view"></canvas>
-  <div id="focusVig"></div>
   <div id="ui">
     <div id="speedLines"></div>
     <div class="bossbar">

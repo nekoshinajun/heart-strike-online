@@ -37,9 +37,7 @@ import { devInput, safe, Log } from './app/Platform.js';
 import { FeverSystem } from './fever/FeverSystem.js';
 import { SpecialThrowFx } from './effects/SpecialThrowEffects.js';
 import { SpaceSystem } from './space/SpaceSystem.js';
-import { Spotlight } from './world/Spotlight.js';
 import { AffectionSystem } from './affection/AffectionSystem.js';
-import { TalkQuestionState, TalkReactionState } from './states/TalkStates.js';
 import { FeverIntroState, FeverOutroState } from './states/FeverStates.js';
 
 /**
@@ -84,7 +82,6 @@ export class GameManager {
     this.fever = new FeverSystem(this);
     this.space = new SpaceSystem(this);
     this.affection = new AffectionSystem(this);
-    this.spotlight = new Spotlight(this);   // HEART 50% 会話:ボス以外を暗くする描画
     this.cfg = Config;
     const eg = document.getElementById('energy');
     eg.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -111,8 +108,6 @@ export class GameManager {
     this.sm.register(S.PLAYER_CATCH, new PlayerCatchState(this));
     this.sm.register(S.FEVER_INTRO, new FeverIntroState(this));
     this.sm.register(S.FEVER_OUTRO, new FeverOutroState(this));
-    this.sm.register(S.TALK_QUESTION, new TalkQuestionState(this));
-    this.sm.register(S.TALK_REACTION, new TalkReactionState(this));
     this.sm.register(S.GAME_CLEAR, new GameClearState(this));
     this.sm.register(S.GAME_OVER, new GameOverState(this));
 
@@ -215,7 +210,6 @@ export class GameManager {
       this.refreshColliderView?.();
     }
     this.ui.setDebugState(D);
-    this.affection?.refreshZoneDebug();
   }
 
   toggleDebug(key) {
@@ -228,7 +222,6 @@ export class GameManager {
       if (!D.showTrajectoryPreview) { this.preview.hideLive(); this.preview.hideGhost(); }
     }
     this.ui.setDebugState(D);
-    this.affection?.refreshZoneDebug();
   }
 
   newGame() {
@@ -277,8 +270,7 @@ export class GameManager {
       const d = Config.bossImage[Config.boss.layout] ?? Config.bossImage.demon;
       this.boss.view.setCustomImage(im, d.height, d.y);
       this.boss.buildColliders();
-      this.affection?.attach(this.boss);   // 表情オーバーレイ・50% 会話の回答エリア
-      if (this.spotlight) this.spotlight.warmed = false;   // 暗転描画のシェーダーを次のフレームで先に作る
+      this.affection?.attach(this.boss);   // 表情オーバーレイ
     };
     if (img) {
       if (img.complete && img.naturalWidth) apply(img);
@@ -487,8 +479,7 @@ export class GameManager {
     this.cam.update(realDt);
     this.ui.update(realDt);
     if (this.colliderLabelsOn) this.ui.updateColliderLabels(this.boss, this.player);
-    this.spotlight.update(realDt);
     // HOME / ガチャ / メニュー等の不透明な画面の間は 3D を描かない(スマホの負荷を下げる)
-    if (!this.container.classList.contains('app-opaque')) this.spotlight.render(this.renderer, this.scene, this.cam.camera);
+    if (!this.container.classList.contains('app-opaque')) this.renderer.render(this.scene, this.cam.camera);
   }
 }

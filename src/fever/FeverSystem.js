@@ -24,7 +24,7 @@ export class FeverSystem {
   }
 
   get F() { return Config.fever; }
-  get heartMul() { return this.active && !this.paused ? this.F.heartMul[this.level - 1] ?? 1 : 1; }
+  get heartMul() { return this.active ? this.F.heartMul[this.level - 1] ?? 1 : 1; }
   get levelLabel() { return this.F.levelLabels[this.level - 1] ?? ''; }
   get throwsTotal() { return Math.max(1, Math.round(this.F.throwsPerActivation)); }
 
@@ -38,7 +38,6 @@ export class FeverSystem {
     this.startPlayer = -1;
     this.thrown = [];
     this.finishing = false;
-    this.paused = false;
     this.anim?.cancel?.();
     this.fx.hidden = true;
     this.banner.hidden = true;
@@ -111,18 +110,11 @@ export class FeverSystem {
 
   /** FEVER 投球を1回消費(ボールを発射した時に1度だけ) */
   consumeThrow(turnIndex) {
-    if (!this.active || this.paused || this.throwsRemaining <= 0) return false;
+    if (!this.active || this.throwsRemaining <= 0) return false;
     this.throwsRemaining--;
     this.thrown.push(turnIndex);
     this.updateUI();
     return true;
-  }
-
-  /** HEART 50% 会話の間は FEVER を一時停止(回答の1投は FEVER の投球数を使わない・倍率も掛けない)。会話の後に再開 */
-  pause(on) {
-    this.paused = !!on && this.active;
-    this.g.container.classList.toggle('fever-paused', this.paused);
-    this.updateUI();
   }
 
   /** 全員が投げ終えた(BOSS_HIT の後で FEVER_OUTRO へ) */
@@ -145,7 +137,6 @@ export class FeverSystem {
 
   /** HEART MAX / GAME OVER / リスタート:演出なしで即終了(二重実行しない) */
   abort() {
-    this.pause(false);
     this.anim?.cancel?.();
     this.banner.hidden = true;
     if (this.active) this.finish();
