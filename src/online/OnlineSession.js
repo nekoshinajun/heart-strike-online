@@ -40,7 +40,10 @@ export class OnlineSession{
  pickCharacter(k,id){const me=this.me();if(!me)return;const ids=[...(me.characterIds||[])];const j=ids.indexOf(id);if(j>=0&&j!==k)ids[j]=ids[k];ids[k]=id;return this.action('CHARACTER',{characterIds:ids.filter(Boolean)})}
  /** 自分が担当するキャラの index(A→D の並び。room.units)*/
  myUnitIndexes(){return (this.room?.units||[]).map((u,i)=>u.ownerId===this.playerId?i:-1).filter(i=>i>=0)}
- onEvent(m){if(m.type==='GAME_START')this.startGame(m.field,m);if(m.type==='THROW'){this.lastThrowFrom=m.fromPlayerId;this.throwResolved=true;this.phaseEnd=!!m.phaseEnd;this.nextIndex=Number.isInteger(m.nextIndex)?m.nextIndex:null;if(m.phaseEnd){this.voiceRoll=Number.isFinite(m.voiceRoll)?m.voiceRoll:null;if(Number.isFinite(m.bossAttacks))this.bossAttacks=m.bossAttacks;}this.setField(m.field||{pattern:m.fieldPattern,seed:m.fieldSeed,catchPos:m.catchPos});this.catchSeq=Number(m.catchSeq)||this.catchSeq;if(m.fromPlayerId===this.playerId){this.optimisticThrow=false}else this.remoteThrow(m);}if(m.type==='CATCH_ROUND'){this.catchRoundDone=true;this.syncHealth();if(m.nextField)this.setField(m.nextField);this.finishCatchRound(m);}if(m.type==='GAME_OVER'){this.syncHealth();this.g.ball?.hide?.();this.g.sm.change(GameState.GAME_OVER);}if(m.type==='CATCH_PLAYER'){this.syncHealth();}if(m.type==='HEAL'){this.syncHealth();if(m.amount>0)this.g.ui?.playAngelHeal?.({type:'healAll',amount:m.amount,healed:(m.healed||[]).map(h=>({i:h.i,before:h.before,after:h.after,gained:h.after-h.before}))});}if(m.type==='BOSS_TURN'){this.voiceRoll=Number.isFinite(m.voiceRoll)?m.voiceRoll:null;if(Number.isFinite(m.bossAttacks))this.bossAttacks=m.bossAttacks;this.setField(m.field||{pattern:m.fieldPattern,seed:m.fieldSeed,catchPos:m.catchPos});this.catchSeq=Number(m.catchSeq)||this.catchSeq;this.bossTurnPending=true}if(m.type==='PLAYER_CONNECTION'&&m.connected===false)this.remoteDisconnect(m);if(m.type==='PLAYER_DOWN')this.remoteDown(m)}
+ onEvent(m){if(m.type==='GAME_START')this.startGame(m.field,m)
+  // SPECIAL ゲージ(キャラごと):他のプレイヤーのキャラの値はサーバーの値に合わせる。必殺技を使ったキャラは 0
+  if(m.type==='THROW'&&m.special&&m.fromPlayerId!==this.playerId)this.g.energy?.applyRemote(m.fromIndex,0)
+  if(this.room?.status==='PLAYING')this.syncSpecial();if(m.type==='THROW'){this.lastThrowFrom=m.fromPlayerId;this.throwResolved=true;this.phaseEnd=!!m.phaseEnd;this.nextIndex=Number.isInteger(m.nextIndex)?m.nextIndex:null;if(m.phaseEnd){this.voiceRoll=Number.isFinite(m.voiceRoll)?m.voiceRoll:null;if(Number.isFinite(m.bossAttacks))this.bossAttacks=m.bossAttacks;}this.setField(m.field||{pattern:m.fieldPattern,seed:m.fieldSeed,catchPos:m.catchPos});this.catchSeq=Number(m.catchSeq)||this.catchSeq;if(m.fromPlayerId===this.playerId){this.optimisticThrow=false}else this.remoteThrow(m);}if(m.type==='CATCH_ROUND'){this.catchRoundDone=true;this.syncHealth();if(m.nextField)this.setField(m.nextField);this.finishCatchRound(m);}if(m.type==='GAME_OVER'){this.syncHealth();this.g.ball?.hide?.();this.g.sm.change(GameState.GAME_OVER);}if(m.type==='CATCH_PLAYER'){this.syncHealth();}if(m.type==='HEAL'){this.syncHealth();if(m.amount>0)this.g.ui?.playAngelHeal?.({type:'healAll',amount:m.amount,healed:(m.healed||[]).map(h=>({i:h.i,before:h.before,after:h.after,gained:h.after-h.before}))});}if(m.type==='BOSS_TURN'){this.voiceRoll=Number.isFinite(m.voiceRoll)?m.voiceRoll:null;if(Number.isFinite(m.bossAttacks))this.bossAttacks=m.bossAttacks;this.setField(m.field||{pattern:m.fieldPattern,seed:m.fieldSeed,catchPos:m.catchPos});this.catchSeq=Number(m.catchSeq)||this.catchSeq;this.bossTurnPending=true}if(m.type==='PLAYER_CONNECTION'&&m.connected===false)this.remoteDisconnect(m);if(m.type==='PLAYER_DOWN')this.remoteDown(m)}
  startGame(field,m={}){this.root.style.display='none';this.g.online=this;this.bossAttacks=null;this.setField(field);this.throwResolved=true;this.phaseEnd=false;this.bossTurnPending=false;this.nextIndex=null;this.catchRoundDone=false;
   const stage=STAGES.find(s=>s.id===this.room.stageId)||this.stage||STAGES[0];this.g.setDifficulty(this.room.difficulty||this.difficulty||'NORMAL');
   // すぐインゲームへ:バトル BGM → ボス紹介(長さはサーバーが配った openingMs。全員同じ)→ BATTLE START。サーバーもその時刻まで投球を受け付けない
@@ -66,10 +69,19 @@ export class OnlineSession{
   this.syncHealth();
   if(this.g.sm.currentName===GameState.PLAYER_ATTACK){
     const ni=Number.isInteger(m.nextIndex)?m.nextIndex:-1;
-    if(ni>=0&&this.g.turn.players[ni]){this.g.turn.index=ni;this.g.applyCharacter(this.g.turn.current);this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index);}
+    if(ni>=0&&this.g.turn.players[ni]){this.g.turn.index=ni;this.g.applyCharacter(this.g.turn.current);this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index);this.g.energy?.onTurn();}
   }
- } sendHeal(amount){return this.action('HEAL',{amount})}  // SPECIAL の回復(投げた人だけ)。サーバーが全員の HP を確定して HEAL を配る
- sendCatch(deltaMs,grade,damages={}){return this.action('CATCH',{deltaMs,grade,damages})} sendDown(){return this.action('PLAYER_DOWN')} beginAllCatch(){this.catchRoundDone=false;const mine=this.myUnitIndexes();const i=mine.find(k=>this.g.turn.players[k]?.hp>0)??mine[0]??-1;if(i>=0&&this.g.turn.players[i]){this.g.turn.index=i;this.g.applyCharacter(this.g.turn.current);this.g.ui.setPlayers(this.g.turn.players,i)}} finishCatchRound(m){const i=Number.isInteger(m.nextIndex)&&this.g.turn.players[m.nextIndex]?m.nextIndex:-1;const st=this.g.sm.currentName;
+ } /** SPECIAL ゲージ:自分の担当キャラの値をサーバーへ(サーバーが全員へ配る)*/
+ sendSpecialGauge(i,value){return this.action('SPECIAL_GAUGE',{index:i,value})}
+ /** サーバーの SPECIAL ゲージ(characterId のキー)を自分以外の担当キャラへ反映。自分のキャラは自分の値が正(サーバーより新しいことがある)*/
+ syncSpecial(){const sg=this.room?.specialGauges,e=this.g?.energy
+if(!sg||!e?.gauges)return
+let changed=false
+e.gauges.entries.forEach((x,i)=>{if(this.room.units?.[i]?.ownerId===this.playerId||!(x.key in sg))return
+if(x.value!==sg[x.key]){e.gauges.set(i,sg[x.key]);changed=true}})
+if(changed)e.refreshUI()}
+ sendHeal(amount){return this.action('HEAL',{amount})}  // SPECIAL の回復(投げた人だけ)。サーバーが全員の HP を確定して HEAL を配る
+ sendCatch(deltaMs,grade,damages={}){return this.action('CATCH',{deltaMs,grade,damages})} sendDown(){return this.action('PLAYER_DOWN')} beginAllCatch(){this.catchRoundDone=false;const mine=this.myUnitIndexes();const i=mine.find(k=>this.g.turn.players[k]?.hp>0)??mine[0]??-1;if(i>=0&&this.g.turn.players[i]){this.g.turn.index=i;this.g.applyCharacter(this.g.turn.current);this.g.ui.setPlayers(this.g.turn.players,i);this.g.energy?.onTurn()}} finishCatchRound(m){const i=Number.isInteger(m.nextIndex)&&this.g.turn.players[m.nextIndex]?m.nextIndex:-1;const st=this.g.sm.currentName;
   // 全員のキャッチが終わった → 次の PLAYER ATTACK PHASE(先頭の投球者はサーバーが決める)。メロメロ(DOWN)で観戦中の人も止まらずに進む
   const go=st===GameState.PLAYER_CATCH||(this.isDown()&&[GameState.BOSS_TAUNT,GameState.BOSS_RETURN,GameState.PLAYER_DEFENSE].includes(st));
   if(go){this.catchRoundDone=false;this.g.sm.change(GameState.NEXT_PLAYER,{to:i>=0?i:this.g.turn.index,phase:true})}}

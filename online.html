@@ -375,6 +375,18 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pcard.active { opacity: 1; filter: none; transform: scale(1.22); z-index: 1; }
 .pcard.active .picon { box-shadow: 0 0 0 2px #050507, 0 0 0 3px var(--pc), 0 0 18px color-mix(in srgb, var(--pc) 55%, transparent); animation: nowpulse 900ms ease-in-out infinite alternate; }
 .pcard.active::before { content: "NOW ▶"; position: absolute; right: calc(100% + 5px); top: 13px; font-family: var(--display); font-size: 9px; color: #fff; background: #0b0b0f; padding: 3px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 18px #0007; text-shadow: 0 1px 0 #000; letter-spacing: .04em; white-space: nowrap; }
+@property --sp { syntax: '<number>'; inherits: false; initial-value: 0; }
+/* SPECIAL ゲージ(キャラごと):アイコンを囲む細いリング(--sp = 0〜1 が時計回りに溜まる)。100% = 必殺技を使える → リングが光って READY! */
+.psp { --sp: 0; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; background: conic-gradient(#ff5fa8 calc(var(--sp) * 1turn), rgba(255,255,255,.16) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); transition: --sp 300ms; }
+.pready { display: none; position: absolute; left: 50%; top: -11px; transform: translateX(-50%); padding: 0 3px; border-radius: 4px; background: #ff4fa8; color: #fff; font: 400 7px/10px var(--display); font-style: normal; letter-spacing: .03em; white-space: nowrap; box-shadow: 0 0 0 1px #000, 0 0 8px rgba(255,95,168,.9); z-index: 2; }
+.pcard.spready .psp { background: #ff6fb3; filter: drop-shadow(0 0 4px #ff4fa8); animation: spglow 900ms ease-in-out infinite alternate; }
+.pcard.spready .picon { box-shadow: 0 0 0 1px #000, 0 0 12px 3px rgba(255,95,168,.75); }
+.pcard.spready .pready { display: block; animation: spready 900ms ease-in-out infinite alternate; }
+.pcard.spready { opacity: 1; filter: none; }
+.pcard.spready.down { filter: grayscale(1) brightness(.45); }
+.pcard.mine.spready::after { top: auto; bottom: 14px; }
+@keyframes spglow { from { filter: drop-shadow(0 0 2px #ff4fa8); } to { filter: drop-shadow(0 0 7px #ff4fa8) brightness(1.25); } }
+@keyframes spready { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.12); } }
 @keyframes nowpulse { from { box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--pc), 0 0 10px 1px var(--pc); } to { box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff, 0 0 20px 5px var(--pc); } }
 .pcard.down { filter: grayscale(1) brightness(.45); }
 .pcard.hurt { animation: hurt 400ms; }
