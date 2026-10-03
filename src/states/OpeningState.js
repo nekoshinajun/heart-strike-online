@@ -29,7 +29,15 @@ export class OpeningState {
     const profile = h?.profile ?? st?.concept ?? null;
     const line = h?.line ?? st?.line ?? null;
     const el = this.el = document.getElementById('opening');
-    el.innerHTML = `<div class="op-dim"></div>
+    // 雑魚戦から始まるステージ:最初は WAVE の紹介(ボスの紹介は雑魚を全員倒した後:WaveAdvanceState)
+    if (g.wave) el.innerHTML = `<div class="op-dim"></div>
+      <section class="op-card">
+        <small class="op-target">${esc(g.wave.label)}</small>
+        <strong class="op-name op-minions">${g.wave.names().map(esc).join('<span>&amp;</span>')}</strong>
+        <span class="op-diff" style="--dc:${D.color}">${esc(D.label)}</span>
+        <p class="op-line">${esc(st?.boss?.name)} の前に、まずはこの子たちを倒そう！</p>
+      </section>`;
+    else el.innerHTML = `<div class="op-dim"></div>
       <section class="op-card">
         <small class="op-target">TARGET</small>
         <strong class="op-name">${esc(st?.boss?.name)}</strong>
@@ -48,7 +56,7 @@ export class OpeningState {
     const t = this.t;
     const at = (k, cls) => { if (t >= k && !el.classList.contains(cls)) el.classList.add(cls); };
     at(O.dimAt, 'dim');
-    if (t >= O.bossAt && this.step < 1) { this.step = 1; g.cam.focusOn(g.boss.partCenter('chest'), O.bossZoom); }
+    if (t >= O.bossAt && this.step < 1) { this.step = 1; g.cam.focusOn(g.wave ? g.wave.focusPoint() : g.boss.partCenter('chest'), O.bossZoom); }
     at(O.nameAt, 'name');
     at(O.diffAt, 'diff');
     at(O.textAt, 'text');

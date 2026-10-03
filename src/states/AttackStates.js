@@ -142,11 +142,11 @@ export class BallToBossState {
     const strength = special ? 1 : powerStrength(th.power);
 
     // 実際の飛行と同じ計算(練習用に軌道を残す/カメラの追従先)
-    const sim = simulate(th.start, th.velocity, th.curveAccel, g.boss.hitPlane, 0.03, null, th.drive ?? null);
+    const sim = simulate(th.start, th.velocity, th.curveAccel, g.targetPlane(), 0.03, null, th.drive ?? null);
     if (Config.debug.showLastTrajectory && Config.debug.showTrajectoryPreview) g.preview.showGhost(sim.points);
     else g.preview.hideGhost();
 
-    g.ball.launch(th.velocity, th.curveAccel, g.boss.hitPlane, strength, (result, flight) => {
+    g.ball.launch(th.velocity, th.curveAccel, g.targetPlane(), strength, (result, flight) => {
       g.space.endThrow();
       g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, gateRoute: g.space.passedRoute });
     }, th.start, g.space.obstacles.length ? g.space : null, th.drive ?? null);
@@ -213,17 +213,21 @@ export class BossHitState {
       //   部位・球速・引っ張り量・カーブの有無・COMBO・SOLO/MULTI では変えない
       //   着弾倍率:敵の中央縦ラインからの横方向の距離だけ(当たり判定の点 = 止まった姿勢の攻撃面 → MULTI の全員で同じ)
       const ch = g.turn.current.chara;
-      const land = landingGrade(point.x - g.boss.root.position.x);
+      // 雑魚戦:当たった雑魚(MinionWave)。着弾倍率はその雑魚の中央ライン・属性はその雑魚の属性(式はボスと同じ)
+      const minion = result.minion != null ? g.wave?.unit(result.minion) : null;
+      const centerX = minion ? minion.x : g.boss.root.position.x;
+      const enemyAttr = minion ? minion.def.attribute : g.stage?.boss.attribute;
+      const land = landingGrade(point.x - centerX);
       const gateMul = Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)];
       // アビリティ:POWER UP(足し算)× 条件つきの HEART アビリティ(SPIN・SPECIAL・ゲートの条件だけを見る。引く量は渡さない)
       const ability = abilityDamageMul(ch, { throwSpin: th.throwSpin ?? th.spin, special: !!special, gates });
       const normal = normalDamage({ atk: ch?.stats?.attack ?? 50, ability, gate: gateMul, landing: land.mul });
       // 属性 / SPECIAL は通常攻撃の式の後に掛ける別枠。丸めは最後に1回だけ(FEVER はダメージを増やさない:Diamond を集めるための時間)
-      const relation = attributeRelation(ch?.attribute, g.stage?.boss.attribute), aMul = attributeMultiplier(ch?.attribute, g.stage?.boss.attribute);
+      const relation = attributeRelation(ch?.attribute, enemyAttr), aMul = attributeMultiplier(ch?.attribute, enemyAttr);
       const sMul = special ? specialDamageMul(ch) : 1;   // CharacterData.special.damageMul(SSR 以外の共通 SPECIAL は ×2)
       const damage = finalDamage(normal, { attribute: aMul, special: sMul });
       const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
-      const r = g.boss.addHeart(partId, damage, gateMul * land.mul * sMul);
+      const r = minion ? g.wave.damage(minion, damage) : g.boss.addHeart(partId, damage, gateMul * land.mul * sMul);
       // SPECIAL の効果(CharacterData.special.effectType):命中して最終ダメージ(r.heartGain)が確定した後に1回だけ
       //   例:セラ ANGEL HEART = 最終ダメージ × 10% を生存中の味方全員に回復。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる
       //   MULTI:HP はここでは変えない(preview)。投げた人が回復量をサーバーへ送り、サーバーの HEAL(全員同じ値)で HP と演出を確定
@@ -233,9 +237,11 @@ export class BossHitState {
         g.stats.healed = (g.stats.healed ?? 0) + this.specialResult.healed.reduce((a, x) => a + x.gained, 0);
         this.wait = Math.max(this.wait, 1.35);   // 回復の演出(約 1.2 秒)を見せてから次へ
       }
-      g.stats.heart += r.heartGain;
-      g.stats.bestHit = Math.max(g.stats.bestHit ?? 0, r.heartGain);   // 記録:BestHeartPerThrow
-      g.affection.onHeartChanged();   // LOVE 25% ごとの表情
+      if (!minion) {
+        g.stats.heart += r.heartGain;
+        g.stats.bestHit = Math.max(g.stats.bestHit ?? 0, r.heartGain);   // 記録:BestHeartPerThrow
+        g.affection.onHeartChanged();   // LOVE 25% ごとの表情
+      }
       g.turn.addRally();
       const perfect = land.grade === 'PERFECT';
       // ハートの演出(届いた量に応じて増える)
@@ -248,7 +254,7 @@ export class BossHitState {
         relation === 'advantage' ? `EFFECTIVE♡ ×${aMul}` : relation === 'disadvantage' ? `RESIST ×${aMul}` : '',
         special ? `SPECIAL ×${sMul}` : '',
       ].filter(Boolean).join(' ');
-      g.ui.landingFx(scr.x, scr.y, land, { lineX: g.player.toScreen(this._center.set(g.boss.root.position.x, point.y, point.z)).x });
+      g.ui.landingFx(scr.x, scr.y, land, { lineX: g.player.toScreen(this._center.set(centerX, point.y, point.z)).x });
       if (perfect) { g.effects.shockwave(point, '#ffe28a', 4.5, g.cam.camera); }   // 中央ラインを射抜いた手応え
       g.ui.damageNumber(scr.x, scr.y, `+${r.heartGain} HEART`, {
         crit: perfect, color: '#ff7ab8', fever: g.fever.active,
@@ -258,8 +264,10 @@ export class BossHitState {
       else if (gates >= 1) g.ui.showJudge(`GATE ×${gateMul}`, 'tier', '#ffd23e', gates >= 2 ? `GATE CHAIN ${gates} ・ HEART ×${gateMul}` : `HEART ×${gateMul}`);
       // COMBO:HIT → 「N COMBO」→ FEVER ゲージへ(12 COMBO で FEVER!)
       this.comboHit(scr);
-      g.ui.setHeart(g.boss.heart, g.boss.maxHeart, true);
-      g.ui.setParts(g.boss.parts, partId);
+      if (!minion) {
+        g.ui.setHeart(g.boss.heart, g.boss.maxHeart, true);
+        g.ui.setParts(g.boss.parts, partId);
+      } else if (r.defeated) this.wait = Math.max(this.wait, 0.9);   // 倒れる演出を見せる
       g.cam.shake(0.2 + (power - 0.8) * 0.4 + (mul - 1) * 0.2);
       g.hitstop(special ? special.hitstop : 0.05 + power * 0.04 + (perfect ? 0.04 : 0));
       if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); g.specialFx.hit(point, this.specialResult); }
@@ -326,6 +334,7 @@ export class BossHitState {
     // 優先順:HEART MAX(LOVE MAX)→ FEVER 全員投げ終わり → 通常(次の味方 / ボスの反撃)。どれか1つだけに進む
     if (g.boss.full && !g.tutorial) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // チュートリアルは攻略完了へ進まない(報酬なし)   // 攻略成功:反撃には移らない
     if (g.online && !g.online.throwResolved) return;   // MULTI:この投球の後の進行(次の人 / ボスの反撃)をサーバーから受け取るまで待つ
+    if (g.wave && !g.wave.active) { g.sm.change(GameState.WAVE_ADVANCE); return; }   // 雑魚を全員倒した:奥へ進む → ボス登場 → その後に元の進行
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
     g.afterThrow();   // 次の味方の投球 / 全員投げ終えたらボスの反撃
   }

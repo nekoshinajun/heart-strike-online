@@ -185,6 +185,8 @@ export const DEFAULT_PARTY = ['minamo', 'hinoka', 'raimu', 'shizuku'];
  *   boss.affection … 好感度の表情・会話イベントの設定(data/BossAffection.js のキー)
  *   boss.maxHeart … Heart Capacity。与ダメージを「ATK × アビリティ × ゲート × 着弾」にした時(1発 ≈ 旧の約 1/3.7)に
  *                   戦闘の長さが変わらないよう、旧 10000 / 15000 / 18000 を ×0.27 した値
+ *   waves … (任意)ボスの前の雑魚戦。WAVE ごとに { minions: [{ id: 雑魚ID(data/MinionData.js), x, y }] }(x / y = ワールド座標。ボスの胸 ≈ y 18.6)
+ *           全員同時に出る → 全員倒すと次の WAVE / 最後の WAVE の後に奥へ進んでボス登場。チュートリアルでは出さない
  *   space … 3D 空間の特徴:patterns(使う RoutePattern。重複で出やすさ)/ energyDensity / gateCount / obstacleCount / obstacleSpeed
  */
 export const STAGES = [
@@ -192,6 +194,8 @@ export const STAGES = [
     id: 'stage01', no: '01', name: 'はじまりの告白',
     boss: { name: 'リリス', characterId: 'lilith', attribute: 'FIRE', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 2700 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 100,
+    // 雑魚戦(テスト):悪魔(左下)と天使(右上)を上下にずらして同時配置 → 2匹とも倒すとリリス登場
+    waves: [{ minions: [{ id: 'devil', x: -3.2, y: 13.4 }, { id: 'angel', x: 3.2, y: 21.6 }] }],
     // 3D 空間の特徴:シンプルな3Dルート(動く障害物は無し、Gate は最大2)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'LOW_ROUTE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
       energyDensity: 1.0, gateCount: 2, obstacleCount: 2, obstacleSpeed: 0.8 },

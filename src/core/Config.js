@@ -218,6 +218,13 @@ export const Config = {
     bossZoom: 4,         // ボスへ寄せる量
   },
 
+  // ---- 雑魚戦(ボスの前の WAVE。雑魚の性能・見た目は data/MinionData.js、どこに出すかは StageData.waves)----
+  minion: {
+    zOffset: 0.5,        // 雑魚の面の Z(ボスの面からの手前へのずれ。ハートが届く距離はボスとほぼ同じ)
+    // 全員倒した → 奥へ進む → ボス登場(WaveAdvanceState)。各時刻はその状態に入ってからの秒
+    advance: { clearAt: 0.0, goAt: 0.9, arriveAt: 1.9, cardAt: 2.2, endAt: 4.4, dolly: 9, fov: 14 },
+  },
+
   // 命中した位置のマーク(実際に Collider に当たった座標)
   hitMark: { life: 1.0, popScale: 1.25, popSec: 0.12, fadeFrom: 0.75, size: 1.1, color: '#ff7ab8', max: 6 },
 

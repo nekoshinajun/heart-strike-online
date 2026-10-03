@@ -6,6 +6,7 @@ export const GameState = Object.freeze({
   BALL_TO_BOSS: 'BALL_TO_BOSS',
   BOSS_HIT: 'BOSS_HIT',
   NEXT_PLAYER: 'NEXT_PLAYER',
+  WAVE_ADVANCE: 'WAVE_ADVANCE', // 雑魚を全員倒した → 奥へ進む → ボス登場(この間は投球・ターン進行なし)
   BOSS_TAUNT: 'BOSS_TAUNT',     // 全員が投げ終えた → ボスのひとこと → まとめて反撃
   BOSS_RETURN: 'BOSS_RETURN',
   PLAYER_DEFENSE: 'PLAYER_DEFENSE',

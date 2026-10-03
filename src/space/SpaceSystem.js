@@ -271,7 +271,8 @@ export class SpaceSystem {
     const g = this.g;
     g.cam.settle();
     const start = g.player.holdAnchor();
-    const target = g.boss.restPartCenter(gd.target, new THREE.Vector3());   // 揺れていない姿勢の部位(端末・タイミングで変わらない)
+    // 揺れていない姿勢の部位(端末・タイミングで変わらない)。雑魚戦の間は部位に近い向きの雑魚を狙う(MinionWave.aimPoint)
+    const target = g.wave?.active ? g.wave.aimPoint(gd.target, new THREE.Vector3()) : g.boss.restPartCenter(gd.target, new THREE.Vector3());
     target.x += gd.tx ?? 0; target.y += gd.ty ?? 0;
     target.z = Config.boss.z + 0.5;
     // land:target に「着弾」させる(カーブは狙い点から shift だけ曲がる向きへずれるので、その分だけ逆へ狙う)

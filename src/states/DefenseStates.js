@@ -60,8 +60,6 @@ export class BossTauntState {
     g.ball.setSpecial(false);
     g.ball.hide();
     g.boss.lookAtPlayer(0);
-    g.cam.focusOn(g.boss.partCenter('head'), 8);
-    g.ui.showTurn({ color: '#ff3f8f', name: g.stage?.boss.name ?? '' }, 'BOSS ATTACK');
     this.done = false;
     g.tutorial?.emit('phaseEnd');   // 全員が投げ終えた
     this.speaking = false;
@@ -69,6 +67,16 @@ export class BossTauntState {
     const now = performance.now();
     this.endAt = now + (B.noVoicePauseSec ?? 0.9) * 1000;   // ボイス無しの時の間(ボイスが始まったら置き換える)
     this.loadLimit = now + (B.voiceLoadWaitSec ?? 1.2) * 1000;
+    this.voice = null;
+    if (g.wave?.active) {
+      // 雑魚戦:雑魚が反撃する(攻略対象のボイスは鳴らさない)。MULTI のサーバーの流れ(キャッチラウンド)はボスと同じ
+      g.cam.focusOn(g.wave.focusPoint(), 6);
+      g.ui.showTurn({ color: '#b46bff', name: g.wave.units.filter((u) => u.alive).map((u) => u.def.name).join(' & ') }, 'ENEMY ATTACK');
+      this.waitingVoice = false;
+      return;
+    }
+    g.cam.focusOn(g.boss.partCenter('head'), 8);
+    g.ui.showTurn({ color: '#ff3f8f', name: g.stage?.boss.name ?? '' }, 'BOSS ATTACK');
     const voice = g.pickAttackVoice(g.online ? g.online.voiceRoll : null);
     this.voice = voice;
     this.waitingVoice = !!voice && !!g.audio.ctx;
@@ -460,7 +468,8 @@ export class PlayerDefenseState {
 
   damageFor(pl, r, party) {
     const g = this.g;
-    return DefenseCalculator.penalty(r, this.plan.power, pl.chara, party) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1);
+    const enemyMul = g.wave?.active ? g.wave.attackMul : 1;   // 雑魚の反撃は MinionData.attackMul(ボス = 1)
+    return DefenseCalculator.penalty(r, this.plan.power, pl.chara, party) * (g.cfg.battle?.bossAttackMul ?? 1) * enemyMul * (g.cfg.runtime?.damageTaken ?? 1);
   }
 
   /** 全部のハートの合計ダメージ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul。1個の攻撃は今までと同じ)× キャラごとのゆらぎ。丸めは最後に1回
