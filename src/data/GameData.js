@@ -48,7 +48,7 @@ export const TYPES = {
  *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.1 = 10%)
  *       visualEffect … 見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない
  *       requiredDiamonds … SPECIAL 発動までに必要な Diamond の個数(画面の「💎 発動まで ×○」はここだけを見る。省略 = DEFAULT_SPECIAL の値)
- *                          ※ 今は表示用のデータ。実際のゲージの溜まり方(CharacterData.specialGauge / Config.energy)はまだ連動させていない
+ *                          実際のゲージもこの個数で MAX になる(data/SpecialGauge.js の specialGaugeSpec:最大値 = 個数 × Config.energy.orbValue)
  *     省略したキャラは DEFAULT_SPECIAL(全員共通の SPECIAL HEART)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */

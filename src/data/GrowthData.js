@@ -119,7 +119,7 @@ export const ABILITIES = {
   vital_up: { name: 'VITAL UP', desc: '最大 HP +30', effects: [{ kind: 'hp', add: 30 }] },
   // ---- 特殊枠(Lv20 / 40 / 60 / 80 / 100):乗算。何度選んでも掛け算 ----
   special_master: { name: 'SPECIAL MASTER', desc: 'SPECIAL の HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
-  special_charge: { name: 'SPECIAL CHARGE', desc: 'Diamond で増える SPECIAL ×1.2(1個 +10% → +12%)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
+  special_charge: { name: 'SPECIAL CHARGE', desc: 'Diamond で増える SPECIAL ×1.2(必要な Diamond が少なくなる)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
   gate_master: { name: 'GATE MASTER', desc: 'ゲートを通って命中した HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { gate: true } }] },
   // ---- ULTIMATE(Lv100・キャラ固有。★ 仮)----
   ult_minamo: { name: 'AQUA LINE', desc: 'カーブなしの命中 HEART ×1.2・CONTROL のブレ半減', ultimate: true, effects: [{ kind: 'heart', mul: 1.2, when: { noSpin: true } }, { kind: 'control', mul: 0.5 }] },

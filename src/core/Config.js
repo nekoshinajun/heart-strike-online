@@ -225,8 +225,7 @@ export const Config = {
   energy: {
     // Diamond(コース上の光る宝石)= 必殺技(SPECIAL)ゲージを溜めるためだけのもの。ダメージ倍率・FEVER には関係しない
     label: 'DIAMOND',      // 表示名
-    max: 100,              // ★ SPECIAL ゲージ(0〜100%)
-    orbValue: 10,          // ★ Diamond 1個 = SPECIAL +10%(10個で MAX)
+    orbValue: 10,          // ★ Diamond 1個で SPECIAL ゲージに入る量。ゲージの最大値はキャラごと = 必要な Diamond の個数(CharacterData.special.requiredDiamonds)× この値
     orbRadius: 0.5,        // 取得判定の半径(ボール半径と合算)。奥の Orb が小さく見える分わずかに拡大(旧 0.42)
     // ルート定義:ルートごとの「お手本の1投」をシミュレーションして、その軌道上に Orb を置く(=必ず取れる配置)
     // target: 部位 / power: 0〜1 / spin: -1〜1(負=左カーブ ↑→←, 正=右カーブ ↑←→)/ count: 個数 / span: 軌道のどこに置くか

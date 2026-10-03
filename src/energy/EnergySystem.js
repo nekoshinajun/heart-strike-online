@@ -9,7 +9,7 @@ const tmp = new THREE.Vector3();
 
 /**
  * Diamond(コード上は Energy Orb)と SPECIAL(必殺技)ゲージ。
- *   役割は1つだけ:Diamond 1個 = SPECIAL +10%(Config.energy.orbValue / max)。10個で MAX → SPECIAL READY
+ *   役割は1つだけ:Diamond 1個 = SPECIAL +orbValue。キャラごとの必要個数(special.requiredDiamonds)で MAX → SPECIAL READY
  *   SPECIAL ゲージはキャラごと(data/SpecialGauge.js)。Diamond は投げたキャラ本人のゲージにだけ入り、必殺技で 0 に戻るのも本人だけ
  *   表示はアイコンを囲むリング(各キャラのゲージ)だけ。READY のキャラは今の手番ならアイコンをタップで必殺技を予約 / 解除
  *   Diamond を取ってもダメージ倍率・FEVER ゲージは増えない(Heart Gate = ダメージ / COMBO = FEVER)
@@ -219,7 +219,7 @@ export class EnergySystem {
     o.taken = true;
     o.fly = 0.001;
     this.combo++;
-    // Diamond 1個 = 投げたキャラ本人の SPECIAL +10%。本人が SPECIAL CHARGE を持っていれば +12%(×1.2)。100% で止める(超えた分は切り捨て)
+    // Diamond 1個 = 投げたキャラ本人の SPECIAL +orbValue。本人が SPECIAL CHARGE を持っていれば ×1.2。MAX で止める(超えた分は切り捨て)
     const i = this.throwerIndex ?? g.turn.index;
     const chara = g.turn.players[i]?.chara;
     const { gain, charged } = specialOrbGain(chara);
@@ -235,7 +235,7 @@ export class EnergySystem {
     g.ball.pulseBoost(0.8);
     g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
     g.audio.orb(this.combo);
-    // 「SPECIAL +10%」→ Diamond が SPECIAL ゲージへ飛ぶ → 着いたらゲージが増える(MAX なら SPECIAL READY)
+    // 「SPECIAL +○%」(ゲージ最大値に対する割合)→ Diamond が SPECIAL ゲージへ飛ぶ → 着いたらゲージが増える(MAX なら SPECIAL READY)
     const s = g.player.toScreen(o.pos);
     const add = Math.round((gain / this.gauges.max(i)) * 100);
     const reached = own && !wasReady && this.gauges.ready(i);
