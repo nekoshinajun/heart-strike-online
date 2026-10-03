@@ -25,6 +25,10 @@ export class OpeningState {
     g.ui.showPrompt(null);
     g.ball.hide();   // 紹介中はハートを出さない(カメラを寄せるので手前に大きく映る)。BATTLE START で構える
     g.cam.reset();
+    // 全体図:最初の1投のコース(ゲート・Energy・障害物)を先に置いて、高い位置から見せる。PLAYER_ATTACK はこの配置をそのまま使う
+    g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);
+    g.space.keepForTurn = g.turn.current;
+    g.cam.setOverview(1);
     const st = g.stage, h = heroineByStage(st?.id), D = difficultyData(g.difficulty);
     const profile = h?.profile ?? st?.concept ?? null;
     const line = h?.line ?? st?.line ?? null;
@@ -46,6 +50,9 @@ export class OpeningState {
     const g = this.g, O = Config.opening, el = this.el;
     this.t += dt;
     const t = this.t;
+    // 全体図 → プレイ位置へ寄る(ゆっくり始まりゆっくり止まる)
+    const OV = O.overview;
+    if (OV) { const k = Math.min(1, Math.max(0, (t - OV.hold) / OV.move)); g.cam.setOverview(1 - k * k * (3 - 2 * k)); }
     const at = (k, cls) => { if (t >= k && !el.classList.contains(cls)) el.classList.add(cls); };
     at(O.dimAt, 'dim');
     if (t >= O.bossAt && this.step < 1) { this.step = 1; g.cam.focusOn(g.boss.partCenter('chest'), O.bossZoom); }
@@ -64,6 +71,7 @@ export class OpeningState {
 
   exit() {
     if (this.el) { this.el.hidden = true; this.el.className = ''; }
+    this.g.cam.setOverview(0);
     this.g.cam.reset();
   }
 }

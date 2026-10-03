@@ -2,8 +2,9 @@ import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { simulate } from '../physics/BallPhysics.js';
 import { glowTexture, shadowTexture, wallTexture } from '../world/Textures.js';
-import { heartGeometry } from '../controllers/BallController.js';
+import { heartArch, HEART_ARCH } from '../world/Painted.js';
 
+const GATE_PINK = '#ff7ab8';
 const POOL = { gate: 6, block: 3, pillar: 3, panel: 3, wall: 3 };   // gate:2ルート × 最大3
 
 /**
@@ -44,19 +45,16 @@ export class SpaceSystem {
     const shadowMat = () => new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, opacity: 0.5 });
     const shadow = () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), shadowMat()); m.rotation.x = -Math.PI / 2; m.visible = false; g.scene.add(m); return m; };
     this.pool = { gate: [], block: [], pillar: [], panel: [], wall: [] };
-    // Heart Gate:ピンクのリング + 内側のうっすら膜 + 発光
+    // Heart Gate:金のハートのアーチの絵(2D の板。内径 = 判定の半径)+ 内側のうっすら膜 + 発光
     for (let i = 0; i < POOL.gate; i++) {
       const R = S.gate.radius;
       const grp = new THREE.Group();
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.11, 10, 48), new THREE.MeshBasicMaterial({ color: '#ff7ab8' }));
+      const archW = R / HEART_ARCH.innerRatio;
+      const ring = new THREE.Mesh(new THREE.PlaneGeometry(archW, archW), new THREE.MeshBasicMaterial({ map: heartArch(), transparent: true, alphaTest: 0.1, side: THREE.DoubleSide }));
       const film = new THREE.Mesh(new THREE.CircleGeometry(R, 40), new THREE.MeshBasicMaterial({ color: '#ff9ccc', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false }));
       const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#ff5fa2', transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
       glow.scale.setScalar(R * 3.2);
-      // ハートの小さな飾り(リング上)
-      const deco = new THREE.Mesh(heartGeometry(0.28), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
-      deco.position.set(0, R + 0.05, 0);
-      deco.rotation.z = Math.PI;
-      grp.add(glow, film, ring, deco);
+      grp.add(glow, film, ring);
       grp.visible = false;
       g.scene.add(grp);
       const gsh = new THREE.Mesh(new THREE.RingGeometry(0.75, 1, 32), new THREE.MeshBasicMaterial({ color: '#ff7ab8', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
@@ -317,11 +315,12 @@ export class SpaceSystem {
     slot.group.lookAt(pos.clone().add(dir));   // リング面を飛行方向へ向ける
     slot.shadow.visible = true;
     this.gates.push({ slot, pos: pos.clone(), normal: dir.clone(), passed: false, index: this.gates.length, pulse: 0, route });
-    this.setGateColor(this.gates.at(-1), '#ff7ab8');
+    this.setGateColor(this.gates.at(-1), GATE_PINK);
   }
 
   setGateColor(gt, c) {
-    gt.slot.ring.material.color.set(c);
+    // 絵の色はそのまま(通過したら少し明るく光らせる)。膜と発光は c の色
+    gt.slot.ring.material.color.set(c === GATE_PINK ? '#ffffff' : '#fff8d8');
     gt.slot.glow.material.color.set(c);
     gt.slot.film.material.color.set(c);
   }
@@ -368,7 +367,7 @@ export class SpaceSystem {
     this.collecting = true;
     this.chain = 0;
     this.passedRoutes = [];
-    for (const gt of this.gates) { gt.passed = false; this.setGateColor(gt, '#ff7ab8'); }
+    for (const gt of this.gates) { gt.passed = false; this.setGateColor(gt, GATE_PINK); }
   }
   endThrow() { this.collecting = false; }
   /** この投球で通ったルート('left' / 'right'。最初に通ったゲートのルート。どちらも通らなければ null)*/
@@ -474,7 +473,7 @@ export class SpaceSystem {
       gt.slot.glow.material.opacity = 0.35 + gt.pulse * 0.5 + Math.sin(this.time * 4 + gt.index) * 0.08;
       gt.slot.shadow.position.set(gt.pos.x, 0.04, gt.pos.z);
       gt.slot.shadow.scale.setScalar(this.gateRadius * (1 + gt.pulse * 0.3));
-      gt.slot.shadow.material.color.copy(gt.slot.ring.material.color);
+      gt.slot.shadow.material.color.copy(gt.slot.glow.material.color);
     }
   }
 
