@@ -212,7 +212,17 @@ export class BallController {
     } else if (!look && this.color) this.setStyle(this.color.getStyle(), this.styleLevel ?? 0);
   }
 
-  /** HOLD 中:ハートをキャッチ地点に止めておく */
+  /** HOLD 中:押している感じ(少し縮んで脈動・発光)。k = 0(押していない)〜 1(もうすぐ離す)*/
+  setPressed(k) { this.pressK = Math.max(0, Math.min(1, Number(k) || 0)); }
+
+  pressMul() {
+    const k = this.pressK ?? 0;
+    if (!k) return 1;
+    const P = Config.defence?.hold?.pressScale ?? 0.86;
+    return P * (1 + Math.sin(performance.now() / (120 - 60 * k)) * (0.03 + 0.04 * k));
+  }
+
+  /** HOLD / FLICK 中:ハートをキャッチ地点 / 指の位置に止めておく */
   pinAt(world) { if (this.mode !== 'pinned') { this.mode = 'pinned'; this.setVisible(true); } this.pos.copy(world); }
 
   update(dt) {
@@ -298,7 +308,7 @@ export class BallController {
     }
     const grabbed = this.mode === 'grabbed';
     const sp = this.special ? Config.special.ballScale : 1;
-    this.mesh.scale.setScalar(this.mode === 'rebound' || this.mode === 'fade' ? this.mesh.scale.x : (grabbed ? 1.12 : 1) * sp * (this.noteScale ?? 1));
+    this.mesh.scale.setScalar(this.mode === 'rebound' || this.mode === 'fade' ? this.mesh.scale.x : (grabbed ? 1.12 : 1) * sp * (this.noteScale ?? 1) * this.pressMul());
 
     // 見た目の位置 = 物理位置 + 合流オフセット(発射直後だけ)
     if (this.visOffset) { this.visOffset.multiplyScalar(Math.exp(-14 * dt)); if (this.visOffset.lengthSq() < 1e-4) this.visOffset = null; }
@@ -309,7 +319,7 @@ export class BallController {
     const pulse = (grabbed ? 1.35 : this.mode === 'held' ? 1 + Math.sin(performance.now() / 180) * 0.12 : 1) * (1 + this.boost * 0.9) * sp;
     // 投球中の発光:POWER が強いほど大きく明るい
     const powerGlow = this.mode === 'flying' && !this.special ? 0.7 + 0.8 * (this.flyStrength ?? 0.5) : 1;
-    this.glow.scale.setScalar(Config.ball.radius * 2 * this.glowScale * pulse * powerGlow);
+    this.glow.scale.setScalar(Config.ball.radius * 2 * this.glowScale * pulse * powerGlow * (1 + 0.6 * (this.pressK ?? 0)));   // HOLD 中は発光が強まる
 
     // 影(床)- 高さで薄く・大きく
     const h = Math.max(0, this.pos.y);

@@ -1,6 +1,7 @@
 import * as THREE from '../lib/three.js';
 import { Config, bossProfile, returnTier } from '../core/Config.js';
 import { fitMotion } from './AttackMotion.js';
+import { makeLinePath } from '../defence/NotePath.js';
 
 /**
  * ボスの返球計画。攻撃モーションに依存せず「どこへ・どの速さで・どう飛ばすか」だけを決める。
@@ -157,8 +158,19 @@ export class ReturnBallController {
       const m = fitMotion(Config.enemyAttacks.patterns[pid], { duration: dur, side: nside, from: this.boss.restSpawnPoint(), to: nRest, toScreen: (p) => this.player.toScreen(p, restCam), viewport: this.viewport, margin: Config.enemyAttacks.screenMargin ?? 0.04 });
       return { ...n, screenN: sn, world: nWorld, markerWorld: nWorld, lateEnd: nLate, motion: m, duration: m.total, markerLead: Math.min(R.markerLead, m.total * 0.9), attack: { ...attack, id: pid, side: m.side } };
     });
-    // FLICK の方向('random' は同じ乱数で決める)
-    for (const n of plan.notes) if (n.type === 'FLICK' && (!n.dir || n.dir === 'random')) n.dir = ['L', 'R', 'U', 'D'][Math.floor(this.random() * 4) % 4];
+    // FLICK:開始地点(ハートの到達点)→ 終点ターゲットの軌道。方向('random' は同じ乱数で決める → MULTI でも全員同じ)
+    //   軌道は画面の正規化座標(path.points)+ 同じ奥行きの 3D 点(pathWorld:カメラが動いてもマーカーと一緒に動く)
+    for (const n of plan.notes) {
+      if (n.type !== 'FLICK') continue;
+      if (!n.dir || n.dir === 'random') n.dir = ['L', 'R', 'U', 'D'][Math.floor(this.random() * 4) % 4];
+      const F = Config.defence.flick;
+      n.path = n.path ?? makeLinePath(n.screenN, n.dir, this.viewport, { len: F.pathLen, margin: F.pathMargin, top: F.pathTop });
+      n.dir = n.path.dir ?? n.dir;
+      n.slideSec = n.slideSec ?? F.slideSec;
+      // 基準の姿勢のカメラで「開始 → 各点」のずれを求めてマーカーの位置に足す(ボスへ寄ったカメラが戻る途中でも軌道の長さが変わらない)
+      const base = this.player.screenToWorld(n.path.points[0].x * w, n.path.points[0].y * h, depth, new THREE.Vector3(), restCam);
+      n.pathWorld = n.path.points.map((q) => this.player.screenToWorld(q.x * w, q.y * h, depth, new THREE.Vector3(), restCam).sub(base).add(n.markerWorld));
+    }
     for (const m of this.modifiers) plan = m(plan, { rally, profile: prof }) ?? plan;
     this.random=oldRandom;
     return plan;
