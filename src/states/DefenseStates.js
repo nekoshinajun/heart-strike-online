@@ -273,7 +273,7 @@ export class PlayerDefenseState {
       g.ball.returnTo(g.boss.spawnPoint(), n.world, n.lateEnd, n.duration, lateDurFor(n), null, n.motion);
       g.ball.setNoteLook?.(n.type);
       g.effects.burst(g.boss.spawnPoint(), '#ff3d7f', 10, 8, 0.6);
-      g.audio.bossSwing?.();
+      g.audio.noteLaunch?.();
     }
   }
 

@@ -194,24 +194,24 @@ export class AudioManager {
    *   PERFECT … 「キィィン✨」澄んだ金属の響き+キラキラ(一番気持ちいい)
    */
   guard(r) {
+    // ダメージ音と聞き分けられるよう、低い「ドスッ」(下がる低音・こもったノイズ)は使わない。高く澄んだ音だけで組む
     if (r === 'PERFECT') {
-      this.noise(0.08, 0.45, 3200);
-      this.tone(196, 0.16, 'sine', 0.35, 0.6);                    // 受け止めた手応え
-      this.tone(1318.5, 0.6, 'triangle', 0.2);                    // 澄んだ響き(E6 + B6 + E7)
+      this.noise(0.05, 0.3, 5200);                                // 弾いた瞬間の「キッ」
+      this.tone(1318.5, 0.6, 'triangle', 0.22);                   // 澄んだ響き(E6 + B6 + E7)
       this.tone(1975.5, 0.45, 'sine', 0.1);
       this.tone(2637, 0.3, 'sine', 0.05);
       [1568, 2093, 2637, 3136].forEach((f, i) => setTimeout(() => this.tone(f, 0.16, 'sine', 0.07), 70 + i * 40));   // キラキラ
     } else if (r === 'GREAT') {
-      this.noise(0.07, 0.4, 2400);
-      this.tone(880, 0.18, 'triangle', 0.2);
-      this.tone(1320, 0.12, 'sine', 0.08);
-      this.tone(240, 0.1, 'sine', 0.25, 0.6);
+      this.noise(0.05, 0.28, 4200);
+      this.tone(1046.5, 0.22, 'triangle', 0.2);                   // 「カンッ」
+      this.tone(1568, 0.14, 'sine', 0.07);
     } else if (r === 'GOOD') {
-      this.noise(0.09, 0.4, 1100);
-      this.tone(260, 0.14, 'sine', 0.32, 0.6);
-      this.tone(560, 0.1, 'triangle', 0.1);
+      this.noise(0.05, 0.25, 3200);
+      this.tone(784, 0.14, 'triangle', 0.18);                     // 軽い「コンッ」
     } else this.judge('MISS');   // ダメージ音
   }
+  /** 連続攻撃の2個目以降が飛んでくる音(軽い「ヒュッ」。ガード直後に鳴るので、被弾っぽいこもった音にしない)*/
+  noteLaunch() { this.noise(0.12, 0.12, 3600); this.tone(900, 0.1, 'sine', 0.05, 1.6); }
   catchBall() { this.noise(0.1, 0.5, 1600); this.tone(300, 0.1, 'sine', 0.4, 0.6); }
   rallyUp() { this.tone(660, 0.1, 'square', 0.15); setTimeout(() => this.tone(990, 0.15, 'square', 0.15), 80); }
   clear() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.4, 'triangle', 0.35), i * 120)); }
