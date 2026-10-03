@@ -93,8 +93,8 @@ function blankSave() {
     presents: [],
     gacha: { transactions: [], pending: null, seq: 0, pulls: 0, seenSequenceCount: 0 },
     // audio:音量(0〜1)とミュート。bgm は旧設定(互換用。bgmMuted と同期)
-    // collectionSort:コレクションの並び替え(カテゴリごとに最後に選んだ条件 { items: { key, dir }, ally, heroine })
-    settings: { gachaPlaybackMode: 'FULL', haptic: true, bgm: true, favoriteSwipe: false, audio: { bgmVolume: 0.5, bgmMuted: false, seVolume: 1, voiceVolume: 1 }, collectionSort: {} },
+    // collectionSort / collectionFilter:コレクションの並び替え・絞り込み(カテゴリごとに最後に選んだ条件 { items: { key, dir }, ally, heroine } / { items: key, … })
+    settings: { gachaPlaybackMode: 'FULL', haptic: true, bgm: true, favoriteSwipe: false, audio: { bgmVolume: 0.5, bgmMuted: false, seVolume: 1, voiceVolume: 1 }, collectionSort: {}, collectionFilter: {} },
     home: { lastLines: [], visits: 0, lastVisitAt: null },
     stats: { totalClears: 0 },
     lastPlayedAt: null,

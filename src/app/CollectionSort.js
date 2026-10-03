@@ -1,3 +1,5 @@
+import { RANKS } from '../data/GameData.js';
+import { ITEM_CATEGORIES } from '../data/ItemCatalog.js';
 /**
  * コレクションの並び替え(表示順だけ。所持データの保存順は変えない)
  *   COLLECTION_SORTS[カテゴリ] = { def: 既定の条件, options: [{ key, label, dirs?: { desc, asc }, defDir?, value(x) }] }
@@ -5,11 +7,15 @@
  *     dirs が無い項目 … 向きは1つ(名前順など)
  *     value(x)        … 並べる値(数値 / 文字列)。null は向きに関係なく後ろ
  *   選んだ条件は settings.collectionSort[カテゴリ] に保存(カテゴリごと・リロード後も残る)
+ * 絞り込みも同じ形:COLLECTION_FILTERS[カテゴリ] = [{ key, label, test(x) }](先頭 = すべて)。1カテゴリ1条件。
+ *   選んだ条件は settings.collectionFilter[カテゴリ] に保存。条件を増やす時は配列に1件足すだけ
  *   新しいカテゴリは COLLECTION_SORTS に1件足すだけ
  */
 const HIGH_LOW = { desc: '高い順', asc: '低い順' };
 const NEW_OLD = { desc: '新しい順', asc: '古い順' };
 const MANY_FEW = { desc: '多い順', asc: '少ない順' };
+const NAME_DIRS = { asc: '昇順', desc: '降順' };
+const NAME = (value) => ({ key: 'name', label: '名前順', dirs: NAME_DIRS, defDir: 'asc', value });
 
 export const COLLECTION_SORTS = {
   items: {
@@ -18,7 +24,7 @@ export const COLLECTION_SORTS = {
       { key: 'acquired', label: '入手順', dirs: NEW_OLD, defDir: 'desc', value: (x) => x.acquiredAt ?? 0 },   // 入手時刻が無い(この機能より前に入手)= いちばん古い
       { key: 'count', label: '所持数', dirs: MANY_FEW, defDir: 'desc', value: (x) => x.count },
       { key: 'rarity', label: 'レアリティ', dirs: HIGH_LOW, defDir: 'desc', value: (x) => x.rank?.order ?? null },
-      { key: 'name', label: '名前順', value: (x) => x.name },
+      NAME((x) => x.name),
     ],
   },
   ally: {
@@ -29,7 +35,7 @@ export const COLLECTION_SORTS = {
       { key: 'rarity', label: 'レアリティ', dirs: HIGH_LOW, defDir: 'desc', value: (x) => x.rankOrder },
       { key: 'atk', label: 'ATK', dirs: HIGH_LOW, defDir: 'desc', value: (x) => x.atk },
       { key: 'hp', label: 'HP', dirs: HIGH_LOW, defDir: 'desc', value: (x) => x.hp },
-      { key: 'name', label: '名前順', value: (x) => x.name },
+      NAME((x) => x.name),
     ],
   },
   heroine: {
@@ -38,7 +44,7 @@ export const COLLECTION_SORTS = {
       { key: 'progress', label: '攻略進行順', value: (x) => x.stageNo },
       { key: 'clearedFirst', label: '攻略済み優先', value: (x) => x.clears, fixedDir: 'desc' },
       { key: 'unclearedFirst', label: '未攻略優先', value: (x) => x.clears, fixedDir: 'asc' },
-      { key: 'name', label: '名前順', value: (x) => x.name },
+      NAME((x) => x.name),
     ],
   },
 };
@@ -62,7 +68,7 @@ export function nextSort(cur, cat, key) {
   return { key, dir: o.defDir ?? 'desc' };
 }
 
-/** 「レベル 高い順」/「名前順」*/
+/** 「レベル 高い順」/「名前順 昇順」/「攻略進行順」*/
 export function sortLabel(cat, sort) {
   const o = optionOf(cat, sort.key);
   if (!o) return '';
@@ -84,3 +90,33 @@ export function sortList(list, cat, sort) {
     return c ? c * sign : a.i - b.i;
   }).map((e) => e.x);
 }
+
+// ---------------- 絞り込み ----------------
+
+const ALL = { key: 'all', label: 'すべて', test: () => true };
+/** 所持アイテムの絞り込み:名前の付いたグループ(categories)+ それ以外は「その他」*/
+const ITEM_FILTER_GROUPS = [
+  { key: 'present', label: 'プレゼント', categories: ['present'] },
+  { key: 'growth', label: '育成アイテム', categories: ['growth'] },
+];
+const grouped = new Set(ITEM_FILTER_GROUPS.flatMap((g) => g.categories));
+export const COLLECTION_FILTERS = {
+  items: [
+    ALL,
+    ...ITEM_FILTER_GROUPS.map((g) => ({ key: g.key, label: g.label, test: (x) => g.categories.includes(x.category) })),
+    { key: 'other', label: 'その他', hint: ITEM_CATEGORIES.filter((c) => !grouped.has(c.id)).map((c) => c.label).join(' / '), test: (x) => !grouped.has(x.category) },
+  ],
+  // レアリティ(GameData.RANKS の順)。属性・タイプで絞る時は { key: 'attr:fire', label, test: (x) => x.attribute === 'fire' } のように足す
+  ally: [ALL, ...Object.values(RANKS).sort((a, b) => a.order - b.order).map((r) => ({ key: r.id, label: r.id, test: (x) => x.rank === r.id }))],
+  heroine: [
+    ALL,
+    { key: 'none', label: '未攻略', test: (x) => x.state.id === 'none' },
+    { key: 'progress', label: '攻略中', test: (x) => x.state.id === 'progress' },
+    { key: 'complete', label: '完全攻略', test: (x) => x.state.id === 'complete' },
+  ],
+};
+const filterOf = (cat, key) => COLLECTION_FILTERS[cat]?.find((f) => f.key === key) ?? null;
+/** 保存されている絞り込み(無い・壊れていたら「すべて」)*/
+export function currentFilter(settings, cat) { return filterOf(cat, settings?.collectionFilter?.[cat])?.key ?? 'all'; }
+export function filterLabel(cat, key) { return filterOf(cat, key)?.label ?? 'すべて'; }
+export function filterList(list, cat, key) { const f = filterOf(cat, key); return f ? list.filter((x) => f.test(x)) : [...list]; }
