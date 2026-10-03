@@ -47,6 +47,8 @@ export const TYPES = {
  *       effectType … 効果の種類(src/effects/SpecialEffects.js):'attack' = 通常の SPECIAL だけ / 'healAll' = 命中で味方全員を回復 / 今後:防御・バフ・デバフ・蘇生…
  *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.1 = 10%)
  *       visualEffect … 見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない
+ *       requiredDiamonds … SPECIAL 発動までに必要な Diamond の個数(画面の「💎 発動まで ×○」はここだけを見る。省略 = DEFAULT_SPECIAL の値)
+ *                          ※ 今は表示用のデータ。実際のゲージの溜まり方(CharacterData.specialGauge / Config.energy)はまだ連動させていない
  *     省略したキャラは DEFAULT_SPECIAL(全員共通の SPECIAL HEART)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
@@ -108,6 +110,7 @@ export const CHARACTERS = [
       highlight: { value: '1 → 3 → 7', label: 'HEART SPLIT' },
       note: '※ 分裂は演出。ダメージ判定は1回(SPECIAL 1回分)。',
       effectType: 'attack', effectValue: null, visualEffect: 'dragonSplit',
+      requiredDiamonds: 12,
     },
   },
   {
@@ -125,6 +128,7 @@ export const CHARACTERS = [
       highlight: { value: '与ダメージの 10%', label: 'ALL HEAL' },
       note: '※ HP 0 の味方は回復しない(蘇生ではない)。MISS では回復しない。',
       effectType: 'healAll', effectValue: 0.1, visualEffect: 'angelHeal',
+      requiredDiamonds: 20,
     },
   },
   // ---- 追加キャラ(画像は未登録:art を空にしておくと仮のシルエットで表示。画像キーを入れるだけで差し替わる)----
@@ -161,8 +165,15 @@ export const DEFAULT_SPECIAL = {
   description: 'SPECIAL ゲージ MAX でタップして予約。次の1投が大きなハートになり、届く HEART が大きく増える。',
   highlight: { value: 'HEART ×{heartMul}', label: 'SPECIAL' },   // {heartMul} は表示時に Config.special.heartMul に置き換える
   note: null, effectType: 'attack', effectValue: null, visualEffect: null,
+  requiredDiamonds: 10,
 };
 for (const c of CHARACTERS) c.special ??= { ...DEFAULT_SPECIAL };
+
+/** SPECIAL 発動までに必要な Diamond の個数(CharacterData.special.requiredDiamonds。無ければ DEFAULT_SPECIAL の値)*/
+export function specialRequiredDiamonds(chara) {
+  const n = Number((chara?.special ?? DEFAULT_SPECIAL).requiredDiamonds);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : DEFAULT_SPECIAL.requiredDiamonds;
+}
 
 
 /** 旧IDからの移行(保存データ用) */
