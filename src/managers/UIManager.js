@@ -493,9 +493,9 @@ export class UIManager {
     if (on) { el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
   }
 
-  damageNumber(x, y, value, { crit = false, color = '#fff', label = '', fever = 0 } = {}) {
+  damageNumber(x, y, value, { crit = false, color = '#fff', label = '', fever = false } = {}) {
     const d = document.createElement('div');
-    d.className = `dmg${crit ? ' crit' : ''}${fever ? ` fever fl${fever}` : ''}`;
+    d.className = `dmg${crit ? ' crit' : ''}${fever ? ' fever' : ''}`;
     d.style.left = `${x}px`;
     d.style.top = `${y}px`;
     d.style.setProperty('--dc', color);

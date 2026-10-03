@@ -75,8 +75,9 @@ export class TurnManager {
   }
 
   damageCurrent(amount) { return this.damage(this.current, amount); }
-  damage(p, amount) {
-    p.hp = Math.max(0, p.hp - amount);
+  /** minHp:これより下げない(チュートリアルは 1 = 負けない)*/
+  damage(p, amount, minHp = 0) {
+    p.hp = Math.max(Math.min(minHp, p.hp), p.hp - amount);
     this.bus.emit('playerHp', p);
     return p.hp;
   }
