@@ -34,6 +34,7 @@ export function showShopMap(m, { shopId } = {}) {
       <div class="sm-shade" aria-hidden="true"></div>
       ${capTop(false)}
       <header class="sm-head"><h1>お店を選ぶ</h1><em class="script sm-sub">Shop Select</em><p><i>♡</i>今日は、どのお店に行こう？<i>♡</i></p></header>
+      <button type="button" class="sm-area" data-act="areas" aria-label="エリア一覧"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 3.6 5.6 2l4.8 1.8L14.2 2v10.4l-3.8 1.6-4.8-1.8-3.8 1.6z"/><path d="M5.6 2v10.2M10.4 3.8V14"/></svg><b>エリア</b><i>›</i></button>
       <section class="sm-card" aria-live="polite"></section>
     </div>`;
   if (!m.city) {
@@ -52,6 +53,35 @@ export function showShopMap(m, { shopId } = {}) {
   const vh = m.body.clientHeight || 1, head = m.body.querySelector('.sm-head')?.getBoundingClientRect(), card = m.body.querySelector('.sm-card')?.getBoundingClientRect(), top = m.body.getBoundingClientRect().top;
   if (head && card) { m.city.band = { top: head.bottom - top, bottom: card.top - top }; m.city.focusY = Math.min(0.7, ((head.bottom - top + card.top - top) / 2 + 56) / vh); }
   m.city.select(m.shopSel, { snap: true, silent: true });
+  m.body.querySelector('[data-act="areas"]').addEventListener('click', () => openAreaList(m));
+}
+
+/** エリア一覧:街のお店を一覧で見て、選ぶとマップがそのお店へ移動する(入店はいつもの情報カードから)*/
+function openAreaList(m) {
+  const host = m.body.querySelector('.smap');
+  if (!host || host.querySelector('.sm-areas')) return;
+  const order = [...SHOPS].sort((a, b) => Number(!isShopOpen(m.progress, a)) - Number(!isShopOpen(m.progress, b)));
+  const row = (s) => {
+    const open = isShopOpen(m.progress, s), pr = shopProgress(m.progress, s, Config.difficultyOrder), thumb = m.city?.snapshot(s.id, 112, 112) ?? '';
+    return `<button type="button" class="sa-row${open ? '' : ' locked'}${s.id === m.shopSel ? ' sel' : ''}" data-area="${esc(s.id)}" style="--ac:${s.theme.accent};--gl:${s.theme.glow}">
+      <span class="sa-thumb" style="background-image:url('${thumb}')">${open ? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
+      <span class="sa-info"><span class="sa-name${s.name.length > 8 ? ' long' : ''}"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small>${s.badge ? `<em>${esc(s.badge)}</em>` : ''}</span>
+        <span class="sa-concept">${esc(s.concept ?? '')}</span>
+        <span class="sa-prog">${open ? `${ICON.cast}${pr.total}人<span>${ICON.book}${pr.cleared} / ${pr.total}</span><span class="mk">${ICON.heart}${pr.marks} / ${pr.maxMarks}</span>` : `${ICON.lock}${esc(shopLockText(s))}`}</span></span>
+      <i class="sa-go" aria-hidden="true">›</i></button>`;
+  };
+  const el = document.createElement('div');
+  el.className = 'sm-areas';
+  el.innerHTML = `<div class="sa-panel" role="dialog" aria-modal="true" aria-label="エリア一覧">
+      <header><h2>エリア一覧<em class="script">Area Guide</em></h2><button type="button" class="sa-close" data-act="close" aria-label="閉じる">×</button></header>
+      <p class="sa-lead">行きたいお店を選ぶと、街のその場所へ移動します</p>
+      <div class="sa-list">${order.map(row).join('')}</div>
+    </div>`;
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 200); };
+  el.addEventListener('click', (e) => { if (e.target === el) close(); });
+  el.querySelector('[data-act="close"]').addEventListener('click', close);
+  for (const b of el.querySelectorAll('[data-area]')) b.addEventListener('click', () => { m.city?.select(b.dataset.area); close(); });
+  host.appendChild(el);
 }
 
 /** 情報カードの小さなアイコン(線画。文字の色に合わせる)*/

@@ -1303,7 +1303,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .sg-head p::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(255,127,176,.85), rgba(255,127,176,.1)); }
 .sg-head p i { position: absolute; right: 0; bottom: -2px; font-style: normal; font-size: 11px; color: #ff7fb0; }
 /* お店の名札:キャストの丸い顔 + 店名の札。建物の真上に立つ。選択中は大きく・お店の色の光の輪 */
-.cm-pin { --face: 50px; position: absolute; display: flex; align-items: center; padding: 0; border: 0; background: none; color: var(--cf-ink); pointer-events: auto; transform: translate(calc(var(--face) / -2), calc(-100% - 8px)); transition: filter .2s; animation: cmPinIn .5s cubic-bezier(.2,.8,.2,1) both; -webkit-tap-highlight-color: transparent; }
+.cm-pin { --face: 46px; position: absolute; display: flex; align-items: center; padding: 0; border: 0; background: none; color: var(--cf-ink); pointer-events: auto; transform: translate(calc(var(--face) / -2), calc(-100% - 8px)); transition: filter .2s; animation: cmPinIn .5s cubic-bezier(.2,.8,.2,1) both; -webkit-tap-highlight-color: transparent; }
 .cm-pin.l { flex-direction: row-reverse; transform: translate(calc(-100% + var(--face) / 2), calc(-100% - 8px)); }
 @keyframes cmPinIn { from { opacity: 0; margin-top: 10px; } }
 .cm-pin::after { content: ""; position: absolute; bottom: -9px; width: 0; height: 0; border: 5px solid transparent; border-top: 6px solid #fff; border-bottom: 0; filter: drop-shadow(0 2px 1px rgba(170,110,140,.3)); }
@@ -1316,7 +1316,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .cm-plate { position: relative; display: flex; flex-direction: column; align-items: flex-start; padding: 4px 16px 5px 12px; margin-right: -12px; border: 1.5px solid color-mix(in srgb, var(--ac) 45%, #fff); border-radius: 14px;
   background: rgba(255,255,255,.92); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 6px 14px rgba(150,90,130,.2); white-space: nowrap; }
 .cm-pin.r .cm-plate { margin: 0 0 0 -12px; padding: 4px 12px 5px 16px; }
-.cm-plate b { font: 400 22px/1 "Great Vibes", "Snell Roundhand", cursive; color: color-mix(in srgb, var(--ac) 80%, #4b2a40); }
+.cm-plate b { font: 400 20px/1 "Great Vibes", "Snell Roundhand", cursive; color: color-mix(in srgb, var(--ac) 80%, #4b2a40); }
 .cm-plate small { margin-top: 1px; font-size: 8.5px; font-weight: 800; letter-spacing: .22em; color: var(--cf-sub); }
 .cm-heart { position: absolute; z-index: 2; bottom: -11px; width: 22px; height: 22px; display: none; place-items: center; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ffb3d0, #ff6fa6); color: #fff; font: 900 11px/1 sans-serif; font-style: normal; box-shadow: 0 2px 6px rgba(236,93,151,.45), 0 0 0 2px #fff; animation: cmBob 2.4s ease-in-out infinite; }
 .cm-pin.l .cm-heart { right: calc(var(--face) / 2 - 11px); } .cm-pin.r .cm-heart { left: calc(var(--face) / 2 - 11px); }
@@ -1339,6 +1339,47 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .cm-pin.locked .cm-plate b { color: color-mix(in srgb, var(--ac) 50%, #b5a2ae); }
 .cm-pin.locked.sel .cm-face { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac) 55%, #fff), 0 0 0 7px rgba(255,255,255,.88), 0 10px 18px rgba(150,90,130,.3); }
 .cm-pin:active { filter: brightness(1.05); }
+/* エリア一覧ボタン(右上の小さなガラスの札)→ 一覧のシート */
+.sm-area { position: absolute; z-index: 9; top: calc(var(--sat) + 6px); right: 10px; width: 46px; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0; background: none; color: #7a4f66; -webkit-tap-highlight-color: transparent; }
+.sm-area svg { width: 38px; height: 38px; box-sizing: border-box; padding: 10px; border-radius: 50%; border: 1.5px solid #fff; background: rgba(255,255,255,.86); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  fill: none; stroke: #d0588f; stroke-width: 1.5; stroke-linejoin: round; box-shadow: 0 0 0 1px rgba(236,178,203,.6), 0 6px 14px rgba(160,90,130,.2); }
+.sm-area b { font: 800 9px/1.2 var(--round); letter-spacing: .06em; white-space: nowrap; text-shadow: 0 0 4px #fff, 0 0 2px #fff; }
+.sm-area i { display: none; }
+.sm-area:active { transform: scale(.94); }
+.sm-areas { position: absolute; inset: 0; z-index: 30; display: flex; align-items: flex-end; background: rgba(110,70,95,.26); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); animation: saIn .25s ease both; }
+.sm-areas.out { animation: saOut .2s ease both; }
+@keyframes saIn { from { opacity: 0; } } @keyframes saOut { to { opacity: 0; } }
+.sa-panel { width: 100%; max-height: calc(100% - var(--sat) - 70px); display: flex; flex-direction: column; box-sizing: border-box; padding: 16px 14px calc(var(--navh) + var(--sab) + 14px); border-radius: 26px 26px 0 0;
+  background: linear-gradient(175deg, #fffdfb, #fff3f7); box-shadow: 0 -10px 30px rgba(150,90,130,.25); animation: saUp .32s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes saUp { from { transform: translateY(40px); } }
+.sa-panel header { display: flex; align-items: center; justify-content: space-between; }
+.sa-panel h2 { margin: 0; display: flex; align-items: baseline; gap: 10px; font: 800 20px/1.2 var(--round); letter-spacing: .08em; color: #4b2a40; }
+.sa-panel h2 em { font-size: 24px; color: #ff79ad; transform: rotate(-3deg); }
+.sa-close { width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 1px solid var(--cf-line); background: #fff; color: #c06590; font: 400 22px/1 sans-serif; }
+.sa-lead { margin: 4px 0 10px; font-size: 11px; font-weight: 800; color: #8f7180; }
+.sa-list { display: grid; gap: 9px; overflow-y: auto; padding: 2px 2px 4px; overscroll-behavior: contain; }
+.sa-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 18px; align-items: center; gap: 11px; width: 100%; padding: 8px 10px 8px 8px; box-sizing: border-box; text-align: left; border-radius: 18px; border: 1.5px solid #fff; color: var(--cf-ink);
+  background: linear-gradient(110deg, #fff 55%, color-mix(in srgb, var(--gl) 45%, #fff)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ac) 28%, #fff), 0 6px 14px rgba(160,90,130,.12); }
+.sa-row.sel { box-shadow: 0 0 0 2px var(--ac), 0 8px 18px rgba(160,90,130,.2); }
+.sa-row.locked { background: #fffafc; }
+.sa-row:active { transform: scale(.985); }
+.sa-thumb { position: relative; width: 64px; height: 64px; display: grid; place-items: center; border-radius: 14px; border: 2px solid #fff; background: #fbf3ea center / cover no-repeat; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ac) 30%, #fff); box-sizing: border-box; }
+.sa-row.locked .sa-thumb { filter: saturate(.7); }
+.sa-thumb .cm-lock { width: 18px; height: 20px; padding: 5px; border-radius: 50%; background-color: rgba(255,255,255,.94); background-size: 10px 12px; }
+.sa-info { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sa-name { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 7px; min-width: 0; white-space: nowrap; }
+.sa-name b { max-width: 100%; font-size: 24px; line-height: 1.1; padding-right: 4px; color: color-mix(in srgb, var(--ac) 82%, #4b2a40); }
+.sa-name.long b { font-size: 21px; }
+.sa-name small { flex: none; font-size: 10px; font-weight: 800; letter-spacing: .1em; color: #6e4b5f; }
+.sa-name em { flex: none; padding: 0 6px; border-radius: 8px; background: #ff7fb0; color: #fff; font: 800 8.5px/1.6 var(--round); font-style: normal; letter-spacing: .08em; }
+.sa-concept { align-self: flex-start; max-width: 100%; padding: 0 8px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 14%, #fff); color: color-mix(in srgb, var(--ac) 78%, #4b2a40); font: 800 9.5px/1.7 var(--round); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+.sa-prog { display: flex; align-items: center; gap: 3px; font: 800 10px/1.4 var(--round); color: #7a5a6c; white-space: nowrap; overflow: hidden; }
+.sa-prog span { display: inline-flex; align-items: center; gap: 3px; margin-left: 7px; }
+.sa-prog .mk { color: #ec5d97; }
+.sa-prog svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sa-prog svg .f { fill: currentColor; stroke: none; }
+.sa-row.locked .sa-prog { color: #a891a0; }
+.sa-go { font: 400 24px/1 var(--round); font-style: normal; color: color-mix(in srgb, var(--ac) 60%, #fff); }
 /* 選んだお店の情報カード(白〜淡いピンクの半透明パネル。入店するがいちばん目立つ)
    [画像][店名・ジャンル・紹介文][入店する]
    [進行情報(キャスト・攻略・ハート)  ][  〃  ] */
@@ -1657,7 +1698,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .sg .cast-tab { flex-basis: 60px; height: 66px; }
   .sg .cast-tab span { font-size: 9px; }
 }
-@media (prefers-reduced-motion: reduce) { .sm-enter::before, .cm-pin.sel .cm-face::after, .sg-fx i, .sg-start, .sg-start::after, .sg-start .h, .sg-art, .sg-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .sm-areas, .sa-panel, .sm-enter::before, .cm-pin.sel .cm-face::after, .sg-fx i, .sg-start, .sg-start::after, .sg-start .h, .sg-art, .sg-card { animation: none; } }
 .support-panel { position: relative; margin: 10px 12px 0; padding: 10px; border: 1px solid var(--hs-line); border-radius: 16px; background: var(--hs-panel); box-shadow: var(--hs-shadow), inset 0 0 0 3px rgba(255,240,246,.9); }
 .support-panel::before { content: "♡"; position: absolute; left: 50%; top: -9px; transform: translateX(-50%); padding: 0 6px; border-radius: 8px; background: #fff; color: var(--hs-pink); font: 800 10px/1.5 var(--round); }
 .support-panel header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; text-align: left; }
