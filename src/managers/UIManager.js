@@ -355,10 +355,6 @@ export class UIManager {
   }
 
   /**
-   * SPEED ゲージ(旧 POWER。null で非表示)。下へ引いた量 = 球速と直進性(ダメージは変わらない)
-   *   浅い = SLOW(よく曲がる)/ 深い = FAST(まっすぐ)。「100% = 最大ダメージ」に見えない表示にする
-   */
-  /**
    * 円運動のカーブ入力の表示:ハートのまわりの弧(右 = 時計回り・水色 / 左 = 反時計回り・ピンク。長さ = 強さ)+ 表示
    *   v … -1〜1(null で隠す)/ c … ハートの画面中心と半径 / reset … 2秒止めてストレートに戻った直後
    */
@@ -383,24 +379,6 @@ export class UIManager {
     el.dataset.dir = a > 0.001 ? (dir > 0 ? 'right' : 'left') : 'straight';
     el.querySelector('.cr-label').textContent = a > 0.001 ? `${dir > 0 ? 'RIGHT' : 'LEFT'} CURVE ${'▮'.repeat(Math.max(1, Math.min(3, Math.round(a * 3))))}` : 'STRAIGHT';
     if (reset) { el.classList.remove('reset'); void el.offsetWidth; el.classList.add('reset'); }
-  }
-
-  setPowerGauge(power, locked = false, ball = null) {
-    const el = document.getElementById('powerGauge');
-    if (!el) return;
-    if (power == null) { el.hidden = true; return; }
-    el.hidden = false;
-    // 指やボールを隠さないよう、ボールの左上に出す
-    if (ball) {
-      const w = el.offsetWidth || 150;
-      el.style.left = `${Math.max(8, ball.x - ball.r - w - 8)}px`;
-      el.style.top = `${Math.max(60, ball.y - ball.r - 34)}px`;
-    }
-    el.querySelector('i').style.transform = `scaleX(${power})`;
-    el.querySelector('b').textContent = power < 0.45 ? 'SLOW' : power < 0.8 ? 'MID' : 'FAST';
-    el.querySelector('span').textContent = 'SPEED';
-    el.classList.remove('max');
-    el.classList.toggle('locked', locked);
   }
 
   /** チュートリアル回数(説明表示)をリセット/消化 */
