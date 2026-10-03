@@ -1,0 +1,372 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "loop6A1",
+			"GroupId": "ParamGroup",
+			"Name": "6秒A1"
+		},
+		{
+			"Id": "loop6A2",
+			"GroupId": "ParamGroup",
+			"Name": "6秒A2"
+		},
+		{
+			"Id": "loop6A3",
+			"GroupId": "ParamGroup",
+			"Name": "6秒A3"
+		},
+		{
+			"Id": "loop6A4",
+			"GroupId": "ParamGroup",
+			"Name": "6秒A4"
+		},
+		{
+			"Id": "loop6B1",
+			"GroupId": "ParamGroup",
+			"Name": "6秒B1"
+		},
+		{
+			"Id": "loop6B2",
+			"GroupId": "ParamGroup",
+			"Name": "6秒B2"
+		},
+		{
+			"Id": "loop6B3",
+			"GroupId": "ParamGroup",
+			"Name": "6秒B3"
+		},
+		{
+			"Id": "loop6B4",
+			"GroupId": "ParamGroup",
+			"Name": "6秒B4"
+		},
+		{
+			"Id": "loopA1",
+			"GroupId": "ParamGroup2",
+			"Name": "4秒A1"
+		},
+		{
+			"Id": "loopA2",
+			"GroupId": "ParamGroup2",
+			"Name": "4秒A2"
+		},
+		{
+			"Id": "loopA3",
+			"GroupId": "ParamGroup2",
+			"Name": "4秒A3"
+		},
+		{
+			"Id": "loop4B1",
+			"GroupId": "ParamGroup2",
+			"Name": "4秒B1"
+		},
+		{
+			"Id": "loop4B2",
+			"GroupId": "ParamGroup2",
+			"Name": "4秒B2"
+		},
+		{
+			"Id": "loop4B3",
+			"GroupId": "ParamGroup2",
+			"Name": "4秒B3"
+		},
+		{
+			"Id": "loop3A1",
+			"GroupId": "ParamGroup3",
+			"Name": "3秒A1"
+		},
+		{
+			"Id": "loop3A2",
+			"GroupId": "ParamGroup3",
+			"Name": "3秒A2"
+		},
+		{
+			"Id": "loop3A3",
+			"GroupId": "ParamGroup3",
+			"Name": "3秒A3"
+		},
+		{
+			"Id": "loop3B1",
+			"GroupId": "ParamGroup3",
+			"Name": "3秒B1"
+		},
+		{
+			"Id": "loop3B2",
+			"GroupId": "ParamGroup3",
+			"Name": "3秒B2"
+		},
+		{
+			"Id": "loop3B3",
+			"GroupId": "ParamGroup3",
+			"Name": "3秒B3"
+		},
+		{
+			"Id": "loopC1",
+			"GroupId": "ParamGroup4",
+			"Name": "2秒A1"
+		},
+		{
+			"Id": "loopC2",
+			"GroupId": "ParamGroup4",
+			"Name": "2秒A2"
+		},
+		{
+			"Id": "loopC3",
+			"GroupId": "ParamGroup4",
+			"Name": "2秒A3"
+		},
+		{
+			"Id": "loop2B1",
+			"GroupId": "ParamGroup4",
+			"Name": "2秒B1"
+		},
+		{
+			"Id": "loop2B2",
+			"GroupId": "ParamGroup4",
+			"Name": "2秒B2"
+		},
+		{
+			"Id": "loop2B3",
+			"GroupId": "ParamGroup4",
+			"Name": "2秒B3"
+		},
+		{
+			"Id": "return4",
+			"GroupId": "ParamGroup5",
+			"Name": "2段4秒A1"
+		},
+		{
+			"Id": "return3",
+			"GroupId": "ParamGroup6",
+			"Name": "2段3秒B1"
+		},
+		{
+			"Id": "ripi4",
+			"GroupId": "ParamGroup7",
+			"Name": "リピ4秒"
+		},
+		{
+			"Id": "ripi6",
+			"GroupId": "ParamGroup7",
+			"Name": "リピ6秒"
+		},
+		{
+			"Id": "ripi12",
+			"GroupId": "ParamGroup7",
+			"Name": "リピ12秒"
+		},
+		{
+			"Id": "ParamCheek",
+			"GroupId": "",
+			"Name": "照れ"
+		},
+		{
+			"Id": "hit",
+			"GroupId": "",
+			"Name": "ヒット"
+		},
+		{
+			"Id": "ParamSmile",
+			"GroupId": "",
+			"Name": "笑顔"
+		},
+		{
+			"Id": "ParamAngleX",
+			"GroupId": "",
+			"Name": "角度 X"
+		},
+		{
+			"Id": "ParamAngleY",
+			"GroupId": "",
+			"Name": "角度 Y"
+		},
+		{
+			"Id": "ParamAngleZ",
+			"GroupId": "",
+			"Name": "角度 Z"
+		},
+		{
+			"Id": "ParamEyeROpen",
+			"GroupId": "",
+			"Name": "右目　開閉"
+		},
+		{
+			"Id": "ParamEyeRSmile",
+			"GroupId": "",
+			"Name": "右目　笑顔"
+		},
+		{
+			"Id": "ParamEyeLOpen",
+			"GroupId": "",
+			"Name": "左目　開閉"
+		},
+		{
+			"Id": "ParamEyeLSmile",
+			"GroupId": "",
+			"Name": "左目　笑顔"
+		},
+		{
+			"Id": "ParamEyeBallX",
+			"GroupId": "",
+			"Name": "目玉 X"
+		},
+		{
+			"Id": "ParamEyeBallY",
+			"GroupId": "",
+			"Name": "目玉 Y"
+		},
+		{
+			"Id": "ParamBrowLY",
+			"GroupId": "",
+			"Name": "左眉　上下"
+		},
+		{
+			"Id": "ParamBrowRY",
+			"GroupId": "",
+			"Name": "右眉　上下"
+		},
+		{
+			"Id": "ParamBrowLX",
+			"GroupId": "",
+			"Name": "左眉　左右"
+		},
+		{
+			"Id": "ParamBrowRX",
+			"GroupId": "",
+			"Name": "右眉　左右"
+		},
+		{
+			"Id": "ParamBrowLAngle",
+			"GroupId": "",
+			"Name": "左眉　角度"
+		},
+		{
+			"Id": "ParamBrowRAngle",
+			"GroupId": "",
+			"Name": "右眉　角度"
+		},
+		{
+			"Id": "ParamBrowLForm",
+			"GroupId": "",
+			"Name": "左眉　変形"
+		},
+		{
+			"Id": "ParamBrowRForm",
+			"GroupId": "",
+			"Name": "右眉　変形"
+		},
+		{
+			"Id": "ParamMouthForm",
+			"GroupId": "",
+			"Name": "口　変形"
+		},
+		{
+			"Id": "ParamMouthOpenY",
+			"GroupId": "",
+			"Name": "口　開閉"
+		},
+		{
+			"Id": "ParamBodyAngleX",
+			"GroupId": "",
+			"Name": "体の回転 X"
+		},
+		{
+			"Id": "ParamBodyAngleY",
+			"GroupId": "",
+			"Name": "体の回転 Y"
+		},
+		{
+			"Id": "ParamBodyAngleZ",
+			"GroupId": "",
+			"Name": "体の回転 Z"
+		},
+		{
+			"Id": "ParamBreath",
+			"GroupId": "",
+			"Name": "呼吸"
+		},
+		{
+			"Id": "ParamHairFront",
+			"GroupId": "",
+			"Name": "髪揺れ　前"
+		},
+		{
+			"Id": "ParamHairSide",
+			"GroupId": "",
+			"Name": "髪揺れ　横"
+		},
+		{
+			"Id": "ParamHairBack",
+			"GroupId": "",
+			"Name": "髪揺れ　後"
+		}
+	],
+	"ParameterGroups": [
+		{
+			"Id": "ParamGroup",
+			"GroupId": "",
+			"Name": "6秒ループ"
+		},
+		{
+			"Id": "ParamGroup2",
+			"GroupId": "",
+			"Name": "4秒ループ"
+		},
+		{
+			"Id": "ParamGroup3",
+			"GroupId": "",
+			"Name": "3秒ループ"
+		},
+		{
+			"Id": "ParamGroup4",
+			"GroupId": "",
+			"Name": "2秒ループ"
+		},
+		{
+			"Id": "ParamGroup5",
+			"GroupId": "",
+			"Name": "Folder 1"
+		},
+		{
+			"Id": "ParamGroup6",
+			"GroupId": "",
+			"Name": "Folder 2"
+		},
+		{
+			"Id": "ParamGroup7",
+			"GroupId": "",
+			"Name": "Folder 3"
+		}
+	],
+	"Parts": [
+		{
+			"Id": "Part",
+			"Name": "2ef7ece7-b0d3-4d4a-ac46-70ed3f828cf1.png"
+		},
+		{
+			"Id": "ArtMesh58_Skinning",
+			"Name": "玉ねぎ←(スキニング)"
+		},
+		{
+			"Id": "ArtMesh61_Skinning",
+			"Name": "玉ねぎ→(スキニング)"
+		},
+		{
+			"Id": "ArtMesh75_Skinning",
+			"Name": "脚膝下←(スキニング)"
+		},
+		{
+			"Id": "ArtMesh78_Skinning",
+			"Name": "脚膝下→(スキニング)"
+		},
+		{
+			"Id": "ArtMesh80_Skinning",
+			"Name": "しっぽ(スキニング)"
+		},
+		{
+			"Id": "ArtMesh90_Skinning",
+			"Name": "→腕肘下(スキニング)"
+		}
+	]
+}

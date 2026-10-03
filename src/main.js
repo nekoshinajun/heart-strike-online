@@ -64,7 +64,7 @@ function boot() {
 function showTitle(container, onStart) {
   const ally = characterById('minamo') ?? characterById('hinoka');
   const allyArt = artUrl(ally, 'cutout') || '';
-  const targetArt = BOSS_IMAGES.demon || '';
+  const targetArt = BOSS_IMAGES.milk || BOSS_IMAGES.demon || '';   // 猫メイドカフェ Lumière のみるく(明るい背景でカフェの世界観に合う)
   const el = document.createElement('section');
   el.id = 'titleScreen';
   el.className = 'hs-title';
@@ -76,12 +76,12 @@ function showTitle(container, onStart) {
     <img class="ht-girl ht-target" src="${targetArt}" alt="">
     <div class="ht-hearts" aria-hidden="true"><i>♡</i><i>♡</i><i>♡</i><b>♥</b></div>
     <div class="ht-copy">
-      <div class="ht-kicker">GIRLS × FLIRT × HEART BATTLE</div>
+      <div class="ht-kicker">CONCEPT CAFÉ × HEART BATTLE</div>
       <h1><span>HEART</span><em>STRIKE</em><b>♡</b></h1>
-      <p class="ht-jp">ハートを投げて、あの娘を落とせ♡</p>
+      <p class="ht-jp">ハートを届けて、あの娘を攻略しよう♡</p>
     </div>
     <button class="ht-start" type="button"><span>TOUCH TO START</span><b>♡</b></button>
-    <p class="ht-loop">育てる。口説く。落とす。<br><small>最高難易度のその先に、彼女だけの特別な声。</small></p>
+    <p class="ht-loop">お店をめぐって、推しを攻略。<br><small>最高難易度のその先に、彼女だけの特別な声。</small></p>
     <div class="ht-note">© HEART STRIKE</div>`;
   container.appendChild(el);
   let started = false;
