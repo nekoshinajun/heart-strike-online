@@ -40,7 +40,7 @@ export const CHARACTER_ASSETS = {
   // ステラのボス(Live2D)
   rato: {
     id: 'rato', rendererType: 'live2d', thumbnail: 'rato',
-    art: { face: { u: 0.46, v: 0.24, w: 0.2 }, stage: { x: -0.36, h: 0.62 } },
+    art: { face: { u: 0.46, v: 0.25, w: 0.13 }, stage: { x: -0.4, h: 0.85 } },
     live2d: {
       modelPath: 'public/Live2D/idle_rato01/idle_rato01.model3.json',
       motions: { idle: 'idle_rato01.motion3.json' },
@@ -49,7 +49,7 @@ export const CHARACTER_ASSETS = {
         hit: { id: 'hit', value: 1, attackSec: 0, holdSec: HIT_REACTION_HOLD_SEC, releaseSec: HIT_REACTION_RELEASE_SEC },
       },
       view: { u0: -0.01, v0: -0.07, u1: 0.97, v1: 1.04, heightPx: 1024 },
-      display: { height: 7, y: 8.4, x: -0.5 },
+      display: { height: 9, y: 6.95, x: -1 },
     },
   },
 };
