@@ -127,7 +127,7 @@ export const ABILITIES = {
   ult_raimu: { name: 'THUNDER CURVE', desc: 'カーブ ×1.25・カーブ命中 HEART ×1.1', ultimate: true, effects: [{ kind: 'curve', mul: 1.25 }, { kind: 'heart', mul: 1.1, when: { spin: true } }] },
   ult_shizuku: { name: 'TIDE GUARD', desc: '受けるダメージ ×0.8', ultimate: true, effects: [{ kind: 'guard', mul: 0.8 }] },
   ult_akane: { name: 'PINPOINT HEART', desc: 'CONTROL のブレ ×0.3・HEART ×1.08', ultimate: true, effects: [{ kind: 'control', mul: 0.3 }, { kind: 'heart', mul: 1.08 }] },
-  ult_kohaku: { name: 'SPARK STRAIGHT', desc: 'ストレートの命中 HEART ×1.12・CONTROL のブレ ×0.6', ultimate: true, effects: [{ kind: 'heart', mul: 1.12, when: { noSpin: true } }, { kind: 'control', mul: 0.6 }] },
+  ult_kohaku: { name: 'SPARK STRAIGHT', desc: 'カーブなし(回転0)の命中 HEART ×1.12・CONTROL のブレ ×0.6', ultimate: true, effects: [{ kind: 'heart', mul: 1.12, when: { noSpin: true } }, { kind: 'control', mul: 0.6 }] },
   ult_kagura: { name: 'FLAME ARC', desc: 'カーブ命中 HEART ×1.15', ultimate: true, effects: [{ kind: 'heart', mul: 1.15, when: { spin: true } }] },
   ult_sera: { name: 'HOLY WINGS', desc: '受けるダメージ ×0.88・HEART ×1.05', ultimate: true, effects: [{ kind: 'guard', mul: 0.88 }, { kind: 'heart', mul: 1.05 }] },
   ult_yoruna: { name: 'DRAGON HEART', desc: 'HEART ×1.12・カーブの効き ×1.2', ultimate: true, effects: [{ kind: 'heart', mul: 1.12 }, { kind: 'curve', mul: 1.2 }] },

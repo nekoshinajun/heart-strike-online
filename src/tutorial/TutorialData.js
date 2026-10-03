@@ -59,7 +59,7 @@ export const TUTORIAL_LESSONS = [
       },
       {
         wait: ANY_THROW_END,
-        card: { title: '3周', text: '回した量はハートの上に RIGHT CURVE / LEFT CURVE と出るよ。3周で最大まで曲がる!', points: ['曲がりやすさはキャラで違う(CURVE タイプ・CURVE ステータスが高いほど大きく曲がる)'] },
+        card: { title: '3周', text: '回した量はハートの上に RIGHT CURVE / LEFT CURVE と出るよ。3周で最大まで曲がる!', points: ['曲がりやすさはキャラで違う(CURVE ステータスが高いほど大きく曲がる)'] },
       },
       { coach: '残りのメンバーも、カーブで投げてみよう', wait: (e) => e === 'phaseEnd' },
     ],
@@ -183,7 +183,7 @@ export const TUTORIAL_LESSONS = [
 
 /** 読み物(バトルなし)。チュートリアル画面の下に並べる */
 export const TUTORIAL_HELP = [
-  { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL)', 'DEF:4人の合計がパーティの防御力。全員の受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる', 'タイプ:STRAIGHT = 速い球 / CURVE = よく曲がる'] },
+  { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL)', 'DEF:4人の合計がパーティの防御力。全員の受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる'] },
   { title: '属性の相性', lines: ['💧WATER は 🔥FIRE に、🔥FIRE は ⚡THUNDER に、⚡THUNDER は 💧WATER に強い', '有利 ×1.3(EFFECTIVE♡)/ 不利 ×0.7(RESIST)'] },
   { title: 'アビリティ', lines: ['レベルアップで覚える。例:POWER UP(ダメージ +10%)/ GUARD UP(DEF +20)/ VITAL UP(HP +30)', 'SPECIAL MASTER(SPECIAL ×1.1)/ SPECIAL CHARGE(Diamond で溜まる量 ×1.2)/ GATE MASTER(ゲート命中 ×1.1)', 'キャラごとの ULTIMATE もある'] },
   { title: '難易度', lines: ['NORMAL / HARD / HELL で変わるのは、ハートゲートの大きさと受けるダメージだけ', 'キャッチの判定の幅はどの難易度も同じ', 'HARD・HELL ほど変化する攻撃が多い'] },

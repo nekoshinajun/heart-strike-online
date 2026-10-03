@@ -293,7 +293,7 @@ export const Config = {
     energyColors: ['#3ee8ff', '#ff7ad9', '#b6ff5c', '#ffb13d'],
     /**
      * RoutePatternData:お手本の1投(guide)と、その周りに置くポイントのリスト。
-     *   guide … { target: 部位, tx, ty(狙い点のずらし・world), power, spin }。現在キャラのタイプ補正込みで物理シミュレーションする
+     *   guide … { target: 部位, tx, ty(狙い点のずらし・world), power, spin }。現在キャラの CURVE ステータス込みで物理シミュレーションする
      *           → ポイントを guide の軌道に沿って置けば「その投げ方をすれば必ず届く」3D ルートになる
      *   points … { type: 'Energy' | 'Gate' | 'Obstacle' | 'Empty', at: レイヤー名 or 0〜1, to?(Energy の列の終点), count?,
      *              dx, dy(軌道からのずれ・world。X=左右 / Y=高さ / Z=at), anchor: 'path'(既定)| 'world'(x, y を絶対座標で指定),

@@ -1,4 +1,4 @@
-import { ATTRIBUTES, TYPES } from './GameData.js';
+import { ATTRIBUTES } from './GameData.js';
 import { Config } from '../core/Config.js';
 import { statEffect, abilityMul, abilityStatMul, abilityPowerMul } from './Growth.js';
 
@@ -11,7 +11,7 @@ import { statEffect, abilityMul, abilityStatMul, abilityPowerMul } from './Growt
  *     アビリティ倍率 … POWER UP など(+10% ずつ足し算)× 条件つきの HEART アビリティ(GrowthData.ABILITIES)。レベルの ATK とは別枠
  *     ゲート倍率    … Heart Gate を通って命中した時の倍率(Config.space.gate.chainBonus)
  *     着弾倍率      … 敵の中央縦ラインからの横方向の距離だけで決まる(Config.landing:PERFECT 1.5 / GREAT 1.3 / GOOD 1.15 / HIT 1.0 / 当たらなければ 0)
- *   部位・球速・引っ張り量・STRAIGHT/CURVE・COMBO・SOLO/MULTI は与ダメージに使わない
+ *   部位・球速・引っ張り量・カーブの有無・COMBO・SOLO/MULTI は与ダメージに使わない
  *
  * 属性相性(有利 1.3 / 通常 1.0 / 不利 0.7)・SPECIAL は通常攻撃の式の「後」に掛ける別枠(finalDamage)。FEVER はダメージを増やさない。SPECIAL 固有の効果(回復など)は
  * 最終ダメージが確定した後に effects/SpecialEffects.js が行う。丸めは最後に1回だけ(四捨五入)
@@ -67,15 +67,13 @@ export function finalDamage(normal, { attribute = 1, special = 1 } = {}) {
 
 /**
  * キャラクター → 投球への補正(入力とは独立)
- *   speedMul     … タイプ(STRAIGHT / CURVE)の球速の傾向
  *   curveMul     … CURVE ステータス(50 = ×1.0 / 100 = ×1.5)。カーブ(SPIN / PRE-SPIN)の量に掛かる
  *   controlError … CONTROL ステータス → 狙いの小さな誤差(units)。アビリティで軽減
  *   abilities    … 条件つきのアビリティ(カーブ / DRIVE)を投球の計算で見る
  */
 export function throwModifiers(chara) {
-  const t = TYPES[chara?.type] ?? TYPES.STRAIGHT;
   const ab = chara?.abilities ?? [];
-  return { speedMul: t.straightPowerMul, curveMul: statPerformance(chara, 'curve'), controlError: statPerformance(chara, 'control') * abilityMul(ab, 'control', {}, { onlyAlways: true }), abilities: ab };
+  return { curveMul: statPerformance(chara, 'curve'), controlError: statPerformance(chara, 'control') * abilityMul(ab, 'control', {}, { onlyAlways: true }), abilities: ab };
 }
 
 /**

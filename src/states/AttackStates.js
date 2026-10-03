@@ -210,7 +210,7 @@ export class BossHitState {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
       // 通常攻撃の与ダメージ = ATK × アビリティ倍率 × ハートゲート通過倍率 × 着弾倍率(data/BattleCalc.js)
-      //   部位・球速・引っ張り量・STRAIGHT/CURVE・COMBO・SOLO/MULTI では変えない
+      //   部位・球速・引っ張り量・カーブの有無・COMBO・SOLO/MULTI では変えない
       //   着弾倍率:敵の中央縦ラインからの横方向の距離だけ(当たり判定の点 = 止まった姿勢の攻撃面 → MULTI の全員で同じ)
       const ch = g.turn.current.chara;
       const land = landingGrade(point.x - g.boss.root.position.x);
