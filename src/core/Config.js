@@ -293,7 +293,7 @@ export const Config = {
     energyColors: ['#3ee8ff', '#ff7ad9', '#b6ff5c', '#ffb13d'],
     /**
      * RoutePatternData:お手本の1投(guide)と、その周りに置くポイントのリスト。
-     *   guide … { target: 部位, tx, ty(狙い点のずらし・world), power, spin }。現在キャラのタイプ補正込みで物理シミュレーションする
+     *   guide … { target: 部位, tx, ty(狙い点のずらし・world), power, spin }。現在キャラの CURVE ステータス込みで物理シミュレーションする
      *           → ポイントを guide の軌道に沿って置けば「その投げ方をすれば必ず届く」3D ルートになる
      *   points … { type: 'Energy' | 'Gate' | 'Obstacle' | 'Empty', at: レイヤー名 or 0〜1, to?(Energy の列の終点), count?,
      *              dx, dy(軌道からのずれ・world。X=左右 / Y=高さ / Z=at), anchor: 'path'(既定)| 'world'(x, y を絶対座標で指定),
@@ -483,13 +483,14 @@ export const Config = {
     // SPECIAL 使用時のキャラクターカットイン(演出は実時間 = Unscaled で動く)
     cutIn: {
       enabled: true,
+      delay: 0.2,          // ★ 離してからカットインが出るまでの待ち(実秒)。ハートはカットインが終わってから飛ぶ
       duration: 0.62,      // ★ カットイン全体の実時間(秒)。0.5〜0.8 推奨
       timeScale: 0.15,     // ★ カットイン中のゲーム時間倍率(完全停止ではなくスロー)
       dim: 0.55,           // ★ 背景を暗くする量
       flashAt: 0.72,       // 白フラッシュのタイミング(duration 比)
     },
     trailHearts: 0.05,     // ★ 飛行中に小さなハートを撒く間隔(秒)
-    heartMul: 3,           // ★ SPECIAL HEART:次の1投で届く HEART の倍率
+    heartMul: 3,           // ★ SPECIAL のダメージ倍率の既定値(CharacterData.special.damageMul が無い時だけ。SSR 以外の共通 SPECIAL は damageMul 2)
     ballScale: 1.9,        // 見た目のボールサイズ
     hitstop: 0.32,
   },

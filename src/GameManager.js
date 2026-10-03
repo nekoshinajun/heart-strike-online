@@ -324,9 +324,9 @@ export class GameManager {
     return v;
   }
 
-  /** 手番キャラの性能を投球へ反映(タイプ補正)。攻撃・防御の数値は各ステートが turn.current.chara から読む */
+  /** 手番キャラの性能を投球へ反映。攻撃・防御の数値は各ステートが turn.current.chara から読む */
   applyCharacter(p) {
-    this.player.thrower.mods = throwModifiers(p.chara);   // タイプの球速 + CURVE / CONTROL ステータス + アビリティ
+    this.player.thrower.mods = throwModifiers(p.chara);   // CURVE / CONTROL ステータス + アビリティ
     this.ball.setStyle(p.color, this.turn.tierLevel);
   }
 

@@ -258,6 +258,7 @@ export class EnergySystem {
     this.armed = !this.armed;
     this.refreshUI();
     this.g.ball.setSpecial(this.armed);
+    if (this.armed) this.g.cutin?.preload?.(this.g.turn.current?.chara);   // 投げた瞬間に画像の読み込みで引っかからないように
     this.g.tutorial?.emit('specialArmed', { armed: this.armed });
     return this.armed;
   }

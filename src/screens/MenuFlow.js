@@ -1,4 +1,4 @@
-import { STAGES, CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
+import { STAGES, CHARACTERS, ATTRIBUTES, RANKS } from '../data/GameData.js';
 import { attributeRelation } from '../data/BattleCalc.js';
 import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
@@ -44,22 +44,22 @@ export function staminaHTML(ch, cls = '') {
   return `<span class="stam ${ch.tired ? 'tired' : ''} ${cls}" title="STAMINA ${ch.stamina} / ${ch.staminaMax}"><i style="--k:${k}"></i><b>${ch.tired ? '疲労中 EXP×10%' : `STA ${ch.stamina}`}</b></span>`;
 }
 
-/** キャラクターカード(ランク・画像・名前・属性・タイプ・親密度 Lv・HP・ATTACK・DEFENCE・STAMINA) */
-export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
-  const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+/** キャラクターカード(ランク・画像・名前・属性・親密度 Lv・HP・ATTACK・DEFENCE・STAMINA)。mini はランク・画像・名前だけ */
+export function cardHTML(ch, { slot = '', badge = '', compact = false, mini = false } = {}) {
+  const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
   const ps = portraitStyle(ch);
   const img = ps
     ? `<div class="avatar" style="${ps}"><i>${a.icon}</i></div>`
     : `<div class="avatar ph" style="--ac:${a.color}"><span>${esc(ch.name[0])}</span><i>${a.icon}</i></div>`;
   void r;
-  return `<div class="ccard rar-frame${compact ? ' compact' : ''}" ${rarityAttr(ch.rank)} style="--ac:${a.color}">
+  return `<div class="ccard rar-frame${compact ? ' compact' : ''}${mini ? ' mini' : ''}" ${rarityAttr(ch.rank)} style="--ac:${a.color}">
     ${rarityBadge(ch.rank, 'crank')}${raritySparkle(ch.rank)}${charAccent(ch)}${slot ? `<div class="cslot">${slot}</div>` : ''}${badge}
     ${img}
     <div class="cname">${esc(ch.name)}</div>
-    <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${t.label}</span></div>
+    ${mini ? '' : `<div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${a.label}</span></div>
     <div class="cstat cstat-lv"><span>♡Lv.${ch.level}</span><span class="chp">HP ${ch.maxHp ?? '-'}</span></div>
     <div class="cstat"><span>ATK ${(ch.totalStats ?? ch.stats)?.attack ?? '-'}</span><span>DEF ${(ch.totalStats ?? ch.stats)?.defence ?? '-'}</span></div>
-    ${staminaHTML(ch)}
+    ${staminaHTML(ch)}`}
   </div>`;
 }
 
@@ -459,7 +459,6 @@ export class MenuFlow {
       <div class="howto mini">
         <div><b>THROW</b>ハート玉を下へ引いて球速を決める(浅い=よく曲がる・深い=まっすぐ)→上へ弾いて狙う。切り返すとカーブ</div>
         <div><b>CATCH</b>◎の位置を、リングが重なる瞬間にタップ</div>
-        <div><b>TYPE</b>STRAIGHT=速い球 / CURVE=よく曲がる</div>
       </div>`;
     for (const b of this.body.querySelectorAll('[data-act="first"]')) this.bindCard(b, b.dataset.id, () => { this.firstId = b.dataset.id; this.showCharacterSelect(); });
     this.focus();
@@ -508,7 +507,7 @@ export class MenuFlow {
       const a = r.after, b = r.before;
       const ups = Object.keys(a.stats).filter((k) => a.stats[k] !== b.stats[k]).map((k) => `${STAT_LABELS[k]} +${a.stats[k] - b.stats[k]}`).join(' / ');
       return `<div class="exprow" data-i="${i}">
-        ${cardHTML(a, { compact: true })}
+        ${cardHTML(a, { compact: true, mini: true })}
         <div class="expinfo">
           <div class="expname">${esc(a.name)} <span class="lv">AFFECTION Lv.<b>${b.level}</b></span><em class="lvup" hidden>LEVEL UP!</em></div>
           <div class="expbar"><i></i></div>

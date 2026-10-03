@@ -1,4 +1,5 @@
 import { DEFAULT_SPECIAL } from '../data/GameData.js';
+import { Config } from '../core/Config.js';
 
 /**
  * SPECIAL(必殺技)の効果。CharacterData.special.effectType で選ぶ(キャラごとの処理はここに足すだけ)
@@ -9,7 +10,7 @@ import { DEFAULT_SPECIAL } from '../data/GameData.js';
  *   今後:防御(guard)・バフ(buff)・デバフ(debuff)・蘇生(revive)… を足せる
  */
 export const SPECIAL_EFFECTS = {
-  /** 通常の SPECIAL(HEART 倍率 Config.special.heartMul は通常攻撃の式の後に BOSS_HIT で掛ける:BattleCalc.finalDamage)。追加の効果なし */
+  /** 通常の SPECIAL(ダメージ倍率 specialDamageMul は通常攻撃の式の後に BOSS_HIT で掛ける:BattleCalc.finalDamage)。追加の効果なし */
   attack: { apply: () => null },
 
   /**
@@ -47,6 +48,12 @@ export function applyHealAll(players, amount) {
 
 /** キャラの SPECIAL(無ければ共通の SPECIAL HEART)*/
 export const specialOf = (chara) => chara?.special ?? DEFAULT_SPECIAL;
+
+/** SPECIAL の1投のダメージ倍率(CharacterData.special.damageMul。無ければ Config.special.heartMul)*/
+export function specialDamageMul(chara) {
+  const n = Number(specialOf(chara).damageMul);
+  return Number.isFinite(n) && n > 0 ? n : Config.special.heartMul;
+}
 
 /** SPECIAL 命中後の効果を1回だけ適用 → 結果 or null */
 export function applySpecialEffect(chara, ctx) {

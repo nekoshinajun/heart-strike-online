@@ -1,4 +1,4 @@
-// ゲーム全体のマスターデータ(キャラクター / ステージ / 属性 / ランク / タイプ / 成長)。
+// ゲーム全体のマスターデータ(キャラクター / ステージ / 属性 / ランク / 成長)。
 // ★ 追加・調整はここのデータを書き換えるだけ。キャラ個別の if 分岐は書かない。
 
 /** 属性:icon / color と、有利な相手(beats)。WATER > FIRE > THUNDER > WATER */
@@ -19,16 +19,6 @@ export const RANKS = {
 };
 
 /**
- * タイプ:操作は共通。ボールの性質だけが変わる(入力の POWER / AIM / SPIN とは別に掛かる)
- *   straightPowerMul … 初速(ボールの速さ)
- *   curveMul         … カーブ量(膨らみ・曲がり)
- */
-export const TYPES = {
-  STRAIGHT: { id: 'STRAIGHT', label: 'STRAIGHT', icon: '➤', straightPowerMul: 1.2, curveMul: 0.6 },
-  CURVE:    { id: 'CURVE',    label: 'CURVE',    icon: '↪', straightPowerMul: 0.8, curveMul: 1.5 },
-};
-
-/**
  * キャラクター(CharacterData)
  *   art.portrait / art.fullBody / art.specialCutIn / art.cutout(背景なしの全身:HOME・ガチャ Reveal)… 画像キー(assets/charaImages.js。tools/embed_assets.py が生成)
  *     → 画像を差し替える / キャラを追加する時はキーを登録するだけ。コード側に画像参照は書かない
@@ -46,15 +36,16 @@ export const TYPES = {
  *       name / description / highlight(強調する数値・効果)/ note(補足)
  *       effectType … 効果の種類(src/effects/SpecialEffects.js):'attack' = 通常の SPECIAL だけ / 'healAll' = 命中で味方全員を回復 / 今後:防御・バフ・デバフ・蘇生…
  *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.1 = 10%)
+ *       damageMul … SPECIAL の1投のダメージ倍率(通常攻撃の式の後に掛ける:BattleCalc.finalDamage)。省略 = Config.special.heartMul
  *       visualEffect … 見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない
  *       requiredDiamonds … SPECIAL 発動までに必要な Diamond の個数(画面の「💎 発動まで ×○」はここだけを見る。省略 = DEFAULT_SPECIAL の値)
  *                          実際のゲージもこの個数で MAX になる(data/SpecialGauge.js の specialGaugeSpec:最大値 = 個数 × Config.energy.orbValue)
- *     省略したキャラは DEFAULT_SPECIAL(全員共通の SPECIAL HEART)
+ *     省略したキャラは DEFAULT_SPECIAL(SSR 以外の全員共通の SPECIAL HEART:ハートが大きくなってダメージ ×2)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
  */
 export const CHARACTERS = [
   {
-    id: 'minamo', rank: 'SR', name: 'ミナモ', attribute: 'WATER', type: 'STRAIGHT',
+    id: 'minamo', rank: 'SR', name: 'ミナモ', attribute: 'WATER',
     art: { portrait: 'minamo', fullBody: 'minamo', specialCutIn: 'minamo', cutout: 'minamo_cut' },
     portraitFocus: { x: 0.48, y: 0.21, zoom: 3.0 },
     cutIn: { faceX: 0.47, faceY: 0.18, x: 0.5, y: 0.34, scale: 1.9, rot: -6 },
@@ -62,7 +53,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'hinoka', rank: 'SR', name: 'ヒノカ', attribute: 'FIRE', type: 'STRAIGHT',
+    id: 'hinoka', rank: 'SR', name: 'ヒノカ', attribute: 'FIRE',
     art: { portrait: 'hinoka', fullBody: 'hinoka', specialCutIn: 'hinoka', cutout: 'hinoka_cut' },
     portraitFocus: { x: 0.45, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.43, faceY: 0.15, x: 0.5, y: 0.34, scale: 1.9, rot: 5 },
@@ -70,7 +61,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'raimu', rank: 'SR', name: 'ライム', attribute: 'THUNDER', type: 'CURVE',
+    id: 'raimu', rank: 'SR', name: 'ライム', attribute: 'THUNDER',
     art: { portrait: 'raimu', fullBody: 'raimu', specialCutIn: 'raimu', cutout: 'raimu_cut' },
     portraitFocus: { x: 0.55, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.17, x: 0.5, y: 0.34, scale: 1.9, rot: -5 },
@@ -78,7 +69,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'shizuku', rank: 'SR', name: 'シズク', attribute: 'WATER', type: 'CURVE',
+    id: 'shizuku', rank: 'SR', name: 'シズク', attribute: 'WATER',
     art: { portrait: 'shizuku', fullBody: 'shizuku', specialCutIn: 'shizuku', cutout: 'shizuku_cut' },
     portraitFocus: { x: 0.43, y: 0.23, zoom: 3.0 },
     cutIn: { faceX: 0.40, faceY: 0.2, x: 0.5, y: 0.34, scale: 1.9, rot: 4 },
@@ -86,7 +77,7 @@ export const CHARACTERS = [
     detail: { x: 0.52, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'akane', rank: 'R', name: 'アカネ', attribute: 'FIRE', type: 'CURVE',
+    id: 'akane', rank: 'R', name: 'アカネ', attribute: 'FIRE',
     art: { portrait: 'akane', fullBody: 'akane', specialCutIn: 'akane', cutout: 'akane_cut' },
     portraitFocus: { x: 0.53, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.52, faceY: 0.15, x: 0.5, y: 0.34, scale: 1.9, rot: -4 },
@@ -96,26 +87,27 @@ export const CHARACTERS = [
   // ---- SSR ----
   {
     // ダークドラゴンの女の子(ガチャ PICK UP)。画像:assets/chara_yoruna.webp(カード用)/ cut_yoruna.webp(透過の全身)
-    id: 'yoruna', rank: 'SSR', name: 'ヨルナ', attribute: 'FIRE', type: 'CURVE',
+    id: 'yoruna', rank: 'SSR', name: 'ヨルナ', attribute: 'FIRE',
     art: { portrait: 'yoruna', fullBody: 'yoruna', specialCutIn: 'yoruna', cutout: 'yoruna_cut' },
     portraitFocus: { x: 0.53, y: 0.23, zoom: 3.0 },
     cutIn: { faceX: 0.53, faceY: 0.22, x: 0.5, y: 0.34, scale: 1.8, rot: -5 },
-    description: '闇夜を焦がす恋の炎をまとうダークドラゴン。SPECIAL ではハートが翼のように分かれ、紫の炎を引いて一斉に届く。',
+    description: '闇夜を焦がす恋の炎をまとうダークドラゴン。SPECIAL ではハートが3つになり、紫の炎を引いて連なって届く。',
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
     accent: { id: 'yoruna', glow: '#b14dff' },
     gachaReveal: 'darkDragon',
     special: {
       name: 'DRAGON HEART BURST',
-      description: '投げたハートが 1 → 3 → 7個へ分裂。ドラゴンの翼のように広がり、命中時にターゲットへ収束する。',
-      highlight: { value: '1 → 3 → 7', label: 'HEART SPLIT' },
-      note: '※ 分裂は演出。ダメージ判定は1回(SPECIAL 1回分)。',
-      effectType: 'attack', effectValue: null, visualEffect: 'dragonSplit',
+      description: 'ハートが3つになり、ダメージが 300% になります。投げたハートの後ろから2つのハートが付いてきて、命中時にターゲットへ集まる。',
+      highlight: { value: 'ダメージ 300%', label: 'TRIPLE HEART' },
+      note: '※ 増えた2つのハートは演出。ダメージ判定は1回(合わせて 300%)。',
+      effectType: 'attack', effectValue: null, visualEffect: 'dragonTrail',
+      damageMul: 3,
       requiredDiamonds: 15,
     },
   },
   {
     // 天使の女の子(回復型 SSR)。画像:assets/chara_sera.webp(カード用)/ cut_sera.webp(透過の全身)
-    id: 'sera', rank: 'SSR', name: 'セラ', attribute: 'THUNDER', type: 'STRAIGHT',
+    id: 'sera', rank: 'SSR', name: 'セラ', attribute: 'THUNDER',
     art: { portrait: 'sera', fullBody: 'sera', specialCutIn: 'sera', cutout: 'sera_cut' },
     portraitFocus: { x: 0.48, y: 0.25, zoom: 3.0 },
     cutIn: { faceX: 0.48, faceY: 0.25, x: 0.5, y: 0.34, scale: 1.8, rot: 4 },
@@ -133,7 +125,7 @@ export const CHARACTERS = [
   },
   // ---- 追加キャラ(画像は未登録:art を空にしておくと仮のシルエットで表示。画像キーを入れるだけで差し替わる)----
   {
-    id: 'kohaku', rank: 'SR', name: 'コハク', attribute: 'THUNDER', type: 'STRAIGHT',
+    id: 'kohaku', rank: 'SR', name: 'コハク', attribute: 'THUNDER',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: -4 },
@@ -141,7 +133,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'kagura', rank: 'SR', name: 'カグラ', attribute: 'FIRE', type: 'CURVE',
+    id: 'kagura', rank: 'SR', name: 'カグラ', attribute: 'FIRE',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: 5 },
@@ -149,7 +141,7 @@ export const CHARACTERS = [
     detail: { x: 0.5, y: 0.5, scale: 1.0, rot: 0 },
   },
   {
-    id: 'nagi', rank: 'R', name: 'ナギ', attribute: 'WATER', type: 'STRAIGHT',
+    id: 'nagi', rank: 'R', name: 'ナギ', attribute: 'WATER',
     art: {},
     portraitFocus: { x: 0.5, y: 0.2, zoom: 3.0 },
     cutIn: { faceX: 0.5, faceY: 0.2, x: 0.5, y: 0.36, scale: 1.6, rot: -3 },
@@ -159,12 +151,14 @@ export const CHARACTERS = [
 
 ];
 
-/** SPECIAL を持たないキャラの必殺技(全員共通の SPECIAL HEART。効果の数値は Config.special.heartMul と同じ)*/
+/** SPECIAL を持たないキャラの必殺技(SSR 以外の全員共通の SPECIAL HEART:ハートが大きくなってダメージ ×damageMul)*/
 export const DEFAULT_SPECIAL = {
   name: 'SPECIAL HEART',
-  description: 'SPECIAL ゲージ MAX(アイコンのリングが光る)で、手番のキャラのアイコンをタップして予約。次の1投が大きなハートになり、届く HEART が大きく増える。',
-  highlight: { value: 'HEART ×{heartMul}', label: 'SPECIAL' },   // {heartMul} は表示時に Config.special.heartMul に置き換える
-  note: null, effectType: 'attack', effectValue: null, visualEffect: null,
+  description: 'ハートが大きくなって、ダメージが {damageMul}倍になります。',
+  highlight: { value: 'ダメージ ×{damageMul}', label: 'BIG HEART' },   // {damageMul} は表示時にこの SPECIAL の damageMul に置き換える
+  note: '※ SPECIAL ゲージ MAX(アイコンのリングが光る)で手番のキャラのアイコンをタップ → 次の1投で発動。',
+  effectType: 'attack', effectValue: null, visualEffect: null,
+  damageMul: 2,
   requiredDiamonds: 10,
 };
 for (const c of CHARACTERS) c.special ??= { ...DEFAULT_SPECIAL };
@@ -196,7 +190,7 @@ export const DEFAULT_PARTY = ['minamo', 'hinoka', 'raimu', 'shizuku'];
 export const STAGES = [
   {
     id: 'stage01', no: '01', name: 'はじまりの告白',
-    boss: { name: 'リリス', characterId: 'lilith', attribute: 'FIRE', type: 'CURVE', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 2700 },
+    boss: { name: 'リリス', characterId: 'lilith', attribute: 'FIRE', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 2700 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 100,
     // 3D 空間の特徴:シンプルな3Dルート(動く障害物は無し、Gate は最大2)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'LOW_ROUTE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
@@ -204,7 +198,7 @@ export const STAGES = [
   },
   {
     id: 'stage02', no: '02', name: '深海のセレナーデ',
-    boss: { name: 'セイレーン', characterId: 'siren', attribute: 'WATER', type: 'STRAIGHT', layout: 'demon', profile: 'siren', affection: 'siren', maxHeart: 4000 },
+    boss: { name: 'セイレーン', characterId: 'siren', attribute: 'WATER', layout: 'demon', profile: 'siren', affection: 'siren', maxHeart: 4000 },
     recommended: 'THUNDER', difficulty: 'NORMAL', exp: 150,
     // 動く障害物が多い海の中。Gate は最大3
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'S_CURVE', 'GATE_CHAIN', 'WALL_GAP', 'STAR_DRIFT', 'BANK_STARS', 'WALL_GAP', 'STAR_DRIFT'],
@@ -213,7 +207,7 @@ export const STAGES = [
   {
     id: 'stage03', no: '03', name: 'ひだまりのおねだり',
     // 専用イラスト(CharacterAssets.milk)・専用の当たり判定(colliderLayouts.milk)・専用の表情位置(BossAffection.milk)
-    boss: { name: 'みるく', characterId: 'milk', attribute: 'FIRE', type: 'CURVE', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 4800 },
+    boss: { name: 'みるく', characterId: 'milk', attribute: 'FIRE', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 4800 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
     concept: '甘え上手な猫系の女の子。ひだまりの猫メイドカフェ「Lumière」の看板キャスト。ハートを届けて、とびきりの笑顔を引き出そう。',
     line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)
@@ -223,8 +217,8 @@ export const STAGES = [
   {
     id: 'stage04', no: '04', name: '星降るカフェのひとめぼれ',
     // ステラのボス。見た目は Live2D(CharacterAssets.rato)・当たり判定は colliderLayouts.rato
-    //   ★ 名前・属性・タイプ・返球・Heart Capacity は仮(STAGE 01 リリスと同じ値)
-    boss: { name: 'ラト', characterId: 'rato', attribute: 'FIRE', type: 'CURVE', layout: 'rato', profile: 'lilith', affection: 'rato', maxHeart: 2700 },
+    //   ★ 名前・属性・返球・Heart Capacity は仮(STAGE 01 リリスと同じ値)
+    boss: { name: 'ラト', characterId: 'rato', attribute: 'FIRE', layout: 'rato', profile: 'lilith', affection: 'rato', maxHeart: 2700 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 100,
     concept: '星降る天文台のコンセプトカフェ「Stella」のキャスト。',
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'LOW_ROUTE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],

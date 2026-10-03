@@ -1,8 +1,8 @@
 import { Config } from '../core/Config.js';
-import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById, DEFAULT_SPECIAL, specialRequiredDiamonds } from '../data/GameData.js';
+import { CHARACTERS, ATTRIBUTES, RANKS, characterById, stageById, DEFAULT_SPECIAL, specialRequiredDiamonds } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
 import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX } from '../data/GrowthData.js';
-import { staminaNextMs, HP_MAX } from '../data/Growth.js';
+import { HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { staminaHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
@@ -13,6 +13,7 @@ import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from '.
 import { rarityAttr, rarityBadge, raritySparkle, charAccent } from './Rarity.js';
 import { collectionItems, itemCategory } from '../data/ItemCatalog.js';
 import { COLLECTION_SORTS, COLLECTION_FILTERS, currentSort, nextSort, sortLabel, sortList, currentFilter, filterLabel, filterList } from './CollectionSort.js';
+import { specialDamageMul } from '../effects/SpecialEffects.js';
 
 /** コレクションの上部カテゴリ(表示順。開いた時は先頭の「所持アイテム」)*/
 const COLLECTION_TABS = [
@@ -45,16 +46,16 @@ export const TRAINING_FEATURES = [
 ];
 
 
-/** 必殺技の表示用(CharacterData.special → 画面用の文字)。{heartMul} などは Config から */
+/** 必殺技の表示用(CharacterData.special → 画面用の文字)。{damageMul} はこの SPECIAL のダメージ倍率 */
 export function specialView(ch) {
-  const sp = ch?.special ?? DEFAULT_SPECIAL;
-  const fill = (t) => String(t ?? '').replace(/\{heartMul\}/g, String(Config.special.heartMul));
+  const sp = ch?.special ?? DEFAULT_SPECIAL, mul = specialDamageMul(ch);
+  const fill = (t) => String(t ?? '').replace(/\{damageMul\}/g, String(mul));
   const custom = sp !== DEFAULT_SPECIAL && sp.name !== DEFAULT_SPECIAL.name;
   return {
     name: sp.name, requiredDiamonds: specialRequiredDiamonds(ch), description: fill(sp.description), note: sp.note ? fill(sp.note) : null, effectType: sp.effectType ?? 'attack',
     highlight: { value: fill(sp.highlight?.value ?? ''), label: fill(sp.highlight?.label ?? '') },
-    // 固有の必殺技も、土台は共通の SPECIAL HEART(次の1投の HEART 倍率)
-    base: custom ? `＋ SPECIAL HEART:届く HEART ×${Config.special.heartMul}` : null,
+    // 固有の必殺技も、土台は次の1投のダメージ倍率
+    base: custom ? `＋ ダメージ ×${mul}` : null,
   };
 }
 /** 育成画面のキャラ詳細の「SPECIAL / 必殺技名 ›」(1行。タップで詳細のシート:必殺技名・効果・重要な数値・固有効果)*/
@@ -89,9 +90,9 @@ export class AppScreens {
   }
 
   // ---------------- 育成(TAB_ROOT):上 = 今の編成 / 下 = 所持キャラクター一覧 ----------------
-  /** キャラクターカード(画像・名前・親密度 Lv・レアリティ・属性 / タイプ・STAMINA・編成中 ✓・ホーム設定中)*/
+  /** キャラクターカード(画像・名前・親密度 Lv・レアリティ・属性・STAMINA・編成中 ✓・ホーム設定中)*/
   trainCardHTML(id, { party = false, extra = '' } = {}) {
-    const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
     const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
     void r;
     return `<button type="button" class="tl-card rar-frame${party ? ' party' : ''}${si >= 0 ? ' in' : ''}" data-id="${id}" ${rarityAttr(ch.rank)} style="--ac:${a.color}" aria-label="${esc(ch.name)}${si >= 0 ? `(編成中 ${'ABCD'[si]})` : ''}">
@@ -100,7 +101,7 @@ export class AppScreens {
       ${si >= 0 ? `<span class="tl-in" title="編成中"><i>✓</i>${'ABCD'[si]}</span>` : ''}
       ${home ? '<span class="tl-home" title="ホーム設定中">⌂</span>' : ''}
       <span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span>
-        <span class="tl-type">${a.icon} ${t.label}</span><span class="tl-row">${staminaHTML(ch, 'sm')}<span class="tl-hp">HP <b>${ch.maxHp}</b></span></span></span>${extra}
+        <span class="tl-type">${a.icon} ${a.label}</span><span class="tl-row">${staminaHTML(ch, 'sm')}<span class="tl-hp">HP <b>${ch.maxHp}</b></span></span></span>${extra}
     </button>`;
   }
   showTraining({ keepScroll = false } = {}) {
@@ -148,18 +149,14 @@ export class AppScreens {
     if (!id || !this.p.isOwned(id)) { this.app.router.back(); return; }
     if (this.trainId !== id) this.abilityOpen = null;   // キャラを替えた時は「変更」を閉じた状態から
     this.trainId = id;
-    const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
     const ids = this.p.ownedIds, n = ids.length;
     const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
     this.frame('trainChar', '育成', { back: true });
     const expRatio = ch.maxLevel ? 1 : ch.expNeed ? Math.min(1, ch.expInto / ch.expNeed) : 1;
-    const pd = this.p.data.characters[id];
-    const nextMs = staminaNextMs(ch.stamina, pd.lastStaminaUpdate);
-    const stamNote = ch.tired ? '疲労中 ・ 獲得 EXP ×10%(出撃はできます)' : nextMs == null ? '満タン' : `あと ${Math.ceil(nextMs / 60000)} 分で +5`;
     const board = this.p.abilityBoard(id);
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
-    const active = ch.abilities ?? [];
-    // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
+    // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)
     const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)[k], max: STAT_DISPLAY_MAX }))]);   // 表示はレベル + アビリティの合計
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
@@ -169,7 +166,7 @@ export class AppScreens {
         ${n > 1 ? `<button type="button" class="td-nav prev" data-nav="-1" aria-label="前のキャラクター">‹</button><button type="button" class="td-nav next" data-nav="1" aria-label="次のキャラクター">›</button>` : ''}
         <div class="td-side">
         <section class="td-plate">
-          <div class="td-badges">${rarityBadge(ch.rank, 'td-rank')}<span class="td-attr">${a.icon} ${a.label}</span><span class="td-type">${t.label}</span></div>
+          <div class="td-badges">${rarityBadge(ch.rank, 'td-rank')}<span class="td-attr">${a.icon} ${a.label}</span></div>
           <h2 class="td-name">${esc(ch.name)}</h2>
           <div class="td-lv"><small>♡ AFFECTION</small><b>Lv.${ch.level}</b>${ch.maxLevel ? '<em>MAX</em>' : ''}</div>
           <div class="td-exp"><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `EXP ${ch.expInto} / ${ch.expNeed}`}</small></div>
@@ -178,8 +175,6 @@ export class AppScreens {
         ${specialCardHTML(ch)}
         <section class="td-panel">
           <div class="td-radar">${radar}</div>
-          <div class="td-meta"><div class="td-stam${ch.tired ? ' tired' : ''}"><div class="td-stamrow"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b>/${ch.staminaMax}</small></div>${ch.tired ? `<p>${stamNote}</p>` : ''}</div>
-          <div class="td-abil"><small>ABILITY${pending ? '<em class="td-abnew">NEW</em>' : ''}</small><div class="td-abs">${active.length ? active.slice(0, 2).map((x) => `<span class="td-ab${x.ultimate ? ' ult' : ''}">${esc(x.name)}</span>`).join('') + (active.length > 2 ? `<span class="td-ab more" title="${esc(active.slice(2).map((x) => x.name).join(' / '))}">+${active.length - 2}</span>` : '') : '<span class="td-ab none">まだありません</span>'}</div></div></div>
         </section>
         </div>
         <nav class="td-actions">
@@ -383,7 +378,7 @@ export class AppScreens {
   allyRows() {
     return this.p.ownedIds.map((id) => {
       const ch = this.p.character(id);
-      return { id, name: ch.name, rank: ch.rank, attribute: ch.attribute, type: ch.type, level: ch.level, rankOrder: RANKS[ch.rank]?.order ?? null, atk: (ch.totalStats ?? ch.stats).attack, hp: ch.maxHp, obtainedAt: this.p.data.characters[id]?.obtainedAt ?? null };
+      return { id, name: ch.name, rank: ch.rank, attribute: ch.attribute, level: ch.level, rankOrder: RANKS[ch.rank]?.order ?? null, atk: (ch.totalStats ?? ch.stats).attack, hp: ch.maxHp, obtainedAt: this.p.data.characters[id]?.obtainedAt ?? null };
     });
   }
   /** 並び替え / 絞り込みのボタン(コレクションの各カテゴリと育成で共通。cat = 保存のキー)*/
