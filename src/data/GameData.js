@@ -177,6 +177,7 @@ export const DEFAULT_PARTY = ['minamo', 'hinoka', 'raimu', 'shizuku'];
  *   boss.art   … 画像の見せ方(省略時はリリスの画像と同じ構図):face = 顔の位置と幅(画像の割合 u / v / w。カードやアイコンは顔を中心に切り抜く)
  *                stage = 攻略画面の立ち絵(x = 横位置 translateX の割合 / h = 高さの倍率)
  *   boss.profile … 返球プロファイル(Config.bossProfiles)
+ *   boss.live2d … Live2D で表示するボス(data/Live2DData.js のキー)。省略時は boss.image の 2D 画像
  *   boss.affection … 好感度の表情・会話イベントの設定(data/BossAffection.js のキー)
  *   boss.maxHeart … Heart Capacity。与ダメージを「ATK × アビリティ × ゲート × 着弾」にした時(1発 ≈ 旧の約 1/3.7)に
  *                   戦闘の長さが変わらないよう、旧 10000 / 15000 / 18000 を ×0.27 した値
@@ -209,6 +210,18 @@ export const STAGES = [
     line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
       energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.0 },
+  },
+  {
+    id: 'stage04', no: '04', name: '星降るカフェのひとめぼれ',
+    // ステラのボス。見た目は Live2D(boss.live2d = data/Live2DData.js のキー)・当たり判定は colliderLayouts.rato
+    //   boss.image はカード・一覧のサムネイル(Live2D モデルの静止画)。バトル中は貼らない
+    //   ★ 名前・属性・タイプ・返球・Heart Capacity は仮(STAGE 01 リリスと同じ値)
+    boss: { name: 'ラト', attribute: 'FIRE', type: 'CURVE', image: 'rato', layout: 'rato', profile: 'lilith', affection: 'rato', maxHeart: 2700,
+      live2d: 'rato', art: { face: { u: 0.46, v: 0.24, w: 0.2 }, stage: { x: -0.36, h: 0.62 } } },
+    recommended: 'WATER', difficulty: 'NORMAL', exp: 100,
+    concept: '星降る天文台のコンセプトカフェ「Stella」のキャスト。',
+    space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'LOW_ROUTE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
+      energyDensity: 1.0, gateCount: 2, obstacleCount: 2, obstacleSpeed: 0.8 },
   },
 ];
 

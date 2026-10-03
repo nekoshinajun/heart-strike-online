@@ -84,6 +84,17 @@ export const Config = {
       rightLeg: { shape: 'box', x: 4.68,  y: 12.16, z: 0.3, w: 2.04, h: 2.4, d: 1.6, rot: 0 },
       leftLeg:  { shape: 'box', x: 4.8,   y: 16.0,  z: 0.3, w: 1.68, h: 3.6, d: 1.6, rot: 0 },
     },
+    // ラト(ステラ・Live2D の浮いたポーズ)。Live2D の描画範囲を data/Live2DData.js の display(高さ7・y +8.4・x -0.5)で表示した時の位置
+    //   キャンバスの割合 (u, v) → x = (u - 0.48) × 11.22 - 0.5 / y = 8.4 + (1.04 - v) × 6.31。Live2D の ArtMesh は判定に使わない
+    rato: {
+      head:     { shape: 'sphere', x: -0.67, y: 13.57, z: 0.3, r: 1.12 },
+      chest:    { shape: 'box', x: -0.5, y: 11.87, z: 0.3, w: 1.68, h: 1.26, d: 1.6, rot: 0 },
+      stomach:  { shape: 'box', x: -0.28, y: 9.98, z: 0.3, w: 2.8, h: 1.64, d: 1.6, rot: 0 },
+      rightArm: { shape: 'box', x: -2.63, y: 12.18, z: 0.3, w: 1.12, h: 2.14, d: 1.6, rot: -10 },
+      leftArm:  { shape: 'box', x: 0.17, y: 12.12, z: 0.3, w: 0.79, h: 1.01, d: 1.6, rot: 0 },
+      rightLeg: { shape: 'box', x: 1.07, y: 12.12, z: 0.3, w: 1.57, h: 2.4, d: 1.6, rot: -35 },
+      leftLeg:  { shape: 'box', x: 2.64, y: 10.54, z: 0.3, w: 1.57, h: 2.4, d: 1.6, rot: 20 },
+    },
     // 内蔵の仮イラスト(立ち姿)
     lulu: {
       head:     { shape: 'sphere', x: 0,     y: 15.5,  z: 0.3, r: 1.75 },
