@@ -2,7 +2,7 @@ import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById, DEFAULT_SPECIAL, specialRequiredDiamonds } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
 import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
-import { staminaNextMs, HP_MAX } from '../data/Growth.js';
+import { HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { staminaHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
@@ -153,13 +153,9 @@ export class AppScreens {
     const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
     this.frame('trainChar', '育成', { back: true });
     const expRatio = ch.maxLevel ? 1 : ch.expNeed ? Math.min(1, ch.expInto / ch.expNeed) : 1;
-    const pd = this.p.data.characters[id];
-    const nextMs = staminaNextMs(ch.stamina, pd.lastStaminaUpdate);
-    const stamNote = ch.tired ? '疲労中 ・ 獲得 EXP ×10%(出撃はできます)' : nextMs == null ? '満タン' : `あと ${Math.ceil(nextMs / 60000)} 分で +5`;
     const board = this.p.abilityBoard(id);
     const pending = board.some((row) => !row.ultimate && row.unlocked && !row.selected);
-    const active = ch.abilities ?? [];
-    // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)。STAMINA は消費リソースなので別のゲージ
+    // 五角形:HP(バトルの最大 HP)+ ATTACK / DEFENCE / CONTROL / CURVE(育成のステータス)
     const radar = statRadarSVG([{ key: 'hp', label: 'HP', value: ch.maxHp ?? Config.playerMaxHp, max: HP_MAX }, ...STAT_KEYS.map((k) => ({ key: k, label: STAT_LABELS[k], value: (ch.totalStats ?? ch.stats)[k], max: STAT_DISPLAY_MAX }))]);   // 表示はレベル + アビリティの合計
     this.body.innerHTML = `
       <div class="td" data-id="${id}" style="--ac:${a.color};--rc:${r.color}">
@@ -177,8 +173,6 @@ export class AppScreens {
         </section>
         <section class="td-panel">
           <div class="td-radar">${radar}</div>
-          <div class="td-meta"><div class="td-stam${ch.tired ? ' tired' : ''}"><div class="td-stamrow"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b>/${ch.staminaMax}</small></div>${ch.tired ? `<p>${stamNote}</p>` : ''}</div>
-          <div class="td-abil"><small>ABILITY${pending ? '<em class="td-abnew">NEW</em>' : ''}</small><div class="td-abs">${active.length ? active.slice(0, 2).map((x) => `<span class="td-ab${x.ultimate ? ' ult' : ''}">${esc(x.name)}</span>`).join('') + (active.length > 2 ? `<span class="td-ab more" title="${esc(active.slice(2).map((x) => x.name).join(' / '))}">+${active.length - 2}</span>` : '') : '<span class="td-ab none">まだありません</span>'}</div></div></div>
         </section>
         </div>
         ${specialCardHTML(ch)}
