@@ -107,7 +107,7 @@ export const TUTORIAL_LESSONS = [
     steps: [
       { card: { title: 'COMBO と FEVER', text: '続けて当てると COMBO! COMBO が続くほど FEVER ゲージがぐんぐん貯まるよ。', points: ['外すと COMBO は 0 に戻るけど、貯まった FEVER ゲージは減らない', 'FEVER ゲージを増やすのは COMBO だけ', '100% になったら、次の攻撃ターンが FEVER TIME'], focus: '#combo' } },
       { do: (t) => t.startFever(), wait: (e, d) => e === 'attack' && d.fever },
-      { card: { title: '♡ FEVER TIME ♡', text: '4人が1回ずつ、超パワーで投げられるよ! ダメージ ×2', points: ['Diamond もたくさん並ぶ'] } },
+      { card: { title: '♡ FEVER TIME ♡', text: '4人が1回ずつ投げられるよ! Diamond がたくさん並ぶチャンス', points: ['ダメージは増えない。Diamond を集めて SPECIAL ゲージを貯めよう'] } },
       { coach: 'どんどん投げよう!', wait: (e) => e === 'feverEnd' },
     ],
     done: 'FEVER は COMBO を続けたごほうび。外さないように狙おう。',
@@ -172,7 +172,7 @@ export const TUTORIAL_LESSONS = [
 
 /** 読み物(バトルなし)。チュートリアル画面の下に並べる */
 export const TUTORIAL_HELP = [
-  { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL・FEVER)', 'DEF:ボスの攻撃で受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる', 'タイプ:STRAIGHT = 速い球 / CURVE = よく曲がる'] },
+  { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL)', 'DEF:ボスの攻撃で受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる', 'タイプ:STRAIGHT = 速い球 / CURVE = よく曲がる'] },
   { title: '属性の相性', lines: ['💧WATER は 🔥FIRE に、🔥FIRE は ⚡THUNDER に、⚡THUNDER は 💧WATER に強い', '有利 ×1.3(EFFECTIVE♡)/ 不利 ×0.7(RESIST)'] },
   { title: 'アビリティ', lines: ['レベルアップで覚える。例:POWER UP(ダメージ +10%)/ GUARD UP(DEF +20)/ VITAL UP(HP +30)', 'SPECIAL MASTER(SPECIAL ×1.1)/ SPECIAL CHARGE(Diamond 1個で +12%)/ GATE MASTER(ゲート命中 ×1.1)', 'キャラごとの ULTIMATE もある'] },
   { title: '難易度', lines: ['NORMAL / HARD / HELL で変わるのは、ハートゲートの大きさと受けるダメージだけ', 'キャッチの判定の幅はどの難易度も同じ', 'HARD・HELL ほど変化する攻撃が多い'] },
