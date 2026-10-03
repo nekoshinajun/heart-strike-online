@@ -24,7 +24,6 @@ export class FeverSystem {
   }
 
   get F() { return Config.fever; }
-  get heartMul() { return this.active ? this.F.heartMul[this.level - 1] ?? 1 : 1; }
   get levelLabel() { return this.F.levelLabels[this.level - 1] ?? ''; }
   get throwsTotal() { return Math.max(1, Math.round(this.F.throwsPerActivation)); }
 
