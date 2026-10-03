@@ -28,6 +28,14 @@ export class SpecialCutIn {
 
   get playing() { return this.active === true; }
 
+  /** SPECIAL を予約した時に画像を先に読み込んでおく(表示はしない)*/
+  preload(ch) {
+    const url = ch ? artUrl(ch, 'specialCutIn') : null;
+    if (!url || this.preloaded === url) return;
+    this.preloaded = url;
+    const im = new Image(); im.src = url; im.decode?.().catch(() => {});
+  }
+
   /** OnCutInComplete の購読(DOM イベント 'cutincomplete' も発行する) */
   onComplete(fn) { this.el.addEventListener('cutincomplete', fn); }
 

@@ -12,46 +12,41 @@ import { heartGeometry } from '../controllers/BallController.js';
  */
 export const SPECIAL_THROW_EFFECTS = {
   /**
-   * ドラゴンスプリット(ヨルナ):飛行中にハートが 1 → 3 → 7 個に分かれ、ドラゴンの翼のように左右へ広がる。
-   * 紫〜ピンクの炎の軌跡を引いて飛び、本体の HIT で 6 個の分身がターゲットへ一斉に集まって巨大なハートの爆発
+   * ドラゴントレイル(ヨルナ):投げたハートの後ろから、2つのハートが少し遅れて付いてくる(合計3つ)。
+   * 紫〜ピンクの炎の軌跡を引いて飛び、本体の HIT で 2 つのハートがターゲットへ集まって巨大なハートの爆発
    */
-  dragonSplit: {
+  dragonTrail: {
     colors: ['#b14dff', '#ff4f9a', '#ff9ad5', '#d27bff'],
-    start(fx) { fx.ensureClones(6, '#ff5fb0', '#b14dff'); fx.stageCount = 1; },
+    lag: 0.07,   // 1つ目は 0.07 秒、2つ目は 0.14 秒遅れて本体の通った所を追う(ゲーム時間)
+    start(fx) { fx.ensureClones(2, '#ff5fb0', '#b14dff'); fx.history = []; },
     update(fx, dt) {
-      const T = Math.max(0.2, fx.flightTime), u = fx.t / T;
-      // 1 → 3 → 7(飛行時間の割合で分かれる)
-      const count = u < 0.12 ? 1 : u < 0.3 ? 3 : 7;
-      if (count !== fx.stageCount) { fx.stageCount = count; fx.stages.push(count); fx.g.effects.burst(fx.g.ball.pos, '#ff9ad5', 10, 4, 0.5); fx.g.audio?.orb?.(count === 3 ? 2 : 4); }
-      const { right, up, back } = fx.frame();
-      const spread = count === 1 ? 0 : Math.min(1, (u - (count === 3 ? 0.12 : 0.3)) / 0.14);
+      const pos = fx.g.ball.pos;
+      fx.history.push({ t: fx.t, p: pos.clone() });
+      while (fx.history.length > 2 && fx.history[1].t < fx.t - this.lag * 2 - 0.05) fx.history.shift();
+      const { right } = fx.frame();
+      const appear = Math.min(1, fx.t / 0.12);   // 投げた直後に本体から出てくる
       fx.clones.forEach((c, i) => {
-        // i = 0,1 → 3 個目までの左右 / 2..5 → 翼の外側
-        const visible = count === 7 || (count === 3 && i < 2);
-        c.visible = visible;
-        if (!visible) return;
-        const side = i % 2 ? 1 : -1, k = count === 3 ? 1 : 1 + Math.floor(i / 2);   // k = 1, 2, 3(外側ほど大きく広がる)
-        const s = spread * (0.55 + 0.1 * Math.sin(fx.t * 9 + i));
-        c.position.copy(fx.g.ball.pos)
-          .addScaledVector(right, side * 0.85 * k * s)
-          .addScaledVector(up, (0.55 * k - 0.13 * k * k) * s + 0.06 * Math.sin(fx.t * 12 + i))   // 翼のように上へ反る
-          .addScaledVector(back, 0.32 * k * s);
-        c.scale.setScalar(0.92 - 0.1 * k);
-        c.rotation.z = side * (0.35 + 0.15 * k) * s;
-        c.rotation.y += dt * 6;
+        if (i > 1) { c.visible = false; return; }
+        const at = fx.t - this.lag * (i + 1);
+        const h = fx.history.find((x) => x.t >= at) ?? fx.history[0];
+        const side = i ? 1 : -1;
+        c.visible = true;
+        c.position.copy(h.p).addScaledVector(right, side * 0.22 * appear + 0.04 * Math.sin(fx.t * 14 + i * 2));
+        c.scale.setScalar((0.85 - 0.08 * i) * (0.4 + 0.6 * appear));
+        c.rotation.set(0, 0, side * 0.25);   // カメラへ正面を向けたまま(ハートの形が見えるように)
       });
       // 紫〜ピンクの炎の軌跡(数フレームに1回・プールの上限内)
       fx.trailAcc += dt;
       if (fx.trailAcc > 0.03) {
         fx.trailAcc = 0;
-        const pts = [fx.g.ball.pos, ...fx.clones.filter((c) => c.visible).map((c) => c.position)];
+        const pts = [pos, ...fx.clones.filter((c) => c.visible).map((c) => c.position)];
         pts.forEach((p, j) => fx.g.effects.burst(p, this.colors[(j + fx.tick) % this.colors.length], 1, 0.6, 0.55));
         fx.tick++;
       }
     },
     hit(fx, point) {
-      // 6 個の分身がターゲットへ一斉に集まる → 巨大なハート型の爆発(見た目だけ)
-      fx.converge(point, 0.22, () => {
+      // 付いてきた 2 つのハートがターゲットへ集まる → 巨大なハート型の爆発(見た目だけ)
+      fx.converge(point, 0.16, () => {
         const E = fx.g.effects;
         E.heartBurst(point, 70, 13, 1.6, ['#b14dff', '#ff4f9a', '#ff9ad5', '#ffffff', '#ffd23e']);
         E.burst(point, '#d27bff', 40, 14, 0.9);

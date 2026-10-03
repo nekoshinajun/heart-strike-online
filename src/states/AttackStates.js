@@ -95,12 +95,23 @@ export class BallToBossState {
     this.launched = false;
     if (!special) { this.args = { th, special }; this.launch(); return; }
     // ---- SPECIAL シーケンス(カットインと飛行は同時に進めない)----
-    //   Release → 投球入力を保存(PendingSpecialThrowData)→ ハート玉は待機 → スロー + カットイン
+    //   Release → 投球入力を保存(PendingSpecialThrowData)→ ハート玉は待機 → 一瞬待つ(Config.special.cutIn.delay)→ スロー + カットイン
     //   → OnCutInComplete(アニメーション完了イベント)→ 速度を戻す → 保存した入力で SPECIAL HEART 発射
+    //   離した直後にカットインが被るとフリックの手応えが消えるので、指が離れてから少し間を置いて出す
     this.pendingSpecialThrow = freezeThrow(th);
     this.args = { th: this.pendingSpecialThrow, special };
     g.specialSequencePlaying = true;           // 追加入力・通常 Launch・二重 SPECIAL・ターン進行をロック
     if (g.ball.mode === 'grabbed') g.ball.setGrabTarget(g.ball.pos.clone());  // 離した位置で待機(3D 空間ではまだ飛ばない / Energy 判定もしない)
+    const delay = Math.max(0, Config.special.cutIn.delay ?? 0) * 1000;   // 実時間
+    clearTimeout(this.cutInTimer);
+    this.cutInTimer = setTimeout(() => this.startCutIn(), delay);
+  }
+
+  /** 待機のあとにスロー + カットイン(終わったら onCutInComplete で発射)*/
+  startCutIn() {
+    const g = this.g;
+    this.cutInTimer = null;
+    if (g.sm.current !== this || this.launched || !this.pendingSpecialThrow) return;
     const C = Config.special.cutIn;
     g.setTimeScale(C.timeScale);
     g.ui.flash('#ffe28a', 0.25);
@@ -175,6 +186,7 @@ export class BallToBossState {
   exit() {
     this.g.ui.speedLines(false);
     this.didLaunch = false;
+    clearTimeout(this.cutInTimer); this.cutInTimer = null;
     if (!this.launched) { this.g.cutin.stop(); this.g.setTimeScale(1); }
     this.pendingSpecialThrow = null;
     this.g.specialSequencePlaying = false;

@@ -46,6 +46,7 @@ export const TUNING_SCHEMA = [
   { path: 'special.heartMul', label: 'SPECIAL 倍率(damageMul 未設定の固有技)', min: 1, max: 6, step: 0.5 },
   { path: 'special.ballScale', label: 'SPECIAL ハート玉の大きさ', min: 1, max: 3, step: 0.05 },
   { path: 'special.cutIn.enabled', label: 'カットイン表示', type: 'bool' },
+  { path: 'special.cutIn.delay', label: 'カットインまでの待ち(実秒)', min: 0, max: 0.6, step: 0.02 },
   { path: 'special.cutIn.duration', label: 'カットイン時間(実秒)', min: 0.3, max: 1.2, step: 0.02 },
   { path: 'special.cutIn.timeScale', label: 'カットイン中の TimeScale', min: 0, max: 1, step: 0.05 },
   { path: 'special.cutIn.dim', label: 'カットイン 背景の暗さ', min: 0, max: 0.9, step: 0.05 },
