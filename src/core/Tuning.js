@@ -16,7 +16,6 @@ export const TUNING_SCHEMA = [
   { path: 'throwInput.yawGain', label: '斜めに弾いた時の左右の効き', min: 0.2, max: 1.2, step: 0.05 },
   { path: 'throwInput.releaseWindowMs', label: 'リリース方向を測る区間(ms)', min: 40, max: 200, step: 5 },
   { path: 'throw.gravity', label: 'Gravity', min: 10, max: 120, step: 1 },
-  { path: 'power.heartFlat', label: 'HEART倍率(全投球共通・球速では変わらない)', min: 0.5, max: 4, step: 0.05 },
   { group: 'カーブ' },
   { path: 'throwInput.fullTurnDeg', label: '最大カーブの回転量(°)', min: 360, max: 1800, step: 30 },
   { path: 'throwInput.deadDeg', label: 'ストレートとみなす回転(°)', min: 0, max: 90, step: 5 },
@@ -86,7 +85,6 @@ export const TUNING_SCHEMA = [
     path: `parts.${k}.maxHeart`, label: `${Config.parts[k].label} HEART`, min: 10, max: 600, step: 10, apply: 'restart',
   })),
   { path: 'partHeart.partGainRate', label: 'PartHeart 加算率', min: 0.05, max: 1, step: 0.05 },
-  { path: 'partHeart.loveSpotMul', label: 'LOVE SPOT 倍率', min: 1, max: 3, step: 0.1 },
   { group: 'カットイン(キャラごとの表示調整)' },
   ...CHARACTERS.flatMap((c) => [
     { path: `chara.${c.id}.cutIn.faceX`, label: `${c.name} 顔の位置X(画像比)`, min: 0, max: 1, step: 0.01 },
@@ -109,10 +107,10 @@ export const TUNING_SCHEMA = [
     { path: `chara.${c.id}.detail.scale`, label: `${c.name} Scale`, min: 0.5, max: 2, step: 0.02 },
     { path: `chara.${c.id}.detail.rot`, label: `${c.name} Rotation`, min: -20, max: 20, step: 1 },
   ]),
-  { group: 'キャラクター性能 / 属性' },
-  { path: 'battle.attributeMul.advantage', label: '属性 有利倍率', min: 1, max: 3, step: 0.05 },
-  { path: 'battle.attributeMul.neutral', label: '属性 通常倍率', min: 0.5, max: 2, step: 0.05 },
-  { path: 'battle.attributeMul.disadvantage', label: '属性 不利倍率', min: 0.1, max: 1, step: 0.05 },
+  { group: '与ダメージ(ATK × アビリティ × ゲート × 着弾)' },
+  { path: 'landing.grades.0.within', label: 'PERFECT の幅(中央ラインからの横の距離)', min: 0.1, max: 3, step: 0.05 },
+  { path: 'landing.grades.1.within', label: 'GREAT の幅', min: 0.2, max: 5, step: 0.05 },
+  { path: 'landing.grades.2.within', label: 'GOOD の幅', min: 0.3, max: 8, step: 0.05 },
   { path: 'battle.heartCapacityScale', label: 'Heart Capacity 倍率(全ステージ)', min: 0.1, max: 3, step: 0.05, apply: 'restart' },
   // DifficultyData(最終設定 = StageData × DifficultyData。次のゲーム開始時に反映)
   ...['NORMAL', 'HARD', 'HELL'].flatMap((d) => [

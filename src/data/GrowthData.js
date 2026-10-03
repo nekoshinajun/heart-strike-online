@@ -1,6 +1,7 @@
 // 味方キャラクターの育成(親密度 = レベル)のデータとバランス値。★ 数値はすべて仮。調整はこのファイルだけで行う
 //   親密度 Lv(AFFECTION Lv.1〜100)… 攻略のクリア / 敗北・プレゼントで親密度 EXP を得て上がる
 //   ステータス ATTACK / DEFENCE / CONTROL / CURVE … Lv に応じて自動で成長(キャラごとの成長幅。100 を超えても効く)
+//     ATTACK(ATK)はそのまま与ダメージの基本値(ATK 120 → 120)
 //   アビリティ … Lv10〜100 の各枠で候補から1つ選ぶ(同じものを何度でも)/ Lv100 は ULTIMATE(キャラ固有・自動)も
 //     ★ レベルの基礎ステータスとアビリティの強化は別枠で計算する(基礎の倍率 × アビリティの倍率。上限に吸収されない)
 //   STAMINA    … キャラごと。攻略に参加すると減り、時間で回復。0 でも出撃でき強さも変わらない(獲得 EXP だけ 10%)
@@ -84,7 +85,7 @@ export const GROWTH_EXPONENT = 1;
 /**
  * ステータス → 実際の性能(0 / 50 / 100 の3点を直線でつなぐ。100 を超えた分は 50→100 の傾きのまま伸びる)
  *   アビリティのステータス加算(POWER UP など)は基礎とは別枠:1 ポイント = 50→100 の傾き分の倍率(abilityStatMul)
- *   attack  … HEART(与ダメージ)倍率。50 = 100%、100 = 125%
+ *   attack  … (与ダメージには使わない:与ダメージは ATK の値そのもの × 倍率。BattleCalc.normalDamage)
  *   defence … 被ダメージ倍率。50 = 等倍、100 = 25% 軽減。低くても極端に増えない
  *   control … 投球の誤差(狙った点からのずれの最大値、units)。50 = 小さなブレ、100 = ほぼ 0
  *             ★ 低くても操作不能にしない(頭の半径 約2.5 units に対して最大 0.6)
@@ -100,7 +101,8 @@ export const STAT_EFFECTS = {
 // ---------------- アビリティ ----------------
 /**
  * アビリティ(ABILITIES)。effects は種類ごとの Effect の配列(新しい種類はここと Growth.abilityMul に足す)
- *   { kind: 'stat',    stat, add }            … ステータスに加算(表示にも反映)。★ 基礎(レベル)とは別枠の倍率で効く(Growth.abilityStatMul)
+ *   { kind: 'power',   add }                  … 与ダメージのアビリティ倍率に足し算(+0.1 = +10%)。ATK(レベル)とは別枠で、ATK の表示は変えない
+ *   { kind: 'stat',    stat, add }            … DEF / CONTROL / CURVE に加算(表示にも反映)。★ 基礎(レベル)とは別枠の倍率で効く(Growth.abilityStatMul)
  *   { kind: 'hp',      add }                  … 最大 HP に加算
  *   { kind: 'heart',   mul, when }            … 命中時の HEART 倍率(条件つき)
  *   { kind: 'specialCharge', mul }            … Diamond 1個で増える SPECIAL ゲージの量(投げた子が持っている時)
@@ -112,7 +114,7 @@ export const STAT_EFFECTS = {
  */
 export const ABILITIES = {
   // ---- 基礎枠(Lv10 / 30 / 50 / 70 / 90):加算。何度選んでも足し算 ----
-  power_up: { name: 'POWER UP', desc: 'ATK +20(レベルの ATK とは別枠で与ダメージ ×1.10)', effects: [{ kind: 'stat', stat: 'attack', add: 20 }] },
+  power_up: { name: 'POWER UP', desc: 'アビリティ倍率 +10%(ATK とは別枠で与ダメージ ×1.10。2個で ×1.20)', effects: [{ kind: 'power', add: 0.1 }] },
   guard_up: { name: 'GUARD UP', desc: 'DEF +20(レベルの DEF とは別枠で被ダメージ ×0.90)', effects: [{ kind: 'stat', stat: 'defence', add: 20 }] },
   vital_up: { name: 'VITAL UP', desc: '最大 HP +30', effects: [{ kind: 'hp', add: 30 }] },
   // ---- 特殊枠(Lv20 / 40 / 60 / 80 / 100):乗算。何度選んでも掛け算 ----
@@ -121,7 +123,7 @@ export const ABILITIES = {
   gate_master: { name: 'GATE MASTER', desc: 'ゲートを通って命中した HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { gate: true } }] },
   // ---- ULTIMATE(Lv100・キャラ固有。★ 仮)----
   ult_minamo: { name: 'AQUA LINE', desc: 'カーブなしの命中 HEART ×1.2・CONTROL のブレ半減', ultimate: true, effects: [{ kind: 'heart', mul: 1.2, when: { noSpin: true } }, { kind: 'control', mul: 0.5 }] },
-  ult_hinoka: { name: 'BLAZE BALANCE', desc: '全ステータス +6', ultimate: true, effects: ['attack', 'defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 6 })) },
+  ult_hinoka: { name: 'BLAZE BALANCE', desc: 'アビリティ倍率 +3%・DEF / CONTROL / CURVE +6', ultimate: true, effects: [{ kind: 'power', add: 0.03 }, ...['defence', 'control', 'curve'].map((stat) => ({ kind: 'stat', stat, add: 6 }))] },
   ult_raimu: { name: 'THUNDER CURVE', desc: 'カーブ ×1.25・カーブ命中 HEART ×1.1', ultimate: true, effects: [{ kind: 'curve', mul: 1.25 }, { kind: 'heart', mul: 1.1, when: { spin: true } }] },
   ult_shizuku: { name: 'TIDE GUARD', desc: '受けるダメージ ×0.8', ultimate: true, effects: [{ kind: 'guard', mul: 0.8 }] },
   ult_akane: { name: 'PINPOINT HEART', desc: 'CONTROL のブレ ×0.3・HEART ×1.08', ultimate: true, effects: [{ kind: 'control', mul: 0.3 }, { kind: 'heart', mul: 1.08 }] },

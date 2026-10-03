@@ -23,8 +23,7 @@ export const Config = {
 
   // ---- キャラクター性能・属性(data/BattleCalc.js が参照)----
   battle: {
-    // ATTACK / DEFENCE の効き(ステータス 0〜100 → 倍率)は GrowthData.STAT_EFFECTS
-    attributeMul: { advantage: 1.3, neutral: 1.0, disadvantage: 0.7 },
+    // 与ダメージ = ATK × アビリティ倍率 × ゲート倍率 × 着弾倍率(data/BattleCalc.js)。DEFENCE の効きは GrowthData.STAT_EFFECTS
     bossAttackMul: 3.0,      // ★ ボス返球の基礎ダメージ倍率(v25 の 2.0 × 1.5)。難易度 damageTaken とは別に掛ける。PERFECT は常に 0
     // ボス攻撃フェーズの前のボイス(BOSS_TAUNT)。ボイスの中身は RomanceData の attackVoices
     voiceGapSec: 0.35,       // ボイスが終わってから攻撃までの間(秒)
@@ -37,14 +36,26 @@ export const Config = {
   // ---- 部位 ----
   // left / right は「キャラクター自身の左右」(参考レイアウト準拠)。画面では Right が左側、Left が右側。
   parts: {
-    //            heartGain: 命中時に届く基本 HEART / maxHeart: 部位ごとの PartHeart 満タン値(★)
-    head:     { label: 'HEAD',    ja: '頭部', heartGain: 150, maxHeart: 100 },
-    chest:    { label: 'CHEST',   ja: '胸部', heartGain: 110, maxHeart: 200 },
-    stomach:  { label: 'STOMACH', ja: '腹部', heartGain: 100, maxHeart: 200 },
-    rightArm: { label: 'R-ARM',   ja: '右腕', heartGain: 75, maxHeart: 150 },
-    leftArm:  { label: 'L-ARM',   ja: '左腕', heartGain: 75, maxHeart: 150 },
-    rightLeg: { label: 'R-LEG',   ja: '右脚', heartGain: 60, maxHeart: 150 },
-    leftLeg:  { label: 'L-LEG',   ja: '左脚', heartGain: 60, maxHeart: 150 },
+    //   部位は命中の判定・リアクション用。与ダメージは部位で変わらない(顔でも脚でも同じ。着弾倍率は横方向の位置だけ:landing)
+    //   maxHeart: 部位ごとの PartHeart 満タン値(★ 内部互換用)
+    head:     { label: 'HEAD',    ja: '頭部', maxHeart: 100 },
+    chest:    { label: 'CHEST',   ja: '胸部', maxHeart: 200 },
+    stomach:  { label: 'STOMACH', ja: '腹部', maxHeart: 200 },
+    rightArm: { label: 'R-ARM',   ja: '右腕', maxHeart: 150 },
+    leftArm:  { label: 'L-ARM',   ja: '左腕', maxHeart: 150 },
+    rightLeg: { label: 'R-LEG',   ja: '右脚', maxHeart: 150 },
+    leftLeg:  { label: 'L-LEG',   ja: '左脚', maxHeart: 150 },
+  },
+
+  // ---- 着弾倍率:敵の中央縦ライン(画面の中央 = ボスの X)からの横方向の距離だけで決まる。Y(顔・胸・脚)は見ない ----
+  //   within … 中央ラインからの横の距離(ワールド単位。ボスの頭の半径 ≈ 2.5)がこの値以下ならその段階。敵に当たらなければ MISS(×0)
+  landing: {
+    grades: [
+      { id: 'PERFECT', within: 0.7, mul: 1.5, color: '#ffe28a' },   // ★ 中心ラインに最も近い
+      { id: 'GREAT', within: 1.7, mul: 1.3, color: '#ff9bd0' },     // ★ 中心寄り
+      { id: 'GOOD', within: 3.1, mul: 1.15, color: '#9fd8ff' },     // ★ やや外側
+      { id: 'HIT', within: Infinity, mul: 1.0, color: '#ffffff' },  // 外側(敵に当たっていれば ×1.00 未満にはならない)
+    ],
   },
 
   // ---- 当たり判定レイアウト(★ 調整パネルの「Collider」で編集可) ----
@@ -100,9 +111,8 @@ export const Config = {
     image: { height: 19, y: 0 },
   },
   partHeart: {
-    partGainRate: 0.15,    // ★ PartHeart への加算 = 届いた HEART × この値(ATK倍率込みの HEART に掛かる)
+    partGainRate: 0.15,    // ★ PartHeart への加算 = 届いた HEART × この値(内部互換用。与ダメージには影響しない)
     warmAt: 0.5,           // ★ PartHeart がこの割合以上で WARM(リアクション段階)
-    loveSpotMul: 1.3,      // ★ HEART_MAX になった部位(LOVE SPOT)へ届けた時の HEART 倍率
   },
 
 
@@ -141,12 +151,9 @@ export const Config = {
     maxFlightTime: 3.5,
     floorBounce: 0.42,
   },
-  // 表示用の強さの尺度と HEART(ダメージ)。球速では HEART を変えない
+  // 表示用の強さの尺度。HEART(ダメージ)は球速で変えない(速い球 = 強い球ではない)
   power: {
     minThrowPower: 0.10,   // 表示上の POWER の下限(弱い投げ = この値。強さは 0〜1 を minThrowPower〜1 に並べる)
-    // HEART(ダメージ)は球速で変えない(速い球 = 強い球ではない)。全投球に同じ倍率を掛ける
-    //   旧 ATK 倍率(ATK÷50:平均 ×2.0 前後)を新しい ATTACK 倍率(50 = ×1.0)へ置き換えた分もここで引き継ぐ(1.15 × 2.0)
-    heartFlat: 2.3,
   },
 
   // ---- カーブ(spin -1〜1 → 飛行中の横の力)。spin はジェスチャーの回転量から(throwInput)----
@@ -231,7 +238,6 @@ export const Config = {
       chainBonus: [1.0, 1.1, 1.25, 1.5],   // ★ GATE CHAIN 0/1/2/3 のHEART倍率(ボスに当たった時だけ)
     },
     bank: {
-      bonus: 1.2,                // ★ BANK SHOT(障害物に当たってからボスに命中)の HEART 倍率
       restitution: 0.72,         // ★ 障害物での反発(法線方向)
       speedKeep: 0.82,           // ★ 反射後に残る速さ(POWER 減少)
       curveKeep: 0.5,            // 反射後に残るカーブの横力

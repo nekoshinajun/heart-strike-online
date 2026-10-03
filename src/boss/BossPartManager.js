@@ -29,9 +29,4 @@ export class BossPartManager {
     if (r.changed) this.onStateChange?.(part, r.before, r.after);
     return { part, partGain, ...r };
   }
-
-  /** HEART_MAX の部位 = LOVE SPOT(届く HEART が増える) */
-  loveSpotMul(id) {
-    return this.parts[id]?.state === PartState.HEART_MAX ? Config.partHeart.loveSpotMul : 1;
-  }
 }

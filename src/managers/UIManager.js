@@ -513,6 +513,32 @@ export class UIManager {
     setTimeout(() => d.remove(), 1100);
   }
 
+  /**
+   * 着弾の段階(PERFECT ×1.50 / GREAT ×1.30 / GOOD ×1.15 / HIT ×1.00)を命中の瞬間だけ出す
+   *   PERFECT:中央ラインを一瞬だけ光の筋で見せ、射抜いた感じを出す(ラインは常時は出さない)/ GREAT:短く淡い筋
+   *   land = BattleCalc.landingGrade の結果 / lineX = 中央ラインの画面 X
+   */
+  landingFx(x, y, land, { lineX = x } = {}) {
+    if (!land || land.grade === 'MISS') return;
+    const g = String(land.grade).toLowerCase(), color = Config.landing?.grades.find((t) => t.id === land.grade)?.color ?? '#fff';
+    if (g === 'perfect' || g === 'great') {
+      const beam = document.createElement('div');
+      beam.className = `landbeam ${g}`;
+      beam.style.left = `${lineX}px`; beam.style.top = `${y}px`;
+      beam.style.setProperty('--lc', color);
+      beam.innerHTML = g === 'perfect' ? '<i></i><b></b>' : '<i></i>';
+      this.el.dmg.appendChild(beam);
+      setTimeout(() => beam.remove(), 700);
+    }
+    const d = document.createElement('div');
+    d.className = `landing ${g}`;
+    d.style.left = `${x}px`; d.style.top = `${y + 46}px`;
+    d.style.setProperty('--lc', color);
+    d.innerHTML = `<b>${land.grade}</b><small>×${land.mul.toFixed(2)}</small>`;
+    this.el.dmg.appendChild(d);
+    setTimeout(() => d.remove(), 950);
+  }
+
   flash(color = '#fff', strength = 0.8) {
     const f = this.el.flash;
     f.style.background = color;

@@ -1,5 +1,5 @@
 import { Config, difficultyData } from '../core/Config.js';
-import { STAGES, ATTRIBUTES, characterById, stageById } from '../data/GameData.js';
+import { STAGES, characterById, stageById } from '../data/GameData.js';
 import { DEFAULT_HOME_DIALOGUE, DEFAULT_GUIDANCE_LINES, STYLE_GUIDANCE_LINES } from '../data/CharacterVoice.js';
 
 /**
@@ -188,7 +188,7 @@ export class HomeAgenda {
 
   /**
    * 1. Guidance 候補を優先度順 → 1位をセリフに
-   * 2. Pick 候補(Stage 系の Rule + 推しの属性有利)を優先度順
+   * 2. Pick 候補(Stage 系の Rule)を優先度順
    * 3. セリフが Stage 系 → Pick は同じ Stage / Difficulty(連動・枠を光らせる)
    * 4. セリフが Stage 系以外 → Pick は Stage 候補の1位(役割分担)
    * 5. Stage 候補なし → Pick 非表示
@@ -204,11 +204,6 @@ export class HomeAgenda {
 
   pickCandidates(results, favoriteId) {
     const out = results.filter((r) => r.stage).map((r) => ({ stageId: r.stageId, difficulty: r.difficulty, reason: r.reason, ruleId: r.id }));
-    const fav = favoriteId && characterById(favoriteId);
-    if (fav) {
-      const s = STAGES.find((x) => ATTRIBUTES[fav.attribute]?.beats === x.boss.attribute);
-      if (s) out.push({ stageId: s.id, difficulty: 'NORMAL', reason: `${fav.name}が属性有利`, ruleId: 'pick_advantage' });
-    }
     return out;
   }
 

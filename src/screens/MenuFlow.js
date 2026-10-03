@@ -1,5 +1,4 @@
 import { STAGES, CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
-import { attributeRelation } from '../data/BattleCalc.js';
 import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { devInput, storage, Haptic } from '../app/Platform.js';
@@ -355,11 +354,7 @@ export class MenuFlow {
     else this.frame('party', 'デートメンバー編成', '仲間から4人を選ぼう(A が最初に投げます)', { back: '◀ BACK' });
     this.el.dataset.mode = this.partyMode;
     const party = this.progress.party;
-    const boss = this.stage.boss.attribute;
-    const rel = (ch) => {
-      const r = attributeRelation(ch.attribute, boss);
-      return r === 'advantage' ? '<div class="cbadge good">有利</div>' : r === 'disadvantage' ? '<div class="cbadge bad">不利</div>' : '';
-    };
+    const rel = () => '';   // 属性の有利 / 不利は与ダメージに使わないので出さない(与ダメージ = ATK × アビリティ × ゲート × 着弾)
     this.body.innerHTML = `
       <div class="slots">${party.map((id, i) => `<button type="button" class="slot${i === this.selectedSlot ? ' sel' : ''}" data-act="slot" data-i="${i}">
         ${cardHTML(this.progress.character(id), { slot: SLOT_IDS[i], badge: rel(this.progress.character(id)), compact: true })}</button>`).join('')}</div>

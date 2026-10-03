@@ -9,11 +9,11 @@ import { DEFAULT_SPECIAL } from '../data/GameData.js';
  *   今後:防御(guard)・バフ(buff)・デバフ(debuff)・蘇生(revive)… を足せる
  */
 export const SPECIAL_EFFECTS = {
-  /** 通常の SPECIAL(HEART 倍率は Config.special.heartMul。BOSS_HIT の計算に含まれている)。追加の効果なし */
+  /** 通常の SPECIAL(HEART 倍率 Config.special.heartMul は通常攻撃の式の後に BOSS_HIT で掛ける:BattleCalc.finalDamage)。追加の効果なし */
   attack: { apply: () => null },
 
   /**
-   * 味方全員を回復(セラ:ANGEL HEART)。回復量 = 最終ダメージ × value(3%)を「味方それぞれ」に
+   * 味方全員を回復(セラ:ANGEL HEART)。回復量 = 最終ダメージ × value(10%)を「味方それぞれ」に
    *   HP は各キャラの最大 HP で止める(余りは移さない)/ HP 0 の味方は回復しない(蘇生ではない)
    */
   healAll: {
@@ -27,7 +27,7 @@ export const SPECIAL_EFFECTS = {
   },
 };
 
-/** 回復量:最終ダメージ × 割合(四捨五入)。例 3,000 × 3% = 90 */
+/** 回復量:最終ダメージ × 割合(四捨五入)。例 324 × 10% = 32 */
 export const healAmount = (damage, rate) => Math.max(0, Math.round((Number(damage) || 0) * (Number(rate) || 0)));
 
 /**
