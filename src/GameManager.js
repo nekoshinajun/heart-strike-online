@@ -17,6 +17,7 @@ import { ThrowController } from './controllers/ThrowController.js';
 import { loadTuning } from './core/Tuning.js';
 import { InspectorPanel } from './managers/InspectorPanel.js';
 import { BOSS_IMAGES } from './assets/bossImages.js';
+import { bossAsset } from './data/CharacterAssets.js';
 import { EnergySystem } from './energy/EnergySystem.js';
 import { UIManager } from './managers/UIManager.js';
 import { TrajectoryPreview } from './world/TrajectoryPreview.js';
@@ -250,7 +251,7 @@ export class GameManager {
     Config.boss.name = b.name;
     Config.boss.layout = b.layout;
     Config.boss.profile = b.profile;
-    Config.boss.live2d = b.live2d ?? null;   // Live2D のボス(data/Live2DData.js のキー)
+    Config.boss.characterId = b.characterId ?? null;   // 見た目の定義(data/CharacterAssets.js のキー)
     // 最終設定 = StageData × DifficultyData(ATK / DEF は変えない)
     const D = difficultyData(this.difficulty);
     Config.boss.maxHeart = Config.boss.heartOverride || Math.round(b.maxHeart * Config.battle.heartCapacityScale * D.heartCapacity);
@@ -265,9 +266,10 @@ export class GameManager {
     this.boss = new BossController(this.scene);
     this.player.boss = this.boss;
     this.returnBall.boss = this.boss;
-    // Live2D のボスは画像を貼らない(boss.image は攻略画面などのサムネイル用)
-    const key = this.stage?.boss.image;
-    const img = Config.boss.live2d ? null : key ? (this.bossImgs[key] ?? this.bossImgs[this.stage.boss.fallbackImage]) : this.customImage;
+    // 1枚絵のボスだけ画像を貼る(Live2D は Live2DBossView が自分で描く)。ステージが無い時は調整パネルで読み込んだ画像
+    const asset = this.stage ? bossAsset(this.stage) : null;
+    const im = asset?.rendererType === 'image' ? asset.image : null;
+    const img = im ? (this.bossImgs[im.key] ?? this.bossImgs[im.fallback]) : asset ? null : this.customImage;
     const apply = (im) => {
       this.customImage = im;
       const d = Config.bossImage[Config.boss.layout] ?? Config.bossImage.demon;

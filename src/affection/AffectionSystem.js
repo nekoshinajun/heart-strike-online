@@ -2,6 +2,7 @@ import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { BOSS_AFFECTION, DEFAULT_AFFECTION } from '../data/BossAffection.js';
 import { BOSS_IMAGES } from '../assets/bossImages.js';
+import { bossAsset } from '../data/CharacterAssets.js';
 
 /**
  * ボス = 攻略する女の子。TotalHeart を「LOVE(好感度)0〜100%」として扱い、
@@ -75,7 +76,7 @@ export class AffectionSystem {
     const key = st.image;
     const view = this.boss?.view;
     if (view?.imageMesh) {
-      const want = key && BOSS_IMAGES[key] ? key : this.g.stage?.boss?.image;
+      const want = key && BOSS_IMAGES[key] ? key : bossAsset(this.g.stage)?.image?.key;
       if (want && this.imageKey !== want && BOSS_IMAGES[want]) {
         this.imageKey = want;
         const img = this.g.bossImgs?.[want];

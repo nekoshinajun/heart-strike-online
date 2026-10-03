@@ -84,7 +84,7 @@ export const Config = {
       rightLeg: { shape: 'box', x: 4.68,  y: 12.16, z: 0.3, w: 2.04, h: 2.4, d: 1.6, rot: 0 },
       leftLeg:  { shape: 'box', x: 4.8,   y: 16.0,  z: 0.3, w: 1.68, h: 3.6, d: 1.6, rot: 0 },
     },
-    // ラト(ステラ・Live2D の浮いたポーズ)。Live2D の描画範囲を data/Live2DData.js の display(高さ7・y +8.4・x -0.5)で表示した時の位置
+    // ラト(ステラ・Live2D の浮いたポーズ)。Live2D の描画範囲を data/CharacterAssets.js(rato.live2d)の display(高さ7・y +8.4・x -0.5)で表示した時の位置
     //   キャンバスの割合 (u, v) → x = (u - 0.48) × 11.22 - 0.5 / y = 8.4 + (1.04 - v) × 6.31。Live2D の ArtMesh は判定に使わない
     rato: {
       head:     { shape: 'sphere', x: -0.67, y: 13.57, z: 0.3, r: 1.12 },

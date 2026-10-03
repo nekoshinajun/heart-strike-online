@@ -6,6 +6,7 @@ import { artUrl } from '../data/CharacterArt.js';
 import '../data/CharacterVoice.js';
 import { PlayerProgress } from '../data/PlayerProgress.js';
 import { BOSS_IMAGES } from '../assets/bossImages.js';
+import { bossAsset } from '../data/CharacterAssets.js';
 import { AudioManager } from '../managers/AudioManager.js';
 import { setupMobile } from '../core/MobileSupport.js';
 import { CharacterDetail } from '../screens/CharacterDetail.js';
@@ -177,8 +178,8 @@ export class App {
     });
   }
 
-  bossThumb(stage) { return BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? ''; }
-  /** サムネイルを顔に合わせる CSS 変数(GameData の boss.art.face)*/
+  bossThumb(stage) { const a = bossAsset(stage); return BOSS_IMAGES[a?.thumbnail] ?? BOSS_IMAGES[a?.image?.fallback] ?? ''; }
+  /** サムネイルを顔に合わせる CSS 変数(CharacterAssets の art.face)*/
   bossFocus(stage) { const f = castArtData(stage).face; return `--fu:${f.u};--fv:${f.v}`; }
 
   toast(text) {
