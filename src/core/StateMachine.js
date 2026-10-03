@@ -12,8 +12,6 @@ export const GameState = Object.freeze({
   PLAYER_CATCH: 'PLAYER_CATCH',
   FEVER_INTRO: 'FEVER_INTRO',   // FEVER 突入演出
   FEVER_OUTRO: 'FEVER_OUTRO',   // FEVER FINISH 演出
-  TALK_QUESTION: 'TALK_QUESTION', // 好感度 50%:質問 →「次の1投で答えて！」
-  TALK_REACTION: 'TALK_REACTION', // 回答の1投へのリアクション
   GAME_CLEAR: 'GAME_CLEAR',
   GAME_OVER: 'GAME_OVER',
 });

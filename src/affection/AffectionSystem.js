@@ -6,9 +6,8 @@ import { BOSS_IMAGES } from '../assets/bossImages.js';
 /**
  * ボス = 攻略する女の子。TotalHeart を「LOVE(好感度)0〜100%」として扱い、
  *   ・25% ごとの表情段階(頬の赤み / 汗 / 視線をそらす / ハートの目)
- *   ・50% の会話イベント(質問 →「次の1投」で答える → 当てた場所でリアクション)
  *   ・100% LOVE MAX
- * を担当する。セリフ・段階・回答エリアはすべて data/BossAffection.js(ボスごと)。
+ * を担当する。セリフ・段階はすべて data/BossAffection.js(ボスごと)。
  *
  * 表情は「正式な表情素材(stages[].image)があれば画像を差し替え、無ければ今の画像に重ねる仮表示」。
  */
@@ -25,45 +24,23 @@ export class AffectionSystem {
   get rate() { const b = this.g.boss; return b ? (b.heart / b.maxHeart) * 100 : 0; }
   get stage() { return this.data.stages[this.stageIndex] ?? this.data.stages[0]; }
 
-  /** HEART 50% の会話イベントを再生済みか(同じステージでは二度と再生しない。Stage 開始時にリセット)*/
-  get heart50Triggered() { return !!this.talkDone.interest50; }
-
-  /** 会話の空気:on で周りが暗くなりボスだけ浮かび上がる・UI を暗く・BGM を下げる / off で戻す */
-  setMood(on) {
-    if (this.mood === on) return;
-    this.mood = on;
-    this.g.spotlight?.set(on);
-    this.g.audio?.duckBgm(on ? Config.audio.talkBgmLevel : 1);
-  }
-
   /** 戦闘開始時(newGame) */
   reset() {
     this.stageIndex = 0;
-    this.talkDone = {};             // 会話イベントは1プレイ1回
-    this.activeTalk = null;
-    this.answerMode = null;         // 「次の1投」待ちの会話イベント
-    this.selectedInterest = null;   // 50% イベントで選んだ場所(例 'face' / 'miss')。75% 以降・LOVE MAX の分岐用に保持
-    this.answers = {};              // talkId → zoneId(今後の拡張用)
     this.tempExpr = null;
-    if (this.mood) this.setMood(false);
     this.hideLine();
     this.hideTalk();
-    this.showAnswerHint(false);
     this.applyStage(this.stage, true);
   }
 
   // ---------------- 表情オーバーレイ ----------------
-  /** ボスを作り直した / 画像を読み込んだ後に呼ぶ(オーバーレイと回答エリアをボスへ取り付け) */
+  /** ボスを作り直した / 画像を読み込んだ後に呼ぶ(オーバーレイをボスへ取り付け) */
   attach(boss) {
     this.boss = boss;
     const view = boss.view;
     if (this.group) this.group.parent?.remove(this.group);
-    if (this.zoneRoot) this.zoneRoot.parent?.remove(this.zoneRoot);
     this.group = new THREE.Group();
-    this.zoneRoot = new THREE.Group();
-    this.zones = [];
     view.body.add(this.group);
-    view.anchors.body.add(this.zoneRoot);
     const mesh = view.imageMesh;
     this.imageMode = !!mesh;
     if (!mesh) { this.applyStage(this.stage, true); return; }
@@ -79,72 +56,7 @@ export class AffectionSystem {
     this.sweat = spr(this.textures.sweat, 9); this.sweat.position.copy(this.uv(F.sweat[0], F.sweat[1])); this.sweat.scale.set(F.size * W * 0.5, F.size * W * 0.75, 1);
     this.sparkles = Array.from({ length: 6 }, (_, i) => { const s = spr(this.textures.sparkle, 9); s.userData.a = (i / 6) * Math.PI * 2; return s; });
     this.faceCenter = this.uv((F.eyes[0][0] + F.eyes[1][0]) / 2, F.eyes[0][1] + 0.02);
-    this.buildZones();
     this.applyStage(this.stage, true);
-  }
-
-  /** 50% 会話イベントの回答エリア(透明な当たり判定)。通常は見えない。Debug(Collider 表示)で半透明に */
-  buildZones() {
-    const talk = this.data.talks?.[0];
-    if (!talk || !this.uv) return;
-    const colors = ['#ff5fa2', '#3ee8ff', '#ffd23e', '#7dffb0'];
-    const W = this.imgW, mesh = this.boss.view.imageMesh, H = mesh.geometry.parameters.height;
-    for (const t of this.data.talks) {
-      t.zones.forEach((z, i) => {
-        for (const r of z.rects) {
-          // 表示用(Debug のみ)。判定は「ボールが絵のどこを通ったか」を画像の割合で見る(zoneFromThrow)
-          const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w * W, r.h * H), new THREE.MeshBasicMaterial({ color: colors[i % 4], transparent: true, opacity: 0.4, depthTest: false, side: THREE.DoubleSide, visible: false }));
-          m.position.copy(this.uv(r.u, r.v, 0.05));
-          m.userData.rect = r;
-          m.renderOrder = 21;
-          m.userData.part = z.id;
-          m.userData.zone = z;
-          m.userData.talk = t.id;
-          this.zoneRoot.add(m);
-          this.zones.push(m);
-        }
-      });
-    }
-  }
-
-  /** 投球の当たり判定は通常どおり(回答エリアは Collider にしない)。止まった姿勢の判定用 Collider(全員で同じ結果)*/
-  throwColliders() { return this.g.boss.hitPlane; }
-
-  /**
-   * 回答の1投が「絵のどこを通ったか」→ 回答エリア。
-   *   ボスに当たった球:当たった点から進行方向へ延ばして絵の面と交わる点 / 外れた球:絵の面を横切った点
-   *   → 画像の割合(u, v)にして zones[].rects と照合。3D の Collider の奥行きに左右されず、見た目どおりに判定できる
-   */
-  zoneFromThrow(result, flight) {
-    const t = this.answerMode, view = this.boss?.view, mesh = view?.imageMesh;
-    if (!t || !mesh) return null;
-    let a = null, b = null;
-    if (result?.type === 'hit' && flight) { a = result.point.clone(); b = a.clone().add(flight.vel.clone().normalize()); }
-    else if (flight?.planeCross) { a = flight.planeCross.clone(); b = a.clone().add(flight.vel.clone().normalize()); }
-    if (!a) return null;
-    view.body.updateMatrixWorld(true);
-    const la = view.body.worldToLocal(a), lb = view.body.worldToLocal(b);
-    const dz = lb.z - la.z;
-    const k = Math.abs(dz) > 1e-6 ? -la.z / dz : 0;
-    const p = la.clone().lerp(lb, k);   // 絵の面(ローカル z = 0)上の点
-    const W = mesh.geometry.parameters.width, H = mesh.geometry.parameters.height;
-    const im = Config.bossImage[Config.boss.layout] ?? { y: 0 };
-    const u = p.x / W + 0.5, v = 1 - (p.y - (im.y ?? 0)) / H;
-    this.lastAnswerUV = { u, v };
-    const margin = 1.15;   // 少し広めに取る(遊びやすさ優先)
-    let best = null, bestD = Infinity;
-    for (const z of t.zones) for (const r of z.rects) {
-      const du = Math.abs(u - r.u) / (r.w / 2 * margin), dv = Math.abs(v - r.v) / (r.h / 2 * margin);
-      if (du <= 1 && dv <= 1 && du + dv < bestD) { best = z; bestD = du + dv; }
-    }
-    return best;
-  }
-
-  zoneOf(partId) { return this.zones?.find((m) => m.userData.part === partId)?.userData.zone ?? null; }
-
-  refreshZoneDebug() {
-    const on = !!(this.answerMode && (Config.debug.showColliders || Config.debug.showDebugUI));
-    for (const m of this.zones ?? []) m.material.visible = on && m.userData.talk === this.answerMode?.id;
   }
 
   /** 表情段階を適用(画像差し替え or 仮オーバーレイ) */
@@ -227,55 +139,14 @@ export class AffectionSystem {
     v.pose.tX = this.target?.x ?? 0;
   }
 
-  // ---------------- 会話イベント ----------------
-  /** 今、発生させるべき会話(1プレイ1回)。FEVER 中でも待たない(FEVER は一時停止して会話を優先) */
-  pendingTalk() {
-    if (this.answerMode || this.activeTalk) return null;
-    return (this.data.talks ?? []).find((t) => !this.talkDone[t.id] && this.rate >= t.at) ?? null;
-  }
-
-  startTalk(t) { this.talkDone[t.id] = true; this.activeTalk = t; }
-
-  /** 「次の1投」を回答にする */
-  beginAnswer() {
-    this.answerMode = this.activeTalk;
-    this.activeTalk = null;
-    this.refreshZoneDebug();
-    this.showAnswerHint(true, this.answerMode?.hint);
-  }
-
-  /** 回答の1投の結果 → { zone | null, line, talk }。selectedInterest に保存 */
-  resolveAnswer(result, flight) {
-    const t = this.answerMode;
-    if (!t) return null;
-    const zone = this.zoneFromThrow(result, flight);
-    this.selectedInterest = zone ? zone.id : 'miss';
-    this.answers[t.id] = this.selectedInterest;
-    this.answerMode = null;
-    this.refreshZoneDebug();
-    this.showAnswerHint(false);
-    return { talk: t, zone, line: zone ? zone.line : t.miss };
-  }
-
-  /** 50% イベントで選んだ場所の表示名(データのラベル)*/
-  get interestLabel() {
-    const id = this.selectedInterest;
-    if (!id) return '-';
-    if (id === 'miss') return 'MISS';
-    for (const t of this.data.talks ?? []) { const z = t.zones.find((q) => q.id === id); if (z) return z.label; }
-    return id;
-  }
-
-  /** 100% LOVE MAX:完全にデレた表情 + セリフ(selectedInterest で分岐できるよう loveMax.byInterest も参照)*/
+  /** 100% LOVE MAX:完全にデレた表情 + セリフ */
   onLoveMax() {
-    this.answerMode = null;
-    this.showAnswerHint(false);
     this.hideLine();
     this.stageIndex = this.data.stages.length - 1;
     this.tempExpr = null;
     this.applyStage(this.stage);
     const L = this.data.loveMax ?? {};
-    const line = L.byInterest?.[this.selectedInterest] ?? L.line;
+    const line = L.line;
     if (line) setTimeout(() => this.showTalk(line, { big: false }), 700);
   }
 
@@ -291,10 +162,6 @@ export class AffectionSystem {
     this.talkEl.hidden = true;
     this.talkEl.innerHTML = '<div class="tb-name"></div><div class="tb-text"></div><div class="tb-sub"></div><div class="tb-next">▼</div>';
     ui.appendChild(this.talkEl);
-    this.hintEl = document.createElement('div');
-    this.hintEl.id = 'answerHint';
-    this.hintEl.hidden = true;
-    ui.appendChild(this.hintEl);
   }
 
   /** 段階が上がった時のひとこと(進行は止めない) */
@@ -330,11 +197,6 @@ export class AffectionSystem {
   finishTyping(text) { clearInterval(this.typeTimer); this.talkEl.querySelector('.tb-text').textContent = text; this.typed = true; }
   hideTalk() { clearInterval(this.typeTimer); if (this.talkEl) this.talkEl.hidden = true; }
 
-  showAnswerHint(on, text = '') {
-    if (!this.hintEl) return;
-    this.hintEl.hidden = !on;
-    if (on) this.hintEl.innerHTML = `<b>♡ ANSWER</b><span>${text}</span>`;
-  }
 }
 
 /** 仮の表情パーツ(Canvas)。正式な表情素材が来たら stages[].image で画像ごと差し替える */

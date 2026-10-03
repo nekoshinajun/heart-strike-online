@@ -38,8 +38,6 @@ function fixedStep(f, h, colliders) {
   if (f.drive && f.t > f.drive.t0) f.vel.y -= f.drive.accel * Math.min(1, (f.t - f.drive.t0) / Math.max(1e-3, f.drive.t1 - f.drive.t0)) * h;
   f.pos.addScaledVector(f.vel, h);
   f.t += h;
-  // ボスの絵の面(planeZ)を横切った位置を記録(50% 会話の回答判定用。外れた球でも「どこを通ったか」が分かる)
-  if (f.planeZ != null && !f.planeCross && prev.z > f.planeZ && f.pos.z <= f.planeZ) f.planeCross = prev.clone().lerp(f.pos, (prev.z - f.planeZ) / (prev.z - f.pos.z));
 
   // 3D 障害物:当たったら反射(POWER 減少)して飛行を続ける。即 MISS にはしない
   if (f.obstacles) f.obstacles.collide(f, prev);

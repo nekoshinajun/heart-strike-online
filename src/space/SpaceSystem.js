@@ -97,7 +97,6 @@ export class SpaceSystem {
   spawnForThrow(forcedPattern = null, seed = null) {
     const g = this.g;
     this.clear();
-    if (g.affection?.answerMode) { g.energy.clear(); return; }   // 50% 会話の回答の1投:ボスの身体だけを見て投げる
     if (g.fever?.active) { g.energy.spawnForThrow(); return; }
     const sp = this.stageSpace;
     const oldRandom = Math.random;
