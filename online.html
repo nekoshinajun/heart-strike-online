@@ -884,10 +884,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .td-art img { position: absolute; left: 31%; top: 44px; height: calc(100% - 4px); max-width: none; transform: translateX(-50%); object-fit: contain; object-position: 50% 0; -webkit-user-drag: none; filter: drop-shadow(0 10px 24px rgba(140,50,95,.18)); }
 .td-art img.react { animation: hmreact .45s ease-out; }
 .td-bubble { z-index: 4; left: 8%; right: auto; top: 16%; max-width: 48%; }
-.td-nav { position: absolute; z-index: 5; top: 44%; width: 36px; height: 56px; border: 1px solid rgba(255,255,255,.85); border-radius: 18px; background: rgba(255,255,255,.55); color: var(--hs-pink-deep); font: 800 26px/1 var(--round); box-shadow: var(--hs-shadow); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.td-nav { position: absolute; z-index: 5; top: 50%; width: 36px; height: 56px; border: 1px solid rgba(255,255,255,.85); border-radius: 18px; background: rgba(255,255,255,.55); color: var(--hs-pink-deep); font: 800 26px/1 var(--round); box-shadow: var(--hs-shadow); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .td-nav.prev { left: calc(var(--sal) + 6px); }
-.td-nav.next { right: calc(var(--sar) + 6px); }   /* 画面の右端(右の列のプレートとステータスの間のすき間に入る)*/
-.td-side { position: absolute; z-index: 3; right: calc(var(--sar) + 6px); top: calc(var(--sat) + 54px); bottom: 56px; width: clamp(124px, 35%, 136px); align-items: flex-end; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; pointer-events: none; }
+.td-nav.next { right: calc(var(--sar) + 6px); }   /* 画面の右端(右の列の必殺技と五角形の間のすき間に入る)*/
+.td-side { position: absolute; z-index: 3; right: calc(var(--sar) + 6px); top: calc(var(--sat) + 54px); bottom: 56px; width: clamp(124px, 35%, 136px); align-items: flex-end; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; pointer-events: none; }
 .td-plate, .td-panel { position: relative; pointer-events: auto; padding: 7px 8px; border-radius: 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,.9); background: linear-gradient(160deg, rgba(255,255,255,.82), rgba(255,240,247,.7)); box-shadow: var(--hs-shadow); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .td-badges { display: flex; flex-wrap: wrap; gap: 2px; }
 .td-rank { padding: 0 4px; border-radius: 5px; background: var(--rc); color: #fff; font: 800 8px/1.75 var(--round); text-shadow: 0 1px 1px rgba(91,43,69,.35); }
@@ -904,7 +904,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .td-chip.in { background: var(--hs-pink); color: #fff; }
 .td-chip.home { background: #fff; color: var(--hs-pink-deep); box-shadow: inset 0 0 0 1.5px var(--hs-pink-soft); }
 .td-plate { width: 100%; box-sizing: border-box; }
-.td-panel { width: 100%; box-sizing: border-box; display: grid; gap: 4px; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.td-panel { width: 100%; box-sizing: border-box; margin-top: auto; display: grid; gap: 4px; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 /* 五角形はパネルに入れず、五角形そのものをガラスにする(角の部分はキャラが見える)*/
 /* ステータスの五角形(ガラスの段 + 発光するグラデーション + 頂点のラベルと実数値)*/
 .td-radar { margin: 0 -2px; }
@@ -922,7 +922,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .rd-l[data-stat="defence"] .rd-name { fill: #2ea6e6; }
 .rd-l[data-stat="control"] .rd-name { fill: #2bb36a; }
 .rd-l[data-stat="curve"] .rd-name { fill: #8b5cf0; }
-.td-special { position: absolute; z-index: 4; left: calc(var(--sal) + 6px); bottom: 64px; width: clamp(124px, 35%, 150px); pointer-events: auto; min-height: 40px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; gap: 1px 4px; padding: 5px 6px 6px 8px; border-radius: 14px;
+.td-special { position: relative; pointer-events: auto; width: 100%; min-height: 40px; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; gap: 1px 4px; padding: 5px 6px 6px 8px; border-radius: 14px;
   border: 1px solid rgba(255,255,255,.95); background: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,236,246,.85)); box-shadow: var(--hs-shadow), inset 0 0 0 1.5px rgba(255,150,200,.35);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--hs-ink); font-family: var(--round); text-align: left; cursor: pointer; }
 .td-special small { justify-self: start; grid-column: 1; padding: 0 5px; border-radius: 6px; background: linear-gradient(135deg, #ff8cc6, #ff5fa2); color: #fff; font: 900 7.5px/1.5 var(--round); letter-spacing: .08em; }
