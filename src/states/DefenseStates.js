@@ -366,10 +366,10 @@ export class PlayerDefenseState {
     g.ball.setPressed?.(0);
     const multi = this.notes.length > 1;
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], multi ? `${this.idx + 1} / ${this.notes.length}${why ? ` ・ ${why}` : ''}` : why);
+    g.online?.sendNoteJudge?.(this.idx, this.notes.length, r);   // 観戦中の仲間に1個ずつの判定を見せる
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
     g.fever.onCatch(r);   // FEVER 中の PERFECT で FEVER LEVEL UP(既存)
-    g.online?.sendNoteJudge?.(this.idx, this.notes.length, r);   // 観戦中の仲間に1個ずつの判定を見せる
     if (r === Judge.PERFECT && !multi) g.setTimeScale(0.2); // 到達までスローモーション(1個の攻撃だけ)
     if (r === Judge.MISS || g.clock >= this.arrival || this.note.type !== 'NORMAL') this.noteImpact();
   }
