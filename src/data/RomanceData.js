@@ -64,6 +64,8 @@ export const HEROINES = [
   { id: 'milk', roman: 'Milk', stageId: 'stage03', cv: null, collab: null, playableCharacterId: null, profile: null, line: null, attackVoices: attackVoices('milk', ['milk_voice_01.mp3', 'milk_voice_02.mp3', 'milk_voice_03.mp3', 'milk_voice_04.mp3', 'milk_voice_05.mp3']),
     // HELL 初回クリアで ASMR を解放(NORMAL / HARD の枠は未設定 = 解放しない)。既存セーブで HELL クリア済みなら読み込み時に解放
     rewardVoices: { NORMAL: null, HARD: null, HELL: { id: 'milk_hell', type: 'asmr', title: null, src: `${voiceDir('milk')}/milk_asmr.wav`, durationSec: 43 } } },
+  // ステラのキャスト(Live2D)。★ 名前・セリフ・ボイスは仮
+  { id: 'rato', roman: 'Rato', stageId: 'stage04', cv: null, collab: null, playableCharacterId: null, profile: null, line: null, attackVoices: [], rewardVoices: { NORMAL: null, HARD: null, HELL: null } },
 ];
 
 /** その難易度の報酬ボイスの解放条件(その攻略対象のステージをその難易度でクリア)*/

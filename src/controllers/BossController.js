@@ -2,10 +2,12 @@ import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { BossPartManager } from '../boss/BossPartManager.js';
 import { BossView2D } from '../boss/BossView2D.js';
+import { Live2DBossView } from '../boss/Live2DBossView.js';
+import { live2dById } from '../data/Live2DData.js';
 
 /**
  * ボス(推しVTuber)のロジック:TotalHeart・部位ごとの PartHeart(BossPartManager)・当たり判定Collider。
- * 見た目は view(BossView2D)に委譲。攻撃モーションは持たない(返球は ReturnBallController)。
+ * 見た目は view(BossView2D / Live2D のボスは Live2DBossView)に委譲。攻撃モーションは持たない(返球は ReturnBallController)。
  *
  * Collider は 2D イラストの表示面付近に置いた透明な3D形状。
  *   head / chest / stomach / rightArm / leftArm / rightLeg / leftLeg(左右はキャラクター自身の左右)
@@ -111,7 +113,9 @@ export class BossController {
     this.root.scale.setScalar(Config.boss.scale);
     scene.add(this.root);
 
-    this.view = new BossView2D(this.root);
+    // 見た目:ステージの boss.live2d があれば Live2D(data/Live2DData.js)、無ければ従来の 2D
+    const l2d = live2dById(Config.boss.live2d);
+    this.view = l2d ? new Live2DBossView(this.root, l2d) : new BossView2D(this.root);
     this.parts = new BossPartManager();
     this.parts.onStateChange = (part, before, after) => {
       // v25: PartHeart は内部互換用に維持するが、ボス見た目へ部位状態を反映しない。
@@ -223,6 +227,7 @@ export class BossController {
     this.heart = Math.min(this.maxHeart, this.heart + heartGain);
     const r = this.parts.addHeart(partId, heartGain);
     this.view.playHit(partId, Math.min(2.5, reaction));
+    this.view.onHeartHit?.(partId);   // HIT が確定した瞬間のリアクション(Live2D の hit パラメータ)
     if (r.changed && r.after === 'HEART_MAX') this.view.setExpression('love', 1.6);
     else this.view.setExpression('happy', 0.7);
     if (this.heart >= this.maxHeart && !this.full) { this.full = true; this.view.setHeartMax(); }
@@ -238,4 +243,7 @@ export class BossController {
   }
 
   update(dt) { this.view.update(dt); }
+
+  /** ボスを作り直す時に呼ぶ(Live2D の WebGL を解放)*/
+  dispose() { this.view.dispose?.(); }
 }
