@@ -1,4 +1,4 @@
-import { STAGES, CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
+import { STAGES, CHARACTERS, ATTRIBUTES, RANKS } from '../data/GameData.js';
 import { attributeRelation } from '../data/BattleCalc.js';
 import { portraitStyle } from '../data/CharacterArt.js';
 import { Config, difficultyData } from '../core/Config.js';
@@ -44,9 +44,9 @@ export function staminaHTML(ch, cls = '') {
   return `<span class="stam ${ch.tired ? 'tired' : ''} ${cls}" title="STAMINA ${ch.stamina} / ${ch.staminaMax}"><i style="--k:${k}"></i><b>${ch.tired ? '疲労中 EXP×10%' : `STA ${ch.stamina}`}</b></span>`;
 }
 
-/** キャラクターカード(ランク・画像・名前・属性・タイプ・親密度 Lv・HP・ATTACK・DEFENCE・STAMINA) */
+/** キャラクターカード(ランク・画像・名前・属性・親密度 Lv・HP・ATTACK・DEFENCE・STAMINA) */
 export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
-  const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+  const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
   const ps = portraitStyle(ch);
   const img = ps
     ? `<div class="avatar" style="${ps}"><i>${a.icon}</i></div>`
@@ -56,7 +56,7 @@ export function cardHTML(ch, { slot = '', badge = '', compact = false } = {}) {
     ${rarityBadge(ch.rank, 'crank')}${raritySparkle(ch.rank)}${charAccent(ch)}${slot ? `<div class="cslot">${slot}</div>` : ''}${badge}
     ${img}
     <div class="cname">${esc(ch.name)}</div>
-    <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${t.label}</span></div>
+    <div class="cmeta"><span title="${a.label}">${a.icon}</span><span>${a.label}</span></div>
     <div class="cstat cstat-lv"><span>♡Lv.${ch.level}</span><span class="chp">HP ${ch.maxHp ?? '-'}</span></div>
     <div class="cstat"><span>ATK ${(ch.totalStats ?? ch.stats)?.attack ?? '-'}</span><span>DEF ${(ch.totalStats ?? ch.stats)?.defence ?? '-'}</span></div>
     ${staminaHTML(ch)}
@@ -459,7 +459,6 @@ export class MenuFlow {
       <div class="howto mini">
         <div><b>THROW</b>ハート玉を下へ引いて球速を決める(浅い=よく曲がる・深い=まっすぐ)→上へ弾いて狙う。切り返すとカーブ</div>
         <div><b>CATCH</b>◎の位置を、リングが重なる瞬間にタップ</div>
-        <div><b>TYPE</b>STRAIGHT=速い球 / CURVE=よく曲がる</div>
       </div>`;
     for (const b of this.body.querySelectorAll('[data-act="first"]')) this.bindCard(b, b.dataset.id, () => { this.firstId = b.dataset.id; this.showCharacterSelect(); });
     this.focus();

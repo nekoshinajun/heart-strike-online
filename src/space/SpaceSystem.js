@@ -12,7 +12,7 @@ const POOL = { gate: 6, block: 3, pillar: 3, panel: 3, wall: 3 };   // gate:2ル
  * 配置の考え方:パターンごとに「お手本の1投(guide)」を実際の物理で飛ばし、その軌道に沿って
  *   NEAR / MID / FAR(奥行きレイヤー)と dx / dy(左右・高さのずれ)でポイントを置く。
  *   → 完全ランダムではなく「その投げ方をすれば1本の3D軌道でまとめて取れる」ルートになる。
- *   guide は現在キャラのタイプ補正(STRAIGHT / CURVE)込みで計算するので、どのキャラでも攻略できる。
+ *   guide は現在キャラの CURVE ステータス込みで計算するので、どのキャラでも攻略できる。
  * ステージごとの特徴は StageData.space(使うパターン・密度・Gate 数・障害物数・障害物の速さ)。
  *
  * 2ルート同時配置(Config.space.dualRoutes):1投ごとに左右2本のルート(それぞれ RoutePattern の Gate / Energy)を同時に置く。
@@ -266,7 +266,7 @@ export class SpaceSystem {
 
   depth(v) { return typeof v === 'string' ? Config.space.layers[v] ?? 0.5 : v ?? 0.5; }
 
-  /** お手本の1投を物理でシミュレーション(障害物は無視)。現在キャラのタイプ補正込み */
+  /** お手本の1投を物理でシミュレーション(障害物は無視)。現在キャラの CURVE ステータス込み */
   guidePath(gd) {
     const g = this.g;
     g.cam.settle();

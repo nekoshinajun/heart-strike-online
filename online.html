@@ -335,9 +335,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #speedLines.on { opacity: 1; }
 
 
-#throwType { position:absolute; left:50%; top:68%; transform:translateX(-50%); z-index:6; pointer-events:none; font-family:var(--display); font-size:12px; letter-spacing:.22em; color:#fff; padding:4px 10px; border-radius:999px; background:rgba(7,7,10,.78); border:1px solid rgba(255,255,255,.14); box-shadow:0 8px 22px #0005; backdrop-filter:blur(10px); text-shadow:0 1px 2px #000; }
-#throwType[data-type="CURVE"] { border-color:#ff9ccc; }
-#throwType[data-type="STRAIGHT"] { border-color:#3ee8ff; }
 
 /* ---- POWER / ENERGY ---- */
 /* 投球前に仕込んだ球質(ハートの周り)。小さく・投げるまで残る */
@@ -891,7 +888,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .td-plate, .td-panel { position: relative; pointer-events: auto; padding: 7px 8px; border-radius: 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,.9); background: linear-gradient(160deg, rgba(255,255,255,.82), rgba(255,240,247,.7)); box-shadow: var(--hs-shadow); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .td-badges { display: flex; flex-wrap: wrap; gap: 2px; }
 .td-rank { padding: 0 4px; border-radius: 5px; background: var(--rc); color: #fff; font: 800 8px/1.75 var(--round); text-shadow: 0 1px 1px rgba(91,43,69,.35); }
-.td-attr, .td-type { padding: 0 3px; border-radius: 5px; background: rgba(255,255,255,.9); box-shadow: inset 0 0 0 1px var(--hs-line-soft); font: 800 7.5px/1.9 var(--round); color: color-mix(in srgb, var(--ac) 60%, var(--hs-ink)); }
+.td-attr { padding: 0 3px; border-radius: 5px; background: rgba(255,255,255,.9); box-shadow: inset 0 0 0 1px var(--hs-line-soft); font: 800 7.5px/1.9 var(--round); color: color-mix(in srgb, var(--ac) 60%, var(--hs-ink)); }
 .td-name { margin: 3px 0 0; font: 800 18px/1.15 var(--round); color: var(--hs-ink); letter-spacing: .02em; }
 .td-lv { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin-top: 2px; }
 .td-lv small { font: 800 8px var(--round); letter-spacing: .1em; color: var(--hs-pink-deep); }
@@ -2307,7 +2304,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       <button id="dbgCol" type="button" aria-pressed="false">Collider C</button>
       <button id="dbgTune" type="button">調整</button>
     </div>
-    <div id="throwType" hidden>STRAIGHT</div>
     <div id="players"></div>
     <div id="flash"></div>
 

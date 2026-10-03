@@ -23,7 +23,7 @@ export class NextPlayerState {
     let p;
     if (phase && to == null) p = g.turn.beginAttackPhase();
     else { if (phase) g.turn.thrown = new Set(); p = g.turn.setIndex(to ?? g.turn.index); }
-    g.applyCharacter(p);   // 手番キャラの ATK/DEF/属性/タイプに切替
+    g.applyCharacter(p);   // 手番キャラの ATK/DEF/属性に切替
     g.ui.setPlayers(g.turn.players, g.turn.index);
     g.ui.showTurn(p, phase ? 'PLAYER ATTACK' : label);
     g.cam.setPlayerX(p.x);

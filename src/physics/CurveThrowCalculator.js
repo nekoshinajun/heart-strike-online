@@ -15,8 +15,8 @@ export class CurveThrowCalculator {
   constructor(cameraCtrl, viewport) {
     this.cam = cameraCtrl;
     this.viewport = viewport;
-    // キャラクター(タイプ)による補正。入力(POWER/AIM/SPIN)とは独立に掛かる。手番ごとに差し替える
-    this.mods = { speedMul: 1, curveMul: 1, controlError: 0, abilities: [] };
+    // キャラクター(CURVE / CONTROL ステータス・アビリティ)による補正。入力(POWER/AIM/SPIN)とは独立に掛かる。手番ごとに差し替える
+    this.mods = { curveMul: 1, controlError: 0, abilities: [] };
     this.rng = Math.random;   // CONTROL の誤差に使う乱数(テストでは差し替えられる)
   }
 
@@ -31,7 +31,6 @@ export class CurveThrowCalculator {
 
   /**
    * 弾道:水平の向き H(単位)・ボスの面までの水平距離 d・到達の高さ dy(発射位置から)を、水平の速さ vh で通る初速
-   *   キャラクターのタイプ(speedMul)は「同じ所へ、速い / 遅い球で届く」= 狙いは変わらず弾道の高さだけ変わる
    */
   ballistic(H, d, dy, vh) {
     const g = Config.throw.gravity, T = d / Math.max(0.5, vh);
@@ -46,7 +45,7 @@ export class CurveThrowCalculator {
 
   /**
    * お手本の1投(Heart Gate / Energy の配置・テスト用):start から target を通る、実際の投球と同じ物理の弾道
-   *   基準の発射角で target に届く速さを解き、キャラのタイプ(speedMul)で速さだけ変える。power は使わない(互換のため残す)
+   *   基準の発射角で target に届く速さを解く。power は使わない(互換のため残す)
    */
   buildThrow(start, target, power, spin) {
     void power;
@@ -56,7 +55,7 @@ export class CurveThrowCalculator {
     const dy = target.y - start.y, k = Math.tan(THREE.MathUtils.degToRad(G.launchDeg));
     const den = d * k - dy;
     const vh0 = den > 0.05 ? Math.sqrt((g * d * d) / (2 * den)) : G.maxVelocity * 1.3;
-    const { velocity, T } = this.ballistic(Hv, d, dy, vh0 * this.mods.speedMul);
+    const { velocity, T } = this.ballistic(Hv, d, dy, vh0);
     const cv = this.curveFor(spin, T);
     if (cv) velocity.add(cv.dv);
     return { velocity, curveAccel: cv?.accel ?? null, drive: null, speed3d: velocity.length(), launchDeg: G.launchDeg, reachable: den > 0.05, flightTime: T };
@@ -89,9 +88,9 @@ export class CurveThrowCalculator {
     const yaw = THREE.MathUtils.clamp(Math.atan2(gest.dir.x, up) * G.yawGain, -THREE.MathUtils.degToRad(G.maxYawDeg), THREE.MathUtils.degToRad(G.maxYawDeg));
     const { fwd, right } = this.basis();
     const H = fwd.clone().multiplyScalar(Math.cos(yaw)).addScaledVector(right, Math.sin(yaw));
-    // ボスの面までの水平距離 → 基準の弾道(発射角一定)での到達の高さ → キャラのタイプの速さで同じ所へ
+    // ボスの面までの水平距離 → 基準の弾道(発射角一定)での到達の高さ
     const depth = Math.max(1, (start.z - (Config.boss.z + 0.5)) / Math.max(0.2, -H.z));
-    const { velocity, T } = this.ballistic(H, depth, this.baseRise(depth, vh0), vh0 * this.mods.speedMul);
+    const { velocity, T } = this.ballistic(H, depth, this.baseRise(depth, vh0), vh0);
     // カーブ:入力の回転 × キャラクターの CURVE(mods.curveMul は curveFor の中)× アビリティ
     const ab = this.mods.abilities ?? [];
     const actx = { pull: p, throwSpin: gest.spin, effects: [] };

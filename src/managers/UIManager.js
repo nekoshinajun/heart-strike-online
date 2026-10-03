@@ -1,4 +1,4 @@
-import { ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
+import { ATTRIBUTES, RANKS } from '../data/GameData.js';
 import { Config } from '../core/Config.js';
 import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX } from '../data/GrowthData.js';
 import { HP_MAX } from '../data/Growth.js';
@@ -74,7 +74,7 @@ export class UIManager {
   showStatus(i) {
     const p = this.players?.[i], ch = p?.chara;
     if (!ch) return;
-    const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
     let el = this.statusEl;
     if (!el) { el = this.statusEl = document.createElement('div'); el.id = 'pstat'; el.setAttribute('role', 'dialog'); this.el.players.parentElement.appendChild(el); }
     const ps = portraitStyle(ch);
@@ -83,7 +83,7 @@ export class UIManager {
     el.style.setProperty('--pc', p.color); el.style.setProperty('--ac', a?.color ?? '#fff'); el.style.setProperty('--rc', r?.color ?? '#fff');
     el.innerHTML = `
       <div class="pst-head"><span class="pst-face"${ps ? ` style="${ps}"` : ''}></span>
-        <div class="pst-name"><b>${esc(ch.name)}</b><small>${rarityBadge(ch.rank, 'pst-rank')} ${a?.icon ?? ''} ${a?.label ?? ''} / ${t?.label ?? ''}</small><em>♡ Lv.${ch.level ?? 1}</em></div>
+        <div class="pst-name"><b>${esc(ch.name)}</b><small>${rarityBadge(ch.rank, 'pst-rank')} ${a?.icon ?? ''} ${a?.label ?? ''}</small><em>♡ Lv.${ch.level ?? 1}</em></div>
         <i class="pst-slot">${p.id}</i></div>
       ${p.ownerName ? `<div class="pst-owner">${p.mine ? 'YOU' : esc(p.ownerName)}</div>` : ''}
       <div class="pst-hp${p.hp <= 0 ? ' down' : ''}"><span>HP</span><i><i style="transform:scaleX(${hpK})"></i></i><b>${Math.max(0, Math.round(p.hp))}</b>/${p.maxHp ?? 100}</div>
@@ -343,16 +343,6 @@ export class UIManager {
       ? `Hit position <b>${f(result.point.x)} / ${f(result.point.y)} / ${f(result.point.z)}</b> ・ Hit part <b>${String(result.part ?? '').toUpperCase()}</b>`
       : `Hit <b>MISS</b>(${result?.type ?? '-'})`;
     el.innerHTML = `${this.lastThrowHTML ?? ''}<br>${hit} ・ Gate <b>${gateRoute ? gateRoute.toUpperCase() : 'NONE'}</b>`;
-  }
-
-  /** 投球前のハート直下に現在キャラの投球タイプを表示 */
-  setThrowType(type) {
-    const el = document.getElementById('throwType');
-    if (!el) return;
-    if (!type) { el.hidden = true; return; }
-    el.textContent = type === 'CURVE' ? 'CURVE' : 'STRAIGHT';
-    el.dataset.type = type === 'CURVE' ? 'CURVE' : 'STRAIGHT';
-    el.hidden = false;
   }
 
   /**

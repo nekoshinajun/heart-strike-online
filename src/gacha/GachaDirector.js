@@ -1,5 +1,5 @@
 import { Config } from '../core/Config.js';
-import { characterById, ATTRIBUTES, TYPES } from '../data/GameData.js';
+import { characterById, ATTRIBUTES } from '../data/GameData.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { RARITY_OBTAIN_LINES } from '../data/CharacterVoice.js';
 import { giftById, giftName, giftIcon, giftRank } from '../data/RomanceData.js';
@@ -237,7 +237,7 @@ export class GachaDirector {
     img.src = artUrl(ch, 'cutout'); img.alt = ch.name;
     R.querySelector('.gs-rar').innerHTML = rarityBadge(rar, 'gs-rb');
     R.querySelector('.gs-name').textContent = ch.name;
-    R.querySelector('.gs-meta').textContent = `${ATTRIBUTES[ch.attribute]?.icon ?? ''} ${ATTRIBUTES[ch.attribute]?.label ?? ''} / ${TYPES[ch.type]?.label ?? ''}`;
+    R.querySelector('.gs-meta').textContent = `${ATTRIBUTES[ch.attribute]?.icon ?? ''} ${ATTRIBUTES[ch.attribute]?.label ?? ''}`;
     R.querySelector('.gs-line').textContent = this.line(it) ?? '';
     R.querySelector('.gs-tname').textContent = ch.name;
     R.querySelector('.gs-new').hidden = !it.isNew;
