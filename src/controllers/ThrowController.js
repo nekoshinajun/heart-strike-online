@@ -51,7 +51,6 @@ export class ThrowController {
     this.lastFed = start;
     this.finger = start;
     g.ball.grab(g.player.fingerToWorld(start.x, start.y));
-    g.ui.setPowerGauge?.(null);
     g.ui.setThrowType?.(null);
     this.showCurve();
     return true;
@@ -101,7 +100,7 @@ export class ThrowController {
     this.lastFed = null; this.finger = null;
     this.gesture.reset(null);
     this.g.preview.hideLive();
-    this.g.ui.setPowerGauge?.(null); this.g.ui.setThrowType?.(null);
+    this.g.ui.setThrowType?.(null);
     this.g.ui.setCurveInput?.(null); this.g.ball.setCurveRoll?.(0);
   }
 }

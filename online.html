@@ -347,14 +347,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #curveRing .cr-label { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); padding: 1px 8px; border-radius: 9px; background: rgba(7,7,10,.6); color: currentColor; font: 800 10px var(--round); letter-spacing: .06em; white-space: nowrap; }
 #curveRing.reset .cr-label { animation: crreset .5s ease-out; }
 @keyframes crreset { 0% { transform: translate(-50%, -2px) scale(1.25); background: rgba(255,255,255,.85); color: #5b2b45; } 100% { transform: translate(-50%, -2px) scale(1); } }
-#powerGauge { position: absolute; left: 10px; top: 60%; width: 150px; pointer-events: none; display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; background: rgba(7,7,10,.78); border: 1px solid rgba(255,255,255,.1); border-radius: 13px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-#powerGauge span { font-family: var(--display); font-size: 11px; color: var(--gold); letter-spacing: .08em; }
-#powerGauge b { font-family: var(--display); font-weight: 400; font-size: 13px; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
-.pgbar { height: 10px; background: #18181d; border-radius: 5px; overflow: hidden; }
-.pgbar i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #3ee8ff, #ffd23e 70%, #ff3d7f); }
-#powerGauge.max { box-shadow: 0 0 0 2px var(--gold), 0 0 18px var(--gold); }
-#powerGauge.max b { color: var(--gold); }
-#powerGauge.locked span::after { content: " ✓"; color: #7dffb0; }
 #energy { position: absolute; left: calc(8px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 136px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; gap: 3px 6px; align-items: center; padding: 8px 9px; border-radius: 13px; border: 1px solid rgba(255,255,255,.1); background: rgba(7,7,10,.78); box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--ink); pointer-events: auto; cursor: default; font: inherit; text-align: left; }
 #energy .egbar { grid-column: 1 / -1; }
 #energy em { font-style: normal; font-family: var(--display); font-size: 9px; color: #ff9ccc; letter-spacing: .06em; white-space: nowrap; }
@@ -2093,7 +2085,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       <button id="dbgTune" type="button">調整</button>
     </div>
     <div id="throwType" hidden>STRAIGHT</div>
-    <div id="powerGauge" hidden><span>SPEED</span><div class="pgbar"><i></i></div><b>0%</b></div>
     <button id="energy" type="button"><em>♡ SPECIAL</em><b>0 / 100</b><div class="egbar"><i></i></div></button>
     <div id="players"></div>
     <div id="flash"></div>
