@@ -220,26 +220,31 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #catchMarker.hit #cmInner { border-color: var(--gold); transform: translate(-50%, -50%) scale(1.3); transition: transform 150ms; }
 #catchMarker.miss #cmInner { border-color: var(--boss); }
 /* ---- DEFENCE:文字を使わず形と動きで操作を見せる ---- */
-/* HOLD:塗りつぶした「押す面」+ 外周の空のゲージ。押すとゲージが一周 → 光ったら離す */
+/* HOLD:塗りつぶした「押す面」+ 外周のゴールの輪。押すと中心から外へメーターが溜まり、輪まで届いて光ったら離す */
 #catchMarker[data-note="HOLD"] #cmOuter { --pc: #ffd23e; border-width: 8px; }
 #catchMarker[data-note="HOLD"] #cmInner { border-color: #fff6cf; }
 #catchMarker[data-note="HOLD"] #cmInner::after { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: #ffd23e; }
 #cmPad { background: radial-gradient(circle, rgba(255,240,170,.95), rgba(255,196,60,.75) 55%, rgba(255,160,20,.45)); box-shadow: 0 0 18px rgba(255,200,60,.7), inset 0 0 0 3px rgba(255,255,255,.55); animation: cmBreath 1.1s ease-in-out infinite; }
 @keyframes cmBreath { 0%, 100% { scale: 1; opacity: .85; } 50% { scale: .9; opacity: 1; } }
-#cmHold { --ring: #ffd23e; background: conic-gradient(var(--ring) var(--k, 0deg), rgba(255,255,255,.22) 0); -webkit-mask: radial-gradient(circle, transparent calc(64% - 6% * var(--hk, 0)), #000 calc(66% - 6% * var(--hk, 0))); mask: radial-gradient(circle, transparent calc(64% - 6% * var(--hk, 0)), #000 calc(66% - 6% * var(--hk, 0))); filter: drop-shadow(0 0 2px #000); }
-#cmHold::after { content: ""; position: absolute; left: 50%; top: 0; width: 6px; height: 14%; margin-left: -3px; border-radius: 3px; background: #fff; box-shadow: 0 0 6px #ffd23e; }
-#catchMarker.holding #cmPad { animation: cmPress calc(0.62s - 0.42s * var(--hk, 0)) ease-in-out infinite; filter: brightness(calc(1 + .5 * var(--hk, 0))); }
+#cmHold { --ring: rgba(255,255,255,.9); z-index: 1; box-sizing: border-box; border: 5px solid var(--ring); box-shadow: 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 2px rgba(0,0,0,.45); }
+/* メーター:中心から外側へ溜まる円(--hk = 0..1。1 でゴールの輪にぴったり届く)。縁が明るいので「どこまで来たか」が見える */
+#cmHold::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255,236,150,.85), rgba(255,200,40,.92) 80%, #fff3b0 92%); box-shadow: 0 0 0 3px #fff, 0 0 12px rgba(255,210,62,.9); scale: var(--hk, 0); }
+/* 押している間は押す面を暗くして、溜まっていくメーターとの境目をはっきり見せる */
+#catchMarker.holding #cmPad { animation: none; scale: 1; background: radial-gradient(circle, rgba(70,45,0,.55), rgba(40,25,0,.7)); box-shadow: inset 0 0 0 3px rgba(255,214,80,.5); }
 @keyframes cmPress { 0%, 100% { scale: .84; } 50% { scale: .92; } }
-#catchMarker.holding #cmHold { --ring: color-mix(in srgb, #ffd23e calc(100% - 70% * var(--hk, 0)), #ffffff); filter: drop-shadow(0 0 calc(3px + 14px * var(--hk, 0)) #ffd23e); }
+#catchMarker.holding #cmHold { filter: drop-shadow(0 0 calc(2px + 10px * var(--hk, 0)) #ffd23e); }
+#catchMarker[data-note="HOLD"]:is(.holding, .ready, .early) #cmInner { opacity: 0; }
 #catchMarker.holding #cmOuter, #catchMarker.holding #cmZone, #catchMarker.ready #cmOuter, #catchMarker.ready #cmZone, #catchMarker.early #cmOuter, #catchMarker.early #cmZone { opacity: 0; }
 #catchMarker.ready #cmHold { --ring: #ffffff; filter: drop-shadow(0 0 16px #fff) drop-shadow(0 0 26px #ffd23e); animation: cmReady .32s ease-in-out infinite alternate; }
+#catchMarker.ready #cmHold::before { background: radial-gradient(circle, #fffbe8, #ffe9a0 80%, #ffffff); }
 @keyframes cmReady { to { scale: 1.12; } }
 #catchMarker.ready #cmPad { animation: none; scale: .9; filter: brightness(1.5); }
 #catchMarker.ready #cmPad::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30%; height: 30%; margin: -10% 0 0 -15%; border-left: 5px solid #fff; border-top: 5px solid #fff; rotate: 45deg; animation: cmLift .45s ease-out infinite; filter: drop-shadow(0 0 4px #000); }
 @keyframes cmLift { from { translate: 0 30%; opacity: 1; } to { translate: 0 -90%; opacity: 0; } }
 #catchMarker.ready::before { content: ""; position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 3px solid #fff; animation: cmRipple .6s ease-out infinite; }
 @keyframes cmRipple { from { scale: .5; opacity: .9; } to { scale: 1.5; opacity: 0; } }
-#catchMarker.early #cmHold { background: conic-gradient(#ffd23e var(--k, 0deg), #ff3d5a 0); animation: cmShake .3s ease-in-out 2; }
+#catchMarker.early #cmHold { --ring: #ff3d5a; animation: cmShake .3s ease-in-out 2; }
+#catchMarker.early #cmHold::before { background: radial-gradient(circle, rgba(255,214,80,.5), rgba(255,140,60,.7) 85%, #ff3d5a); }
 #catchMarker.early #cmPad { animation: none; filter: grayscale(.6) brightness(.8); }
 @keyframes cmShake { 0%, 100% { translate: 0 0; } 25% { translate: -5px 0; } 75% { translate: 5px 0; } }
 /* FLICK:osu! のスライダー。開始のヒットサークル(アプローチサークルが縮む)+ 縁取りの太いトラック + 終点のサークル。押すとボール(ハート)が進み、フォローサークルの中に指を保つ */
