@@ -460,8 +460,8 @@ export class PlayerProgress {
     return rows;
   }
   /**
-   * アビリティを選ぶ。まだ選んでいない枠は無料 / 選択済みの枠を変える時は ABILITY_RESET_ITEM を1つ使う
-   *   → { ok, reason?: 'locked' | 'invalid' | 'same' | 'noItem', changed, itemsLeft }
+   * アビリティを選ぶ。解放済みの枠ならいつでも無料で付け替えられる(アイテム消費なし)
+   *   → { ok, reason?: 'locked' | 'invalid' | 'same', changed }
    */
   selectAbility(id, level, abilityId) {
     const p = this.data.characters[id];
@@ -471,13 +471,9 @@ export class PlayerProgress {
     if (levelFromExp(p.affectionExp, id) < Number(lv)) return { ok: false, reason: 'locked' };
     const cur = p.selectedAbilities[lv];
     if (cur === abilityId) return { ok: false, reason: 'same' };
-    if (cur) {
-      if (this.abilityResetItems < 1) return { ok: false, reason: 'noItem' };
-      this.data.inventory.abilityResetItems -= 1;
-    }
     p.selectedAbilities[lv] = abilityId;
     this.save();
-    return { ok: true, changed: !!cur, itemsLeft: this.abilityResetItems };
+    return { ok: true, changed: !!cur };
   }
 
   // ---------------- MULTI:自分のキャラの戦闘データ(他プレイヤーへ送る)----------------
