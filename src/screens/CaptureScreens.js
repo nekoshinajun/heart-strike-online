@@ -4,7 +4,6 @@ import { bossAsset } from '../data/CharacterAssets.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { reducedMotion } from '../app/Platform.js';
 import { CityMap } from './CityMap.js';
-import { playDoorTransition } from './DoorTransition.js';
 
 /**
  * 攻略の入口:① お店を選ぶ(コンカフェ街マップ)→ ② お店の中(キャスト一覧)→ ③ キャストの攻略(MenuFlow.showStageSelect)
@@ -122,12 +121,8 @@ function renderShopCard(m) {
 function enterShop(m, id) {
   const s = shopById(id);
   if (!s || !isShopOpen(m.progress, s)) return;
-  // 入店 = 光の扉が開いて、光の中でお店の中へ切り替わる
-  playDoorTransition(m.g.container, { accent: s.theme.accent, glow: s.theme.glow, audio: m.g.audio, covered: () => {
-    if (m.screen !== 'shopmap') return;   // 演出中に下部メニューで別の画面へ移った
-    m.city?.stop();
-    m.router.go('shop', { shopId: id });
-  } });
+  m.city?.stop();
+  m.router.go('shop', { shopId: id });
 }
 
 // ---------------- ② お店の中:キャスト一覧 ----------------

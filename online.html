@@ -1731,9 +1731,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .sg .diffcard b { font-size: 9.5px; letter-spacing: 0; }
   .sg .diffcard small { font-size: 8px; }
 }
-/* ---- 入店の演出:光の扉(src/screens/DoorTransition.js)。1.3s:扉が現れる → 開いて光があふれる → 光の中で画面切替 → 光が晴れる ---- */
+/* ---- 攻略開始の演出:光の扉(src/screens/DoorTransition.js)。メニュー → インゲームの瞬間:閉じた扉 → 開いて光があふれる → 光が晴れてインゲーム ---- */
 .lightdoor { --ld: 1.3s; position: absolute; inset: 0; z-index: 950; overflow: hidden; pointer-events: auto; touch-action: manipulation; }
-.ld-veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 46%, rgba(120,60,95,.28), rgba(60,24,46,.72)); animation: ldVeil var(--ld) linear forwards; }
+.ld-veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 46%, color-mix(in srgb, var(--ac) 50%, #4a2040), #2c1226 78%); animation: ldVeil var(--ld) linear forwards; }
 .ld-stage { position: absolute; inset: 0; display: grid; place-items: center; animation: ldWalk var(--ld) cubic-bezier(.55,0,.6,1) forwards; will-change: transform, opacity; }
 .ld-light { position: absolute; left: 50%; top: 50%; width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; border-radius: 50%; background: radial-gradient(circle, #fff 0 12%, var(--gl) 26%, rgba(255,255,255,0) 60%); opacity: 0; transform: scale(.25); animation: ldLight var(--ld) ease-out forwards; }
 .ld-rays { position: absolute; left: 50%; top: 50%; width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.55) 0 4deg, rgba(255,255,255,0) 4deg 15deg); -webkit-mask: radial-gradient(circle, #000 0 8%, transparent 46%); mask: radial-gradient(circle, #000 0 8%, transparent 46%); opacity: 0; animation: ldRays var(--ld) ease-out forwards; }
@@ -1754,6 +1754,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .lightdoor.skip { animation: ldSkip .18s ease-out forwards; }
 .lightdoor.skip > :not(.ld-flash) { display: none; }
 .lightdoor.skip .ld-flash { animation: none; opacity: 1; }
+.lightdoor.lightdoor * { animation-delay: -.16s; }   /* 閉じた扉で画面を覆った所から始める(インゲームを先に見せない)。各要素の animation より後に置く */
 @keyframes ldVeil { 0% { opacity: 0; } 10%, 66% { opacity: 1; } 67%, 100% { opacity: 0; } }
 @keyframes ldWalk { 0% { transform: scale(1.08); opacity: 0; } 12% { transform: scale(1); opacity: 1; } 46% { transform: scale(1.14); animation-timing-function: cubic-bezier(.6,0,.9,.6); } 66% { transform: scale(3.4); opacity: 1; } 67%, 100% { transform: scale(3.4); opacity: 0; } }
 @keyframes ldSeam { 0%, 8% { opacity: 0; } 16%, 28% { opacity: 1; } 38%, 100% { opacity: 0; } }

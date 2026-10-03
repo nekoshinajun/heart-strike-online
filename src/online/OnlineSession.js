@@ -4,6 +4,7 @@ import { COLLECTION_SORTS, COLLECTION_FILTERS, currentSort, nextSort, sortList, 
 import { artUrl } from '../data/CharacterArt.js';
 import { rarityAttr, rarityBadge, raritySparkle, charAccent } from '../app/Rarity.js';
 import { GameState } from '../core/StateMachine.js';
+import { openBattleDoor } from '../screens/DoorTransition.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export class OnlineSession{
  constructor(g){this.g=g;this.lastSeq=-1;this.pickSlot=0;this.pickOpen=false;this.pendingCatch=null;this.pendingThrow=null;this.catchPos=null;this.catchSeq=0;this.fieldPattern=null;this.fieldSeed=1;this.optimisticThrow=false;this.lastThrowFrom=null;this.throwResolved=true;this.phaseEnd=false;this.nextIndex=null;this.bossTurnPending=false;this.voiceRoll=null;this.install()}
@@ -89,6 +90,7 @@ export class OnlineSession{
   // パーティは必ず4キャラ(room.units:A→B→C→D)。自分の担当キャラは自分のセーブ、他のプレイヤーの担当キャラはその人の育成(profile)で。自分のセーブとは混ぜない
   const party=(this.room.units||[]).map(u=>u.ownerId===this.playerId&&this.g.progress.isOwned(u.characterId)?this.g.progress.character(u.characterId):this.g.progress.characterFromProfile(u.characterId,u.profile));this.g.menu.stage=stage;
   this.g.startStage(stage,party,{openingSec:Number.isFinite(m.openingMs)?m.openingMs/1000:null});
+  openBattleDoor(this.g,stage);   // 攻略開始 = お店の中へ:光の扉が開いてインゲーム(SOLO と同じ)
   const i=this.room?.currentIndex??0;if(i>=0&&this.g.turn.players[i]){this.g.turn.setIndex(i);this.g.applyCharacter(this.g.turn.current);}
   this.syncHealth()}
  syncHealth(){if(!this.room?.units||!this.g?.turn?.players)return;let downs=0;this.room.units.forEach((u,i)=>{const lp=this.g.turn.players[i];if(!lp)return;const was=lp.hp;lp.maxHp=u.maxHp||100;lp.hp=Number.isFinite(u.hp)?u.hp:(u.alive===false?0:lp.hp);if(was>0&&!(lp.hp>0)&&this.room.status==='PLAYING'&&u.ownerId!==this.playerId)downs++;lp.ownerId=u.ownerId;lp.mine=u.ownerId===this.playerId;lp.ownerName=this.room.players.find(p=>p.id===u.ownerId)?.name??null});if(downs)setTimeout(()=>this.g.audio?.allyDown?.(),450);/* 仲間のキャラの HP が 0 になった音(自分の担当は DefenseStates で鳴らす)*/this.g.ui?.setPlayers?.(this.g.turn.players,this.g.turn.index)}
