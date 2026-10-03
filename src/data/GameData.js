@@ -158,7 +158,7 @@ export const CHARACTERS = [
 /** SPECIAL を持たないキャラの必殺技(全員共通の SPECIAL HEART。効果の数値は Config.special.heartMul と同じ)*/
 export const DEFAULT_SPECIAL = {
   name: 'SPECIAL HEART',
-  description: 'SPECIAL ゲージ MAX でタップして予約。次の1投が大きなハートになり、届く HEART が大きく増える。',
+  description: 'SPECIAL ゲージ MAX(アイコンのリングが光る)で、手番のキャラのアイコンをタップして予約。次の1投が大きなハートになり、届く HEART が大きく増える。',
   highlight: { value: 'HEART ×{heartMul}', label: 'SPECIAL' },   // {heartMul} は表示時に Config.special.heartMul に置き換える
   note: null, effectType: 'attack', effectValue: null, visualEffect: null,
 };

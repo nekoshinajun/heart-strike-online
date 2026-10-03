@@ -11,7 +11,7 @@ const tmp = new THREE.Vector3();
  * Diamond(コード上は Energy Orb)と SPECIAL(必殺技)ゲージ。
  *   役割は1つだけ:Diamond 1個 = SPECIAL +10%(Config.energy.orbValue / max)。10個で MAX → SPECIAL READY
  *   SPECIAL ゲージはキャラごと(data/SpecialGauge.js)。Diamond は投げたキャラ本人のゲージにだけ入り、必殺技で 0 に戻るのも本人だけ
- *   画面左下の SPECIAL 表示 = 今操作中のキャラのゲージ / 右下のアイコンの小さなゲージ = 各キャラのゲージ
+ *   表示はアイコンを囲むリング(各キャラのゲージ)だけ。READY のキャラは今の手番ならアイコンをタップで必殺技を予約 / 解除
  *   Diamond を取ってもダメージ倍率・FEVER ゲージは増えない(Heart Gate = ダメージ / COMBO = FEVER)
  *
  * Orb の配置は「ルート」単位のデータ(Config.energy.routes)で定義する。
@@ -72,10 +72,9 @@ export class EnergySystem {
     this.refreshUI();
   }
 
-  /** 画面の SPECIAL 表示:左下 = 今操作中のキャラ / アイコン横 = 全キャラ */
+  /** 画面の SPECIAL 表示:各キャラのアイコンのリング(予約中のキャラは ON!)*/
   refreshUI(bump = false) {
-    this.g.ui.setEnergy(this.energy, this.max, this.ready, this.armed, bump);
-    this.g.ui.setSpecialGauges?.(this.gauges.entries.map((_, i) => ({ ratio: this.gauges.ratio(i), ready: this.gauges.ready(i) })));
+    this.g.ui.setSpecialGauges?.(this.gauges.entries.map((_, i) => ({ ratio: this.gauges.ratio(i), ready: this.gauges.ready(i), armed: this.armed && i === this.index, bump: bump && i === this.index })));
   }
 
   /** 手番が変わった:予約は手番のキャラだけのもの → 解除して表示を切り替える(ゲージの値は各キャラが保持)*/
@@ -240,12 +239,12 @@ export class EnergySystem {
     const add = Math.round((gain / this.gauges.max(i)) * 100);
     const reached = own && !wasReady && this.gauges.ready(i);
     g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: charged ? '#ffd27a' : '#ffb3e0', label: charged ? '◆ DIAMOND ・ SPECIAL CHARGE' : '◆ DIAMOND' });
-    const target = i === g.turn.index ? 'energy' : g.ui.cards?.[i]?.d;
+    const target = g.ui.cards?.[i]?.d;   // 投げたキャラのアイコン(リングのゲージ)へ
     g.ui.flyTo(s.x, s.y, target, '<i class="dia">◆</i>', 'diamond', 480).then(() => {
       this.refreshUI(i === g.turn.index);
       if (reached && this.gauges.ready(i)) {
         g.ui.partCallout('♡ SPECIAL READY! ♡', 'all');
-        g.ui.showJudge('SPECIAL READY!', 'specialready', '#ffd23e', 'ゲージをタップで必殺技');
+        g.ui.showJudge('SPECIAL READY!', 'specialready', '#ffd23e', 'アイコンをタップで必殺技');
         g.audio.rallyUp();
       }
     });

@@ -157,7 +157,7 @@ export class FeverSystem {
 
   // ---------------- UI ----------------
   buildUI() {
-    // ゲージ:上部 HEART / RALLY の下にコンパクトに(SPECIAL = 左下のピンクとは別の配色)
+    // ゲージ:上部 HEART / RALLY の下にコンパクトに(SPECIAL = アイコンのピンクのリングとは別の配色)
     const bar = document.createElement('div');
     bar.id = 'feverBar';
     // 目盛り = COMBO の数(12 COMBO で 100%)。1 HIT ごとに1目盛り進むのが見える
