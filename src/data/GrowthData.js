@@ -66,7 +66,7 @@ export const CHARACTER_GROWTH = {
   //   SSR 250 / 510・SR 210 / 450・R 190 / 410(Lv100 は旧データの成長幅を 2 倍にした値)
   //   キャラの個性(得意・不得意)は形で出す。hp = バトルの最大 HP(Lv1 → Lv100)。HP もランクが高いほど高いのが基本
   // ---- SSR ----
-  yoruna: { hp: [125, 245], attack: [75, 125], defence: [55, 125], control: [55, 125], curve: [65, 135] },   // ダークドラゴン:火力とカーブ
+  yoruna: { hp: [125, 245], attack: [84, 140], defence: [55, 125], control: [55, 125], curve: [65, 135] },   // ダークドラゴン:火力とカーブ(ATK は 75→84 / 125→140 に強化。合計は SSR 基準より 9 / 15 高い)
   sera: { hp: [132, 258], attack: [60, 116], defence: [65, 125], control: [65, 129], curve: [60, 140] },     // 天使:回復型(HP・DEF・CONTROL が高い)
   // ---- SR ----
   minamo: { hp: [108, 212], attack: [68, 122], defence: [48, 120], control: [60, 120], curve: [34, 88] },     // 高火力ストレート型
@@ -119,7 +119,7 @@ export const ABILITIES = {
   vital_up: { name: 'VITAL UP', desc: '最大 HP +30', effects: [{ kind: 'hp', add: 30 }] },
   // ---- 特殊枠(Lv20 / 40 / 60 / 80 / 100):乗算。何度選んでも掛け算 ----
   special_master: { name: 'SPECIAL MASTER', desc: 'SPECIAL の HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { special: true } }] },
-  special_charge: { name: 'SPECIAL CHARGE', desc: 'Diamond で増える SPECIAL ×1.2(1個 +10% → +12%)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
+  special_charge: { name: 'SPECIAL CHARGE', desc: 'Diamond で増える SPECIAL ×1.2(必要な Diamond が少なくなる)', effects: [{ kind: 'specialCharge', mul: 1.2 }] },
   gate_master: { name: 'GATE MASTER', desc: 'ゲートを通って命中した HEART ×1.10', effects: [{ kind: 'heart', mul: 1.1, when: { gate: true } }] },
   // ---- ULTIMATE(Lv100・キャラ固有。★ 仮)----
   ult_minamo: { name: 'AQUA LINE', desc: 'カーブなしの命中 HEART ×1.2・CONTROL のブレ半減', ultimate: true, effects: [{ kind: 'heart', mul: 1.2, when: { noSpin: true } }, { kind: 'control', mul: 0.5 }] },

@@ -93,7 +93,7 @@ export const TUTORIAL_LESSONS = [
     id: 'special', title: 'Diamond と SPECIAL', summary: 'Diamond を集めて必殺技',
     field: { pattern: 'STRAIGHT_PAIR', gates: false, obstacles: false },
     steps: [
-      { card: { title: 'Diamond', text: 'キラキラの Diamond を取ると、投げた子の SPECIAL ゲージが +10%。10個で MAX!', points: ['SPECIAL ゲージはキャラごと。取った子のゲージだけが増える', '右下のアイコンのまわりの輪が、各キャラのゲージ'] } },
+      { card: { title: 'Diamond', text: 'キラキラの Diamond を取ると、投げた子の SPECIAL ゲージが溜まる。キャラごとに決まった個数で MAX!', points: ['SPECIAL ゲージはキャラごと。取った子のゲージだけが増える(必要な個数は育成画面の「💎 発動まで」)', '右下のアイコンのまわりの輪が、各キャラのゲージ'] } },
       { coach: 'キラキラの Diamond を通るように投げよう', wait: (e) => e === 'orb', tries: 4 },
       { wait: (e) => e === 'attack' },   // 次の子の番になってから(SPECIAL ON は投げる子の番だけ)
       {
@@ -185,7 +185,7 @@ export const TUTORIAL_LESSONS = [
 export const TUTORIAL_HELP = [
   { title: 'キャラの性能', lines: ['ATK:与えるダメージの基本。ダメージ = ATK × アビリティ × ゲート × 着弾(このあと属性・SPECIAL)', 'DEF:ボスの攻撃で受けるダメージが減る', 'CONTROL:狙いのブレが小さくなる', 'CURVE:カーブがよく曲がる', 'タイプ:STRAIGHT = 速い球 / CURVE = よく曲がる'] },
   { title: '属性の相性', lines: ['💧WATER は 🔥FIRE に、🔥FIRE は ⚡THUNDER に、⚡THUNDER は 💧WATER に強い', '有利 ×1.3(EFFECTIVE♡)/ 不利 ×0.7(RESIST)'] },
-  { title: 'アビリティ', lines: ['レベルアップで覚える。例:POWER UP(ダメージ +10%)/ GUARD UP(DEF +20)/ VITAL UP(HP +30)', 'SPECIAL MASTER(SPECIAL ×1.1)/ SPECIAL CHARGE(Diamond 1個で +12%)/ GATE MASTER(ゲート命中 ×1.1)', 'キャラごとの ULTIMATE もある'] },
+  { title: 'アビリティ', lines: ['レベルアップで覚える。例:POWER UP(ダメージ +10%)/ GUARD UP(DEF +20)/ VITAL UP(HP +30)', 'SPECIAL MASTER(SPECIAL ×1.1)/ SPECIAL CHARGE(Diamond で溜まる量 ×1.2)/ GATE MASTER(ゲート命中 ×1.1)', 'キャラごとの ULTIMATE もある'] },
   { title: '難易度', lines: ['NORMAL / HARD / HELL で変わるのは、ハートゲートの大きさと受けるダメージだけ', 'キャッチの判定の幅はどの難易度も同じ', 'HARD・HELL ほど変化する攻撃が多い'] },
   { title: 'MULTI(2〜4人)', lines: ['パーティはいつも4キャラ。2人 = 2キャラずつ / 3人 = ホスト2・ほか1 / 4人 = 1キャラずつ', '自分の担当キャラの番になったら自分が投げる', 'ボスの反撃は全員が毎回受け止める(ダメージは自分の担当キャラだけ)', 'SPECIAL ゲージはキャラごとで、全員の画面で同じ', '部屋は公開ルームか4桁のパスワード → 全員 READY → ホストが START'] },
 ];

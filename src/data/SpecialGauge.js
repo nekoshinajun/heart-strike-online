@@ -1,5 +1,6 @@
 import { Config } from '../core/Config.js';
 import { abilityMul } from './Growth.js';
+import { specialRequiredDiamonds } from './GameData.js';
 
 /**
  * SPECIAL(必殺技)ゲージ:持ち主は「キャラクター」(characterId)。パーティ共通のゲージは持たない
@@ -8,7 +9,7 @@ import { abilityMul } from './Growth.js';
  *
  * キャラごとの設定 = CharacterData.specialGauge(GameData.CHARACTERS。省略した項目は全キャラ共通の既定値)
  *   値はすべて JSON にできる形(関数を入れない)。将来のキャラクター管理ツールはこのオブジェクトを差し替えるだけ
- *     max        … ゲージの最大値(既定 Config.energy.max)
+ *     max        … ゲージの最大値(既定 = 必要な Diamond の個数 special.requiredDiamonds × orbValue。15個なら 150)
  *     orbValue   … Diamond 1個で増える量(既定 Config.energy.orbValue)
  *     readyRatio … 必殺技を使える割合(0〜1。1 = MAX で使える)
  *     chargeMul  … SPECIAL CHARGE(アビリティ specialCharge)の倍率にさらに掛けるキャラ補正(既定 1)
@@ -22,10 +23,12 @@ export const DEFAULT_SPECIAL_GAUGE = { max: null, orbValue: null, readyRatio: 1,
 /** キャラの SPECIAL ゲージ設定(既定値 + CharacterData.specialGauge)。調整パネルの変更も反映されるよう毎回作る */
 export function specialGaugeSpec(chara) {
   const s = { ...DEFAULT_SPECIAL_GAUGE, ...(chara?.specialGauge ?? {}) };
-  const max = Number(s.max) > 0 ? Number(s.max) : Config.energy.max;
+  const orbValue = Number.isFinite(Number(s.orbValue)) && s.orbValue !== null ? Number(s.orbValue) : Config.energy.orbValue;
+  // 既定の最大値 = 「💎 発動まで ×N」と同じ N 個の Diamond で MAX(SPECIAL CHARGE が無い時)
+  const max = Number(s.max) > 0 ? Number(s.max) : specialRequiredDiamonds(chara) * Math.max(1, orbValue);
   return {
     max,
-    orbValue: Number.isFinite(Number(s.orbValue)) && s.orbValue !== null ? Number(s.orbValue) : Config.energy.orbValue,
+    orbValue,
     readyAt: max * Math.max(0, Math.min(1, Number(s.readyRatio ?? 1))),
     chargeMul: Number(s.chargeMul) > 0 ? Number(s.chargeMul) : 1,
     initial: Math.max(0, Math.min(max, Number(s.initial) || 0)),
