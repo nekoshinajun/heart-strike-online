@@ -1,5 +1,6 @@
 import { SHOPS, shopById, castsOf, isShopOpen, shopLockText, shopProgress } from '../data/ShopData.js';
 import { BOSS_IMAGES } from '../assets/bossImages.js';
+import { bossAsset } from '../data/CharacterAssets.js';
 import { Config, difficultyData } from '../core/Config.js';
 import { reducedMotion } from '../app/Platform.js';
 import { CityMap } from './CityMap.js';
@@ -10,10 +11,10 @@ import { CityMap } from './CityMap.js';
  */
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const phrase = (s) => esc(s).replace(/([、。！？!?…—]+\s*)/g, '$1<wbr>');
-export const castArt = (stage) => BOSS_IMAGES[stage.boss.image] ?? BOSS_IMAGES[stage.boss.fallbackImage] ?? '';
-/** 画像の見せ方(GameData の boss.art。省略時はリリスの画像の構図)*/
+export const castArt = (stage) => { const a = bossAsset(stage); return BOSS_IMAGES[a?.thumbnail] ?? BOSS_IMAGES[a?.image?.fallback] ?? ''; };
+/** 画像の見せ方(CharacterAssets の art。省略時はリリスの画像の構図)*/
 const ART_DEFAULT = { face: { u: 0.545, v: 0.2, w: 0.14 }, stage: { x: -0.4, h: 1 } };
-export const castArtData = (stage) => ({ face: { ...ART_DEFAULT.face, ...stage.boss.art?.face }, stage: { ...ART_DEFAULT.stage, ...stage.boss.art?.stage } });
+export const castArtData = (stage) => { const art = bossAsset(stage)?.art; return { face: { ...ART_DEFAULT.face, ...art?.face }, stage: { ...ART_DEFAULT.stage, ...art?.stage } }; };
 /** 顔を中心に切り抜く画像(親の .face-crop の中で、CSS 変数 --bx / --by / --fpx の位置・大きさに顔を合わせる)*/
 export function faceCrop(stage) {
   const f = castArtData(stage).face;

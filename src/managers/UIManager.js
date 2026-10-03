@@ -50,10 +50,10 @@ export class UIManager {
       const ps = ch ? portraitStyle(ch) : null;
       if (ch) { d.style.setProperty('--ac', ATTRIBUTES[ch.attribute]?.color ?? '#fff'); d.title = `${p.id} ${ch.name}`; d.dataset.chara = ch.id; }
       const face = ps ? `<div class="picon" style="${ps}">` : `<div class="picon ph">${ch ? ch.name[0] : p.id}`;
-      d.innerHTML = `${face}<i class="pslot">${p.id}</i>${ch ? `<i class="pattr">${ATTR_ICON[ch.attribute] ?? ''}</i>` : ''}</div><div class="pbar"><i></i></div>`;
+      d.innerHTML = `${face}<i class="psp" aria-hidden="true"></i><i class="pslot">${p.id}</i>${ch ? `<i class="pattr">${ATTR_ICON[ch.attribute] ?? ''}</i>` : ''}<i class="pready" aria-hidden="true">READY!</i></div><div class="pbar"><i></i></div>`;
       this.el.players.appendChild(d);
       this.bindStatusPeek(d, players.indexOf(p));
-      return { d, fill: d.querySelector('.pbar i') };
+      return { d, fill: d.querySelector('.pbar i'), sp: d.querySelector('.psp') };
     });
   }
 
@@ -385,7 +385,20 @@ export class UIManager {
   resetTutorial(n) { this.tutorial = { flick: n, catch: n }; }
   tutorialDone(key) { if (this.tutorial[key] > 0) this.tutorial[key]--; }
 
-  /** ENERGY ゲージ */
+  /**
+   * 各キャラの SPECIAL ゲージ(アイコンを囲む細いリング。時計回りに溜まる)。100%(必殺技を使える)のキャラはリングとアイコンが光り「READY!」
+   *   list[i] = { ratio: 0〜1, ready }(EnergySystem.refreshUI から)
+   */
+  setSpecialGauges(list) {
+    (this.cards ?? []).forEach((c, i) => {
+      const s = list[i];
+      if (!s || !c.sp) return;
+      c.sp.style.setProperty('--sp', s.ratio.toFixed(3));
+      c.d.classList.toggle('spready', !!s.ready);
+    });
+  }
+
+  /** SPECIAL ゲージ(画面左下 = 今操作中のキャラのゲージ)*/
   setEnergy(value, max, ready, armed, bump = false) {
     const el = document.getElementById('energy');
     if (!el) return;
