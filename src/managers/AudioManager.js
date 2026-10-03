@@ -160,6 +160,18 @@ export class AudioManager {
     this.noise(0.12, 0.2 * power, 3000);
   }
   loveMax() { [784, 988, 1175, 1568].forEach((f, i) => setTimeout(() => this.tone(f, 0.22, 'triangle', 0.25), i * 70)); }
+  /**
+   * カーブの回転 SE:1回転ごとの小さな「チリン」。n 回転目ほど音が上がる(ド → ミ → ソ)。
+   * 3回転(カーブ最大。throwInput.fullTurnDeg)で高い倍音を足してキラッとさせる。それ以上は同じ音
+   */
+  spinTick(n = 1) {
+    const k = Math.max(1, Math.min(3, n));
+    const f = [1046.5, 1318.5, 1568][k - 1];
+    this.tone(f, 0.09, 'sine', 0.16, 1.06);
+    this.tone(f * 2, 0.05, 'triangle', 0.04);
+    if (k === 3) setTimeout(() => this.tone(f * 1.5, 0.14, 'sine', 0.08), 40);
+    Haptic.light?.();
+  }
   grab() { this.tone(420, 0.06, 'sine', 0.25, 1.4); }
   whiff() { this.tone(300, 0.25, 'sine', 0.2, 0.5); }
   throw(power) { this.noise(0.18, 0.3 * power, 2400); this.tone(500, 0.12, 'triangle', 0.15, 2); }

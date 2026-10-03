@@ -28,6 +28,7 @@ export class ThrowController {
     this.gesture = new GestureAnalyzer(Config.throwInput);
     this.lastFed = null;
     this.finger = null;
+    this.spinTurns = 0;   // 今の掴みで鳴らした回転 SE の数(1回転ごとに1つ)
   }
 
   get grabbing() { return this.phase === ThrowPhase.GRABBED; }
@@ -40,6 +41,15 @@ export class ThrowController {
     const g = this.g, f = this.finger, v = this.gesture.spin;
     g.ball.setCurveRoll?.(this.grabbing ? this.gesture.turn * (Config.throwInput.heartRollMul ?? 1) : 0);
     g.ui.setCurveInput?.(this.grabbing && v ? v : null, f ? { x: f.x, y: f.y, r: g.player.heldBallScreen().r } : null);
+    this.spinTick();
+  }
+
+  /** 1回転するごとに小さな SE(回すほど音が上がる)。逆回しで戻った分は鳴らさず、もう一度回し直したらまた鳴る */
+  spinTick() {
+    if (!this.grabbing) { this.spinTurns = 0; return; }
+    const n = Math.floor(Math.abs(this.gesture.turn) / (Math.PI * 2));
+    if (n > this.spinTurns) this.g.audio?.spinTick?.(n);
+    this.spinTurns = n;
   }
 
   /** Touch Start:ハートの上なら掴む(ハートは指の位置へ)*/
