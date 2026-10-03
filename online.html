@@ -2231,6 +2231,12 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #onlineLobby .ol-slot > span:last-child { display: grid; min-width: 0; }
 #onlineLobby .ol-slot small { font-size: 10px; color: var(--hs-pink-deep); white-space: nowrap; }
 #onlineLobby .ol-slot b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#onlineLobby .ol-sorts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 8px; text-align: left; }
+#onlineLobby .ol-sorts small { flex: 1 0 100%; font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+#onlineLobby .ol-card .ol-sort { width: auto; min-height: 32px; margin: 0; padding: 0 11px; border: 1px solid var(--hs-line); border-radius: 16px; background: #fff; color: var(--hs-ink-soft); box-shadow: none; font: 800 11px var(--round); }
+#onlineLobby .ol-card .ol-sort.sel { border-color: var(--hs-pink); background: var(--hs-pink); color: #fff; }
+#onlineLobby .ol-sort i { margin-left: 3px; font-style: normal; }
+#onlineLobby .tl-card .col-val { bottom: 44px; left: auto; right: 5px; }
 #onlineLobby .ol-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0 0 6px; }
 #onlineLobby .ol-card .tl-card { width: auto; height: 136px; min-height: 0; margin: 0; padding: 0; border: 2px solid #fff; border-radius: 14px; background: radial-gradient(ellipse at 50% 28%, #fff, color-mix(in srgb, var(--ac) 24%, var(--ally-soft)) 78%); color: var(--hs-ink); font-weight: 400; box-shadow: var(--hs-shadow); }
 #onlineLobby .tl-card .tl-art { bottom: 40px; }
@@ -2238,7 +2244,8 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #onlineLobby .tl-card .tl-name { font-size: 11px; }
 #onlineLobby .tl-card.ol-unowned .tl-art { filter: saturate(.55) brightness(1.04); opacity: .8; }
 #onlineLobby .ol-other, #onlineLobby .ol-own { position: absolute; left: 5px; top: 25px; padding: 0 6px; border-radius: 9px; background: rgba(91,43,69,.72); color: #fff; font: 800 9px/16px var(--round); }
-#onlineLobby .ol-own { top: auto; bottom: 44px; background: rgba(255,255,255,.88); color: var(--hs-ink-soft); }
+#onlineLobby .ol-own { background: rgba(255,255,255,.9); color: var(--hs-ink-soft); }
+#onlineLobby .ol-own + .ol-other, #onlineLobby .ol-other + .ol-own { top: 44px; }
 #onlineLobby .ol-card::-webkit-scrollbar, #onlineLobby #olRooms::-webkit-scrollbar { width: 4px; }
 #onlineLobby .ol-card::-webkit-scrollbar-thumb, #onlineLobby #olRooms::-webkit-scrollbar-thumb { background: var(--hs-pink-soft); border-radius: 4px; }
 

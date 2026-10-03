@@ -1,5 +1,6 @@
 import * as THREE from '../lib/three.js';
-import { STAGES, CHARACTERS, ATTRIBUTES, TYPES } from '../data/GameData.js';
+import { STAGES, CHARACTERS, ATTRIBUTES, TYPES, RANKS } from '../data/GameData.js';
+import { COLLECTION_SORTS, COLLECTION_FILTERS, currentSort, nextSort, sortList, currentFilter, filterList } from '../app/CollectionSort.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { rarityAttr, rarityBadge, raritySparkle, charAccent } from '../app/Rarity.js';
 import { GameState } from '../core/StateMachine.js';
@@ -34,8 +35,10 @@ export class OnlineSession{
    // 担当キャラは育成と同じカードで選ぶ。上の「1人目 / 2人目」が今選んでいる枠、下の一覧をタップでその枠に入れる
    if(this.pickSlot>=need)this.pickSlot=0;
    const others={};this.room.players.forEach((p,n)=>{if(p.id===this.playerId)return;for(const id of (p.characterIds||[]).slice(0,p.need||1))(others[id]||(others[id]=[])).push(`${n+1}P`)});
-   const key=`${need}|${ids.join(',')}|${this.pickSlot}|${JSON.stringify(others)}`;if(box.dataset.key!==key){box.dataset.key=key;box.innerHTML=this.pickerHTML(need,ids,others);
+   const sort=this.pickSort();const key=`${need}|${ids.join(',')}|${this.pickSlot}|${JSON.stringify(others)}|${sort.key}.${sort.dir}|${this.pickFilter()}`;if(box.dataset.key!==key){box.dataset.key=key;box.innerHTML=this.pickerHTML(need,ids,others);
     for(const el of box.querySelectorAll('[data-slot]'))this.tap(el,()=>{this.pickSlot=Number(el.dataset.slot);box.dataset.key='';this.render()});
+    for(const el of box.querySelectorAll('[data-filter]'))this.tap(el,()=>{this.setPickFilter(el.dataset.filter);box.dataset.key='';this.render()});
+    for(const el of box.querySelectorAll('[data-sort]'))this.tap(el,()=>{this.setPickSort(el.dataset.sort);box.dataset.key='';this.render()});
     for(const el of box.querySelectorAll('.tl-card[data-id]'))this.tap(el,()=>this.pickFromGrid(el.dataset.id))}}
   this.root.querySelector('#olReady').hidden=!lobby;this.root.querySelector('#olStart').hidden=!(lobby&&this.room.hostId===this.playerId&&this.room.players.length>=2&&this.room.players.every(p=>p.ready))}
  me(){return this.room?.players?.find(p=>p.id===this.playerId)??null}
@@ -44,11 +47,19 @@ export class OnlineSession{
  /** 担当キャラを選ぶ(同じプレイヤーの担当は重複なし。もう一方と同じなら入れ替える)*/
  /** 最初の担当候補:育成の編成順 → 所持キャラ → 全キャラ */
  defaultPicks(n=2){const P=this.g.progress,out=[];for(const id of [...(P?.party||[]).filter(x=>P.isOwned(x)),...(P?.ownedIds||[]),...CHARACTERS.map(c=>c.id)])if(!out.includes(id))out.push(id);return out.slice(0,n)}
- /** 一覧の並び:所持キャラ(育成と同じ順)→ 未所持 */
- pickerIds(){const P=this.g.progress,own=P?.ownedIds||[];return [...own,...CHARACTERS.map(c=>c.id).filter(id=>!own.includes(id))]}
+ /** 並び替え:コレクションの「仲間」と同じ項目(CollectionSort の ally)。選んだ条件は settings.multiSort に保存 */
+ pickSort(){return currentSort({collectionSort:{ally:this.g.progress?.data?.settings?.multiSort}},'ally')}
+ setPickSort(k){const P=this.g.progress;if(!P?.data)return;P.data.settings.multiSort=nextSort(this.pickSort(),'ally',k);P.save?.()}
+ /** 絞り込み:コレクション / 育成と同じレアリティ。settings.multiFilter に保存 */
+ pickFilter(){return currentFilter({collectionFilter:{ally:this.g.progress?.data?.settings?.multiFilter}},'ally')}
+ setPickFilter(k){const P=this.g.progress;if(!P?.data)return;P.data.settings.multiFilter=k;P.save?.()}
+ pickRow(id){const P=this.g.progress,ch=P.character(id);return {id,name:ch.name,rank:ch.rank,level:ch.level,rankOrder:RANKS[ch.rank]?.order??null,atk:(ch.totalStats??ch.stats)?.attack??0,hp:ch.maxHp,obtainedAt:P.data?.characters?.[id]?.obtainedAt??null}}
+ /** 一覧の並び:所持キャラ → 未所持(それぞれ選んだ条件で並べる)*/
+ pickerIds(){const P=this.g.progress,own=P?.ownedIds||[],sort=this.pickSort(),f=this.pickFilter(),by=ids=>sortList(filterList(ids.map(id=>this.pickRow(id)),'ally',f),'ally',sort).map(r=>r.id);return [...by(own),...by(CHARACTERS.map(c=>c.id).filter(id=>!own.includes(id)))]}
+ pickSortHTML(){const sort=this.pickSort();return `<div class="ol-sorts" role="group" aria-label="並び替え"><small>⇅ 並び替え</small>${COLLECTION_SORTS.ally.options.map(o=>{const on=o.key===sort.key;return `<button type="button" class="ol-sort${on?' sel':''}" data-sort="${o.key}" aria-pressed="${on}">${esc(o.label)}${on?`<i>${o.dirs?(sort.dir==='desc'?'↓':'↑'):''}</i>`:''}</button>`}).join('')}</div><div class="ol-sorts" role="group" aria-label="絞り込み"><small>▽ 絞り込み</small>${COLLECTION_FILTERS.ally.map(f=>{const on=f.key===this.pickFilter();return `<button type="button" class="ol-sort${on?' sel':''}" data-filter="${esc(f.key)}" aria-pressed="${on}">${esc(f.label)}</button>`}).join('')}</div>`}
  /** キャラ選択カード(育成の .tl-card と同じ見た目。✓番号 = 自分の担当枠 / ◯P = 他のプレイヤーが担当)*/
- pickCardHTML(id,{slot=-1,others=[]}={}){const ch=this.g.progress.character(id),a=ATTRIBUTES[ch.attribute]||{},t=TYPES[ch.type]||{};return `<button type="button" class="tl-card rar-frame${slot>=0?' in':''}${ch.owned?'':' ol-unowned'}" data-id="${esc(id)}" ${rarityAttr(ch.rank)} style="--ac:${a.color||'#ff5fa2'}" aria-pressed="${slot>=0}" aria-label="${esc(ch.name)}${slot>=0?`(${slot+1}人目)`:''}"><span class="tl-art"><img src="${artUrl(ch,'cutout')}" alt="" draggable="false" loading="lazy"></span>${rarityBadge(ch.rank,'tl-rank')}${raritySparkle(ch.rank)}${charAccent(ch)}${slot>=0?`<span class="tl-in"><i>✓</i>${slot+1}</span>`:''}${others.length?`<span class="ol-other">${others.join(' ')}</span>`:''}${ch.owned?'':'<span class="ol-own">未所持</span>'}<span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span><span class="tl-type">${a.icon||''} ${t.label||''}</span></span></button>`}
- pickerHTML(need,ids,others){const slots=Array.from({length:need},(_,k)=>{const ch=ids[k]?this.g.progress.character(ids[k]):null;return `<button type="button" class="ol-slot${k===this.pickSlot?' sel':''}" data-slot="${k}"><span class="ol-face"${ch?` style="background-image:url('${artUrl(ch,'cutout')}')"`:''}></span><span><small>${k+1}人目${need>1&&k===this.pickSlot?' ・ 選択中':''}</small><b>${ch?esc(ch.name):'未選択'}</b></span></button>`}).join('');return `<div class="ol-sub">あなたの担当:${need}キャラ ・ カードをタップで選択</div><div class="ol-slots" style="--n:${need}">${slots}</div><div class="ol-grid">${this.pickerIds().map(id=>this.pickCardHTML(id,{slot:ids.indexOf(id),others:others[id]||[]})).join('')}</div>`}
+ pickCardHTML(id,{slot=-1,others=[]}={}){const ch=this.g.progress.character(id),a=ATTRIBUTES[ch.attribute]||{},t=TYPES[ch.type]||{},sk=this.pickSort().key,val=sk==='atk'?`<span class="col-val">ATK <b>${(ch.totalStats??ch.stats)?.attack??0}</b></span>`:sk==='hp'?`<span class="col-val">HP <b>${ch.maxHp}</b></span>`:'';return `<button type="button" class="tl-card rar-frame${slot>=0?' in':''}${ch.owned?'':' ol-unowned'}" data-id="${esc(id)}" ${rarityAttr(ch.rank)} style="--ac:${a.color||'#ff5fa2'}" aria-pressed="${slot>=0}" aria-label="${esc(ch.name)}${slot>=0?`(${slot+1}人目)`:''}"><span class="tl-art"><img src="${artUrl(ch,'cutout')}" alt="" draggable="false" loading="lazy"></span>${rarityBadge(ch.rank,'tl-rank')}${raritySparkle(ch.rank)}${charAccent(ch)}${slot>=0?`<span class="tl-in"><i>✓</i>${slot+1}</span>`:''}${others.length?`<span class="ol-other">${others.join(' ')}</span>`:''}${ch.owned?'':'<span class="ol-own">未所持</span>'}${val}<span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span><span class="tl-type">${a.icon||''} ${t.label||''}</span></span></button>`}
+ pickerHTML(need,ids,others){const slots=Array.from({length:need},(_,k)=>{const ch=ids[k]?this.g.progress.character(ids[k]):null;return `<button type="button" class="ol-slot${k===this.pickSlot?' sel':''}" data-slot="${k}"><span class="ol-face"${ch?` style="background-image:url('${artUrl(ch,'cutout')}')"`:''}></span><span><small>${k+1}人目${need>1&&k===this.pickSlot?' ・ 選択中':''}</small><b>${ch?esc(ch.name):'未選択'}</b></span></button>`}).join('');return `<div class="ol-sub">あなたの担当:${need}キャラ ・ カードをタップで選択</div><div class="ol-slots" style="--n:${need}">${slots}</div>${this.pickSortHTML()}${(l=>l.length?`<div class="ol-grid">${l.map(id=>this.pickCardHTML(id,{slot:ids.indexOf(id),others:others[id]||[]})).join('')}</div>`:'<div class="ol-sub">この条件のキャラクターはいません</div>')(this.pickerIds())}`}
  /** 一覧のカードをタップ:選択中の枠に入れる(2キャラ担当で1人目を選んだら、次は2人目の枠へ)*/
  pickFromGrid(id){const me=this.me();if(!me)return;const k=this.pickSlot||0,need=me.need||1;if(this.myCharacterIds()[k]===id)return;if(need>1)this.pickSlot=(k+1)%need;return this.pickCharacter(k,id)}
  /** スクロールと区別したタップ(ロビーは pointer イベントを外へ流さないので pointerup で拾う)*/
