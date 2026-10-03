@@ -4,6 +4,7 @@ import { artUrl } from '../data/CharacterArt.js';
 import { HomeGuidanceProvider, HomeAgenda, DialogueResolver } from './Guidance.js';
 import { Log, Haptic, reducedMotion } from '../app/Platform.js';
 import { iconSvg } from '../app/ScreenRouter.js';
+import { lessonFlag } from '../tutorial/TutorialData.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const TOP_ICONS = {
@@ -48,6 +49,7 @@ export class HomeScreen {
           </nav>
         </div>
       </header>
+      <button type="button" class="hm-tut" data-go="tutorial" aria-label="チュートリアル"><i aria-hidden="true">?</i>チュートリアル<i class="dot" hidden></i></button>
       <button type="button" class="hm-pick" hidden><span class="pk-thumb"></span><span class="pk-main"><span class="pk-h">TODAY'S PICK <span class="role heroine sm">🎧 攻略対象</span></span><span class="pk-t"></span><span class="pk-s"></span></span><span class="pk-go">挑戦 ▶</span></button>`;
     this.img = el.querySelector('.hm-char img');
     this.charEl = el.querySelector('.hm-char');
@@ -160,6 +162,7 @@ export class HomeScreen {
     this.el.querySelector('[data-go="mission"] .dot').hidden = !n.mission.dot;
     this.el.querySelector('[data-go="present"] .dot').hidden = !n.present.dot;
     this.el.querySelector('[data-go="present"] .clock').hidden = !n.present.clock;
+    this.el.querySelector('.hm-tut .dot').hidden = this.p.flag(lessonFlag('basic'));   // 基本をまだやっていない間だけ
   }
 
   // ---------------- 吹き出し ----------------

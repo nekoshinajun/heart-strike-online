@@ -232,6 +232,7 @@ export class EnergySystem {
       g.online?.sendSpecialGauge?.(i, this.gauges.value(i));
     }
     g.stats.orbs = (g.stats.orbs ?? 0) + 1;
+    g.tutorial?.emit('orb');
     g.ball.pulseBoost(0.8);
     g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
     g.audio.orb(this.combo);
@@ -258,6 +259,7 @@ export class EnergySystem {
     this.armed = !this.armed;
     this.refreshUI();
     this.g.ball.setSpecial(this.armed);
+    this.g.tutorial?.emit('specialArmed', { armed: this.armed });
     return this.armed;
   }
 

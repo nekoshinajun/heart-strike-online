@@ -40,6 +40,8 @@ import { SpecialThrowFx } from './effects/SpecialThrowEffects.js';
 import { SpaceSystem } from './space/SpaceSystem.js';
 import { AffectionSystem } from './affection/AffectionSystem.js';
 import { FeverIntroState, FeverOutroState } from './states/FeverStates.js';
+import { TutorialDirector } from './tutorial/TutorialDirector.js';
+import { lessonById } from './tutorial/TutorialData.js';
 
 /**
  * 全体の組み立て・メインループ・時間管理(タイムスケール/ヒットストップ)を担当。
@@ -367,6 +369,34 @@ export class GameManager {
     this.sm.change(GameState.OPENING, { totalSec: openingSec });
   }
 
+  // ---- チュートリアル(HOME → チュートリアル → レッスン)----
+  /**
+   * レッスンを始める:敵はリリス(STAGE 01)・NORMAL・今の編成。負けない / 報酬なし(クリア・敗北の処理へ進まない)
+   *   レッスンの中身は tutorial/TutorialData.js、進行は TutorialDirector(g.tutorial)
+   */
+  startTutorial(lessonId) {
+    const lesson = lessonById(lessonId);
+    if (!lesson) return;
+    this.tutorial?.dispose();
+    this.tutorialPrompt ??= { ...this.ui.tutorial };   // ふだんの FLICK / CATCH の説明の残り回数(終わったら戻す)
+    this.ui.resetTutorial(Infinity);                  // チュートリアル中は毎回出す
+    this.tutorial = new TutorialDirector(this, lesson);
+    this.tutorial.begin();
+    this.setDifficulty('NORMAL');
+    const party = this.progress.party.filter((id) => this.progress.isOwned(id)).map((id) => this.progress.character(id));
+    this.startStage(STAGES[0], party);
+  }
+
+  /** チュートリアルをやめる / 終える → チュートリアル一覧(HOME の上)*/
+  endTutorial() { this.backToMenu('tutorial'); }
+  /** チュートリアルの後片付け(どの経路でバトルを離れても)*/
+  clearTutorial() {
+    if (!this.tutorial) return;
+    this.tutorial.dispose();
+    this.tutorial = null;
+    if (this.tutorialPrompt) { this.ui.tutorial = this.tutorialPrompt; this.tutorialPrompt = null; }
+  }
+
   retryStage() {
     if (!this.partyOrder) return this.backToMenu();
     const party = this.partyOrder.map((c) => this.progress.character(c.id));
@@ -375,12 +405,14 @@ export class GameManager {
 
   /** ゲームを終えてメニューへ(既定:攻略タブの STAGE SELECT。'home' で HOME)*/
   backToMenu(to = 'stage') {
+    this.clearTutorial();
     this.online?.leaveGame?.();   // MULTI 終了:ルームを抜けて g.online を外す(この後の SOLO に持ち越さない)
     safe('AUDIO', () => { this.audio.stopBgm(); this.audio.voice.stop(); });
     this.prepareStage(this.stage ?? STAGES[0]);
     this.sm.change(GameState.TITLE);
     // 攻略へ戻る時は、遊んだキャストの攻略画面(戻るでお店 → お店を選ぶ)
     if (to === 'stage' && this.app?.openCapture) this.app.openCapture(this.stage?.id);
+    else if (to === 'tutorial') this.router.reset([{ id: 'home' }, { id: 'tutorial' }]);
     else this.router.go(to);
   }
 
@@ -461,7 +493,7 @@ export class GameManager {
     const realDt = Math.min(0.05, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
-    let dt = this.paused ? 0 : realDt * this.timeScale;
+    let dt = this.paused ? 0 : realDt * this.timeScale * (this.tutorial?.timeMul ?? 1);
     if (this.hitstopLeft > 0) { this.hitstopLeft -= realDt; dt = 0; }
     this.clock += dt;
 
