@@ -111,6 +111,9 @@ export const TUNING_SCHEMA = [
   { path: 'landing.grades.0.within', label: 'PERFECT の幅(中央ラインからの横の距離)', min: 0.1, max: 3, step: 0.05 },
   { path: 'landing.grades.1.within', label: 'GREAT の幅', min: 0.2, max: 5, step: 0.05 },
   { path: 'landing.grades.2.within', label: 'GOOD の幅', min: 0.3, max: 8, step: 0.05 },
+  { path: 'battle.attributeMul.advantage', label: '属性 有利倍率(4要素の後に掛ける別枠)', min: 1, max: 3, step: 0.05 },
+  { path: 'battle.attributeMul.neutral', label: '属性 通常倍率', min: 0.5, max: 2, step: 0.05 },
+  { path: 'battle.attributeMul.disadvantage', label: '属性 不利倍率', min: 0.1, max: 1, step: 0.05 },
   { path: 'battle.heartCapacityScale', label: 'Heart Capacity 倍率(全ステージ)', min: 0.1, max: 3, step: 0.05, apply: 'restart' },
   // DifficultyData(最終設定 = StageData × DifficultyData。次のゲーム開始時に反映)
   ...['NORMAL', 'HARD', 'HELL'].flatMap((d) => [

@@ -24,6 +24,7 @@ export const Config = {
   // ---- キャラクター性能・属性(data/BattleCalc.js が参照)----
   battle: {
     // 与ダメージ = ATK × アビリティ倍率 × ゲート倍率 × 着弾倍率(data/BattleCalc.js)。DEFENCE の効きは GrowthData.STAT_EFFECTS
+    attributeMul: { advantage: 1.3, neutral: 1.0, disadvantage: 0.7 },   // ★ 属性相性:4要素の後に掛ける別枠(SPECIAL / FEVER と同じ扱い)
     bossAttackMul: 3.0,      // ★ ボス返球の基礎ダメージ倍率(v25 の 2.0 × 1.5)。難易度 damageTaken とは別に掛ける。PERFECT は常に 0
     // ボス攻撃フェーズの前のボイス(BOSS_TAUNT)。ボイスの中身は RomanceData の attackVoices
     voiceGapSec: 0.35,       // ボイスが終わってから攻撃までの間(秒)

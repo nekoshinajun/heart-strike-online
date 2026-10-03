@@ -8,7 +8,7 @@ export const ATTRIBUTES = {
   THUNDER: { id: 'THUNDER', label: 'THUNDER', icon: '⚡', color: '#ffd23e', beats: 'WATER' },
 };
 
-// 属性は与ダメージに使わない(与ダメージ = ATK × アビリティ × ゲート × 着弾:data/BattleCalc.js)
+// 属性倍率(有利 1.3 / 通常 1.0 / 不利 0.7)は Config.battle.attributeMul。4要素(ATK × アビリティ × ゲート × 着弾)の後に掛ける別枠(★ 調整パネルから変更可)
 
 // レアリティ(枠の色・光は全カード共通:src/app/Rarity.js + online.html の「レアリティ」)。color は小さな文字表示用
 export const RANKS = {
