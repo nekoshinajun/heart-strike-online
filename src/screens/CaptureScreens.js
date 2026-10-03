@@ -33,7 +33,7 @@ export function showShopMap(m, { shopId } = {}) {
       <div class="sm-city"></div>
       <div class="sm-shade" aria-hidden="true"></div>
       ${capTop(false)}
-      <header class="sm-head"><h1>お店を選ぶ<em class="script">Shop Select</em></h1><p>今日は、どのお店に行こう？<i>♡</i></p></header>
+      <header class="sm-head"><h1>お店を選ぶ</h1><em class="script sm-sub">Shop Select</em><p><i>♡</i>今日は、どのお店に行こう？<i>♡</i></p></header>
       <section class="sm-card" aria-live="polite"></section>
     </div>`;
   if (!m.city) {
@@ -54,26 +54,37 @@ export function showShopMap(m, { shopId } = {}) {
   m.city.select(m.shopSel, { snap: true, silent: true });
 }
 
+/** 情報カードの小さなアイコン(線画。文字の色に合わせる)*/
+const ICON = {
+  cast: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="5.2" r="2.6"/><path d="M1.6 13.4c.5-2.6 2.3-4 4.4-4s3.9 1.4 4.4 4"/><circle cx="11.4" cy="5.8" r="2"/><path d="M11 9.4c1.9.1 3 1.3 3.4 3.4"/></svg>',
+  book: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.2c2-.6 4-.4 6 .8 2-1.2 4-1.4 6-.8v9.4c-2-.6-4-.4-6 .8-2-1.2-4-1.4-6-.8z"/><path d="M8 4v9.4"/></svg>',
+  heart: '<svg viewBox="0 0 16 16" aria-hidden="true"><path class="f" d="M8 13.6S2 10 2 6.1A3 3 0 0 1 8 4.6a3 3 0 0 1 6 1.5c0 3.9-6 7.5-6 7.5z"/></svg>',
+  lock: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7"/><rect class="f" x="3" y="7" width="10" height="7" rx="2"/></svg>',
+};
+
 function renderShopCard(m) {
   const s = shopById(m.shopSel), el = m.body.querySelector('.sm-card');
   if (!s || !el) return;
   const open = isShopOpen(m.progress, s), pr = shopProgress(m.progress, s, Config.difficultyOrder);
-  const thumb = m.city?.snapshot(s.id) ?? '';
+  const thumb = m.city?.snapshot(s.id, 112, 112) ?? '';
   el.style.setProperty('--ac', s.theme.accent);
   el.style.setProperty('--gl', s.theme.glow);
   el.classList.toggle('locked', !open);
   el.innerHTML = `
     <span class="sm-thumb" style="background-image:url('${thumb}')">${open ? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
     <span class="sm-info">
-      <span class="sm-name"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small></span>
+      <span class="sm-name${s.name.length > 8 ? ' long' : ''}"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small></span>
       ${s.concept ? `<span class="sm-concept">${esc(s.concept)}</span>` : ''}
       <p>${phrase(s.intro ?? s.tagline)}</p>
-      <span class="sm-prog">${open
-        ? `<i>キャスト ${pr.total}人</i><i>攻略 ${pr.cleared} / ${pr.total}</i><i class="mk">♥ ${pr.marks} / ${pr.maxMarks}</i>`
-        : `<i class="lock">🔒 ${esc(shopLockText(s))}</i>`}</span>
     </span>
-    <button type="button" class="sm-enter" data-act="enter" ${open ? '' : 'disabled'}>${open ? '<b>入店する</b><small>ENTER</small>' : '<b>準備中</b><small>SOON</small>'}</button>`;
+    <span class="sm-prog">${open
+      ? `<i>${ICON.cast}キャスト <b>${pr.total}</b>人</i><i>${ICON.book}攻略 <b>${pr.cleared} / ${pr.total}</b></i><i class="mk">${ICON.heart}<b>${pr.marks} / ${pr.maxMarks}</b></i>`
+      : `<i class="lock">${ICON.lock}${esc(shopLockText(s))}</i>`}</span>
+    <button type="button" class="sm-enter" data-act="enter" ${open ? '' : 'disabled'}>${open ? '<b>入店する<i>›</i></b><small>ENTER</small>' : '<b>準備中</b><small>SOON</small>'}</button>`;
   el.querySelector('[data-act="enter"]')?.addEventListener('click', () => enterShop(m, s.id));
+  // 長い店名は枠に収まるまで少しずつ小さく(筆記体はフォントによって幅が違う)
+  const nb = el.querySelector('.sm-name b');
+  if (nb) { let fs = parseFloat(getComputedStyle(nb).fontSize) || 30; while (nb.scrollWidth > nb.clientWidth + 1 && fs > 18) { fs -= 1; nb.style.fontSize = `${fs}px`; } }
 }
 
 function enterShop(m, id) {
@@ -182,11 +193,12 @@ function garland() {
   const lamps = [44, 100, 156].map((x, i) => `<line x1="${x}" y1="0" x2="${x}" y2="${i === 1 ? 40 : 30}"/><path class="sh" d="M${x - 11} ${(i === 1 ? 52 : 42)} Q${x} ${(i === 1 ? 34 : 24)} ${x + 11} ${(i === 1 ? 52 : 42)}z"/><circle class="bulb" cx="${x}" cy="${(i === 1 ? 53 : 43)}" r="3.6"/>`).join('');
   return `<svg class="shp-garland" viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true"><path class="rope" d="M0 12 Q100 40 200 12"/>${flags}${lamps}</svg>`;
 }
-/** 壁紙のモチーフ(お店のコンセプトごと:リボン / 肉球 / 星 / バラ / 桜 / ケーキ)*/
+/** 壁紙のモチーフ(お店のコンセプトごと:リボン / 肉球 / 星 / 帆と波 / バラ / 桜 / ケーキ)*/
 const MOTIF = {
   maid: '<path d="M12 12 q-7 -6 -8 1 q1 5 8 -1 q7 6 8 -1 q-1 -7 -8 1z"/><circle cx="12" cy="12" r="1.8"/>',
   cat: '<ellipse cx="12" cy="14" rx="4" ry="3.4"/><circle cx="6.5" cy="9" r="1.8"/><circle cx="10" cy="6.5" r="1.8"/><circle cx="14" cy="6.5" r="1.8"/><circle cx="17.5" cy="9" r="1.8"/>',
   star: '<path d="M12 3 l2.4 6 6.4 .4 -5 4 1.7 6.3 -5.5 -3.6 -5.5 3.6 1.7 -6.3 -5 -4 6.4 -.4z"/>',
+  marine: '<path d="M12 5 l6 9 h-12z"/><path d="M4 18 q2 -2 4 0 q2 2 4 0 q2 -2 4 0 q2 2 4 0" fill="none" stroke-width="1.4"/>',
   gothic: '<circle cx="12" cy="10" r="4.4"/><path d="M12 14 q-1 5 -5 6 M12 14 q1 5 5 6" fill="none" stroke-width="1.4"/>',
   wa: '<g transform="translate(12 12)">' + [0, 72, 144, 216, 288].map((a) => `<ellipse rx="2.6" ry="4.4" transform="rotate(${a}) translate(0 -4.4)"/>`).join('') + '</g>',
   sweets: '<path d="M5 14 h14 l-2 6 h-10z"/><path d="M5 14 q0 -7 7 -7 q7 0 7 7z"/><circle cx="12" cy="5.6" r="1.8"/>',
