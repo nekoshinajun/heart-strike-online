@@ -59,6 +59,7 @@ export class App {
     R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p, c) => S.showCollection(p, c) });
     R.register('collectionItem', { kind: KIND.SHEET, show: (p) => S.showItemSheet(p), hide: () => this.sheet.close() });
     R.register('collectionSort', { kind: KIND.SHEET, show: (p) => S.showCollectionSortSheet(p), hide: () => this.sheet.close() });
+    R.register('collectionFilter', { kind: KIND.SHEET, show: (p) => S.showCollectionFilterSheet(p), hide: () => this.sheet.close() });
     R.register('trainChar', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showTrainChar(p) });
     R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopVoice(), leave: () => S.stopVoice() });
     R.register('mission', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showMission() });

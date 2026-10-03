@@ -39,7 +39,7 @@ export const SHOPS = [
     id: 'stella', name: 'Stella', ja: 'ステラ', concept: '星空のコンセプトカフェ',
     tagline: '星降る天文台の、ちょっと不思議なコンセプトカフェ。',
     intro: '星降る天文台の、ちょっと不思議なコンセプトカフェ。',
-    casts: [], soonSlots: 3, unlock: { type: 'soon' },
+    casts: ['rato'], soonSlots: 2, unlock: null, badge: 'NEW',
     map: { u: 0.2, v: 0.25, style: 'star', size: 3, label: 'right' },
     theme: { accent: '#7f97f0', glow: '#d2dcff', wall: '#e6eaff', roof: '#8a92dc', window: '#fff6d6', trim: '#ffffff',
       interior: { wall: '#eef0ff', wall2: '#c9d0f5', curtain: '#9fb0f2', light: '#fff4d8', sign: '#6f83de' } },
