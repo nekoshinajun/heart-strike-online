@@ -10,6 +10,7 @@ import { roleTag, rewardLabel } from '../app/Roles.js';
 import { rarityAttr, rarityBadge, raritySparkle, charAccent } from '../app/Rarity.js';
 import { shopOfStage, castsOf } from '../data/ShopData.js';
 import { showShopMap, showShop, capTop, castArt, castArtData, faceCrop, castLine } from './CaptureScreens.js';
+import { openBattleDoor } from './DoorTransition.js';
 
 const LONG_PRESS_MS = 450;   // 長押し判定(スマホ基準 0.4〜0.5秒)
 const LONG_PRESS_MOVE = 10;  // これ以上指が動いたら長押しをやめる(スクロールを邪魔しない)
@@ -475,6 +476,7 @@ export class MenuFlow {
     const party = this.order().map((id) => this.progress.character(id));
     this.hide();
     this.g.startStage(this.stage, party);
+    openBattleDoor(this.g, this.stage);   // 攻略開始 = お店の中へ:光の扉が開いてインゲーム
   }
 
   // ---------------- RESULT ----------------
