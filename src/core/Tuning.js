@@ -38,7 +38,6 @@ export const TUNING_SCHEMA = [
   { path: 'fever.outroDuration', label: 'FeverOutroDuration(秒)', min: 0.2, max: 1.2, step: 0.05 },
   { path: 'fever.slowMotionScale', label: 'FeverSlowMotionScale', min: 0, max: 1, step: 0.05 },
   { path: 'fever.throwsPerActivation', label: 'FeverThrowsPerActivation', min: 1, max: 8, step: 1 },
-  { path: 'fever.missLevelDown', label: 'MISS で FEVER LEVEL を下げる', type: 'bool' },
   { group: 'ハート玉の待機位置' },
   { path: 'ball.idlePositionY', label: 'ハートの待機位置(画面比)', min: 0.5, max: 0.9, step: 0.01 },
   { path: 'ball.idleMinBottomSpace', label: 'ハートの下の余白(画面比)', min: 0.02, max: 0.3, step: 0.01 },

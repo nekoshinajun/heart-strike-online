@@ -239,7 +239,7 @@ export class BossHitState {
       g.ui.landingFx(scr.x, scr.y, land, { lineX: g.player.toScreen(this._center.set(g.boss.root.position.x, point.y, point.z)).x });
       if (perfect) { g.effects.shockwave(point, '#ffe28a', 4.5, g.cam.camera); }   // 中央ラインを射抜いた手応え
       g.ui.damageNumber(scr.x, scr.y, `+${r.heartGain} HEART`, {
-        crit: perfect, color: '#ff7ab8', fever: g.fever.active ? g.fever.level : 0,
+        crit: perfect, color: '#ff7ab8', fever: g.fever.active,
         label: tags,
       });
       if (banks > 0) { g.stats.banks = (g.stats.banks ?? 0) + 1; g.ui.showJudge('BANK SHOT!', 'tier', '#b6ff5c'); }

@@ -9,7 +9,6 @@ import { Config } from '../core/Config.js';
  *                       ★ ゲージを増やすのは COMBO だけ(Heart Gate・Diamond・キャッチでは増えない)
  *   pendingStart        12 COMBO(100%)に達した → 次のフェーズの最初の投球前に FEVER_INTRO を挟む(到達したら確定)
  *   active (IsFever)    FEVER 中
- *   level               FeverLevel 1〜3(Lv.1 / Lv.2 / Lv.MAX)
  *   throwsRemaining     FeverThrowsRemaining(発射した時点で1減る)
  *   startPlayer         FeverStartPlayer(開始時の手番 index)
  *   thrown              この FEVER で投げた手番 index の一覧(UI の ✓)
@@ -24,7 +23,6 @@ export class FeverSystem {
   }
 
   get F() { return Config.fever; }
-  get levelLabel() { return this.F.levelLabels[this.level - 1] ?? ''; }
   get throwsTotal() { return Math.max(1, Math.round(this.F.throwsPerActivation)); }
 
   reset() {
@@ -32,7 +30,6 @@ export class FeverSystem {
     this.gauge = 0;
     this.pendingStart = false;
     this.active = false;
-    this.level = 1;
     this.throwsRemaining = 0;
     this.startPlayer = -1;
     this.thrown = [];
@@ -40,7 +37,7 @@ export class FeverSystem {
     this.anim?.cancel?.();
     this.fx.hidden = true;
     this.banner.hidden = true;
-    this.g.container.classList.remove('fever', 'fever-lv1', 'fever-lv2', 'fever-lv3');
+    this.g.container.classList.remove('fever');
     this.updateUI();
   }
 
@@ -75,34 +72,17 @@ export class FeverSystem {
     return had;
   }
 
-  /** キャッチ判定ごとに呼ぶ(PlayerDefenseState)。ゲージは増えない。FEVER 中の PERFECT で FEVER LEVEL UP(FEVER の効果)*/
-  onCatch(judge) {
-    if (!this.active) return;
-    if (judge === 'PERFECT' && this.level < 3) {
-      this.level++;
-      this.applyLevelClass();
-      this.g.ui.partCallout(`♡ FEVER ${this.levelLabel}! ♡`, 'all');
-      this.g.audio.rallyUp();
-    } else if (judge === 'MISS' && this.F.missLevelDown && this.level > 1) {
-      this.level--;
-      this.applyLevelClass();
-    }
-    this.updateUI();
-  }
-
   // ---------------- 開始 / 投球 / 終了 ----------------
   /** FEVER 開始(FEVER_INTRO で呼ぶ) */
   start(turnIndex, count = this.throwsTotal) {
     this.pendingStart = false;
     this.active = true;
-    this.level = 1;
     this.throwsRemaining = Math.max(1, Math.min(this.throwsTotal, count));   // フェーズの生存者の人数分(最大 throwsPerActivation)
     this.startPlayer = turnIndex;
     this.thrown = [];
     this.finishing = false;
     this.fx.hidden = false;
     this.g.container.classList.add('fever');
-    this.applyLevelClass();
     this.updateUI();
     this.g.stats.fevers = (this.g.stats.fevers ?? 0) + 1;
   }
@@ -126,11 +106,10 @@ export class FeverSystem {
     this.finishing = false;
     this.combo = 0;      // FEVER が終わったら COMBO もゼロから(次の FEVER はまた 12 COMBO)
     this.gauge = 0;
-    this.level = 1;
     this.throwsRemaining = 0;
     this.thrown = [];
     this.fx.hidden = true;
-    this.g.container.classList.remove('fever', 'fever-lv1', 'fever-lv2', 'fever-lv3');
+    this.g.container.classList.remove('fever');
     this.updateUI();
   }
 
@@ -140,12 +119,6 @@ export class FeverSystem {
     this.banner.hidden = true;
     if (this.active) this.finish();
     this.pendingStart = false;
-  }
-
-  applyLevelClass() {
-    const c = this.g.container.classList;
-    c.remove('fever-lv1', 'fever-lv2', 'fever-lv3');
-    if (this.active) c.add(`fever-lv${this.level}`);
   }
 
   onPatternPlaced(pattern, count) {
@@ -188,7 +161,7 @@ export class FeverSystem {
     b.classList.toggle('ready', this.pendingStart);
     b.style.setProperty('--fn', 10);   // 目盛り = 10% ごと
     b.querySelector('i').style.transform = `scaleX(${this.active ? this.throwsRemaining / this.throwsTotal : this.gauge / 100})`;
-    b.querySelector('.flabel').textContent = this.active ? `♡ FEVER ${this.levelLabel}` : 'FEVER';
+    b.querySelector('.flabel').textContent = this.active ? '♡ FEVER' : 'FEVER';
     b.querySelector('.fval').textContent = this.active ? `${this.throwsTotal - this.throwsRemaining} / ${this.throwsTotal}` : this.pendingStart ? 'MAX!' : `${Math.floor(this.gauge)}%`;
     if (bump) { b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); }
     // 右下のキャラアイコンと統合:FEVER で投げ終えた人に ✓
