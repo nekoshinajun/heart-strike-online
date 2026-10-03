@@ -145,7 +145,7 @@ export class BallToBossState {
     this.feverThrow = g.fever.consumeThrow(g.turn.index);   // FEVER 投球を1回消費(発射時に1度だけ)
     g.turn.markThrown();   // このフェーズの投球として数える
     g.ui.tutorialDone('flick');
-    g.tutorial?.emit('throw', { spin: th.spin ?? 0, special: !!special });
+    g.tutorial?.emit('throw', { spin: th.spin ?? 0, turns: Math.abs(th.gesture?.turnDeg ?? 0) / 360, special: !!special });   // turns:投げる前に回した周数
     if (special) {
       // キャラ固有の SPECIAL 投球の見た目(CharacterData.specialThrowEffect。見た目だけ・ダメージは本体の1投だけ)
       g.specialFx.start(g.turn.current.chara, th);

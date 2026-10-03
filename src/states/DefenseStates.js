@@ -63,6 +63,7 @@ export class BossTauntState {
     g.cam.focusOn(g.boss.partCenter('head'), 8);
     g.ui.showTurn({ color: '#ff3f8f', name: g.stage?.boss.name ?? '' }, 'BOSS ATTACK');
     this.done = false;
+    g.tutorial?.emit('phaseEnd');   // 全員が投げ終えた
     this.speaking = false;
     this.lastLevel = 0;
     const now = performance.now();
