@@ -126,7 +126,7 @@ export class MenuFlow {
 
   frame(screen, title, step, { primary, back, diff, home } = {}) {
     this.screen = screen;
-    if (screen !== 'shopmap') this.city?.stop();   // 夜の街マップのアニメーションは表示中だけ
+    if (screen !== 'shopmap') this.city?.stop();   // コンカフェ街マップのアニメーションは表示中だけ
     this.el.hidden = false;
     this.g.container.classList.add('menuopen');
     this.el.dataset.screen = screen;
@@ -194,7 +194,7 @@ export class MenuFlow {
     if (stageId || difficulty) this.diff = difficulty ?? 'NORMAL';   // キャストを選び直したら NORMAL から
     if (!this.diffUnlocked(selected.id, this.diff)) this.diff = 'NORMAL';
     this.recommended = difficulty ?? null;
-    this.frame('cast', '攻略', '今日、誰を口説きに行く？');
+    this.frame('cast', '攻略', '今日は、誰に会いに行く？');
     const heroine = heroineByStage(selected.id);
     const shop = shopOfStage(selected.id);
     this.shopSel = shop?.id ?? this.shopSel;
@@ -228,7 +228,7 @@ export class MenuFlow {
           <button type="button" role="tab" data-mode="solo"><b>ソロプレイ</b><small>SOLO PLAY</small></button>
           <button type="button" role="tab" data-mode="multi"><b>マルチプレイ</b><small>MULTI PLAY ・ 2–4人</small></button>
         </div>
-        <header class="sg-head"><h1>攻略<em class="script">Story</em></h1><p>今日、誰を口説きに行く？<i>♡</i></p></header>
+        <header class="sg-head"><h1>攻略<em class="script">Story</em></h1><p>今日は、誰に会いに行く？<i>♡</i></p></header>
         <section class="sg-card">
           <header>${roleTag('heroine', 'sm')}<small>STAGE ${String(selected.no).padStart(2, '0')}</small></header>
           <h2>${esc(selected.boss.name)}${heroine?.roman ? `<em class="script">${esc(heroine.roman)}</em>` : ''}</h2>
@@ -256,7 +256,7 @@ export class MenuFlow {
     this.focus(this.body.querySelector('.sg-start'));
   }
 
-  /** ① 夜の街マップ(お店を選ぶ)/ ② お店の中(キャスト一覧)。中身は CaptureScreens.js */
+  /** ① コンカフェ街マップ(お店を選ぶ)/ ② お店の中(キャスト一覧)。中身は CaptureScreens.js */
   showShopMap(p) { showShopMap(this, p); }
   showShop(p) { showShop(this, p); }
 
