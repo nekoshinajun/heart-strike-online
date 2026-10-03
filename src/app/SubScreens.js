@@ -103,18 +103,27 @@ export class AppScreens {
         <span class="tl-type">${a.icon} ${t.label}</span><span class="tl-row">${staminaHTML(ch, 'sm')}<span class="tl-hp">HP <b>${ch.maxHp}</b></span></span></span>${extra}
     </button>`;
   }
-  showTraining() {
+  showTraining({ keepScroll = false } = {}) {
+    const top = keepScroll ? this.body.scrollTop : 0;
     this.frame('training', '育成');
     const ids = this.p.ownedIds, party = this.p.party;
+    // 所持キャラクターの並び替え / 絞り込み:コレクションの「仲間」と同じ項目(条件の保存は育成用に別:settings.*.training)
+    const st = this.p.data.settings, sort = currentSort(st, 'training');
+    const list = sortList(filterList(this.allyRows(), 'training', currentFilter(st, 'training')), 'training', sort);
+    const atk = (r) => (sort.key === 'atk' ? `<span class="col-val">ATK <b>${r.atk}</b></span>` : '');
     this.body.innerHTML = `
       <section class="tl-sec">
         <header class="tl-head"><b>♡ 編成</b><small>攻略に連れていく4人</small><button type="button" class="tl-edit" data-act="party">編成を変更 ›</button></header>
         <div class="tl-party">${party.map((id, i) => (this.p.isOwned(id) ? this.trainCardHTML(id, { party: true }) : `<div class="tl-card empty"><span>${'ABCD'[i]}</span></div>`)).join('')}</div>
       </section>
       <section class="tl-sec">
-        <header class="tl-head"><b>所持キャラクター</b><small>${ids.length}人 ・ タップで詳細</small></header>
-        <div class="tl-grid">${ids.map((id) => this.trainCardHTML(id)).join('')}</div>
+        <header class="tl-head"><b>所持キャラクター</b><small>${list.length < ids.length ? `${list.length} / ${ids.length}人` : `${ids.length}人`} ・ タップで詳細</small></header>
+        <div class="tl-sortbar">${this.sortBarHTML('training')}</div>
+        ${list.length ? `<div class="tl-grid col-ally">${list.map((r) => this.trainCardHTML(r.id, { extra: atk(r) })).join('')}</div>` : this.filterEmptyHTML('キャラクター')}
       </section>`;
+    this.body.scrollTop = top;
+    this.wireSortBar('training');
+    this.wireFilterReset('training');
     for (const b of this.body.querySelectorAll('.tl-card[data-id]')) b.addEventListener('click', () => this.app.router.go('trainChar', { id: b.dataset.id }));
     this.body.querySelector('[data-act="party"]').addEventListener('click', () => this.app.router.go('partyTab'));
   }
@@ -318,18 +327,12 @@ export class AppScreens {
     const keepScroll = ctx.restore || ctx.keepScroll ? this.body.scrollTop : 0;
     this.frame('collection', 'コレクション');
     const view = cur === 'items' ? this.collectionItemsView() : cur === 'ally' ? this.collectionAllyView() : this.collectionHeroineView();
-    const sort = currentSort(this.p.data.settings, cur);
     const tabs = `<div class="col-tabs" role="tablist">${COLLECTION_TABS.map((t) => `<button type="button" class="${t.id}${cur === t.id ? ' sel' : ''}" data-tab="${t.id}" role="tab" aria-selected="${cur === t.id}"><span>${t.icon} ${t.label}</span><small>${t.id === cur ? view.count : this.collectionCount(t.id)}</small></button>`).join('')}</div>`;
-    const filter = currentFilter(this.p.data.settings, cur);
-    const bar = `<div class="col-bar">
-      <button type="button" class="col-sort" data-act="sort" aria-label="並び替え(${esc(sortLabel(cur, sort))})"><small>⇅<span> 並び替え</span></small><b>${esc(sortLabel(cur, sort))}</b><i aria-hidden="true">${sortArrow(cur, sort)}</i></button>
-      <button type="button" class="col-sort col-filt${filter !== 'all' ? ' on' : ''}" data-act="filter" aria-label="絞り込み(${esc(filterLabel(cur, filter))})"><small>▽<span> 絞り込み</span></small><b>${esc(filterLabel(cur, filter))}</b></button></div>
-      <p class="col-lead">${view.lead}</p>`;
+    const bar = `${this.sortBarHTML(cur)}<p class="col-lead">${view.lead}</p>`;
     this.body.innerHTML = `<div class="col-head">${tabs}${bar}</div>${view.html}`;
     this.body.scrollTop = keepScroll;
     for (const b of this.body.querySelectorAll('.col-tabs [data-tab]')) b.addEventListener('click', () => { if (b.dataset.tab !== this.collectionTab) this.showCollection({ tab: b.dataset.tab }); });
-    for (const b of this.body.querySelectorAll('[data-act="sort"]')) b.addEventListener('click', () => this.app.router.go('collectionSort', { cat: cur }));
-    for (const b of this.body.querySelectorAll('[data-act="filter"]')) b.addEventListener('click', () => this.app.router.go('collectionFilter', { cat: cur }));
+    this.wireSortBar(cur);
     view.wire?.();
   }
   /** タブの数字(所持数 / 全体)*/
@@ -376,12 +379,31 @@ export class AppScreens {
         ${x.source ? `<section class="cis-sec"><small>入手方法</small><p>${esc(x.source)}</p></section>` : ''}
       </div>`);
   }
-  collectionAllyView() {
-    const ids = this.p.ownedIds;
-    const rows = ids.map((id) => {
+  /** 所持キャラの並び替え・絞り込み用の値(既存の所持データ / ステータスから。コレクションの仲間と育成で共通)*/
+  allyRows() {
+    return this.p.ownedIds.map((id) => {
       const ch = this.p.character(id);
       return { id, name: ch.name, rank: ch.rank, attribute: ch.attribute, type: ch.type, level: ch.level, rankOrder: RANKS[ch.rank]?.order ?? null, atk: (ch.totalStats ?? ch.stats).attack, hp: ch.maxHp, obtainedAt: this.p.data.characters[id]?.obtainedAt ?? null };
     });
+  }
+  /** 並び替え / 絞り込みのボタン(コレクションの各カテゴリと育成で共通。cat = 保存のキー)*/
+  sortBarHTML(cat) {
+    const st = this.p.data.settings, sort = currentSort(st, cat), filter = currentFilter(st, cat);
+    return `<div class="col-bar">
+      <button type="button" class="col-sort" data-act="sort" aria-label="並び替え(${esc(sortLabel(cat, sort))})"><small>⇅<span> 並び替え</span></small><b>${esc(sortLabel(cat, sort))}</b><i aria-hidden="true">${sortArrow(cat, sort)}</i></button>
+      <button type="button" class="col-sort col-filt${filter !== 'all' ? ' on' : ''}" data-act="filter" aria-label="絞り込み(${esc(filterLabel(cat, filter))})"><small>▽<span> 絞り込み</span></small><b>${esc(filterLabel(cat, filter))}</b></button></div>`;
+  }
+  wireSortBar(cat) {
+    for (const b of this.body.querySelectorAll('[data-act="sort"]')) b.addEventListener('click', () => this.app.router.go('collectionSort', { cat }));
+    for (const b of this.body.querySelectorAll('[data-act="filter"]')) b.addEventListener('click', () => this.app.router.go('collectionFilter', { cat }));
+  }
+  /** シートで条件を変えた後:開いている一覧(コレクション / 育成)を描き直す */
+  refreshSorted() {
+    if (this.screen === 'collection') this.showCollection({}, { restore: true });
+    else if (this.screen === 'training') this.showTraining({ keepScroll: true });
+  }
+  collectionAllyView() {
+    const ids = this.p.ownedIds, rows = this.allyRows();
     const st = this.p.data.settings, sort = currentSort(st, 'ally'), filter = currentFilter(st, 'ally');
     const list = sortList(filterList(rows, 'ally', filter), 'ally', sort);
     const unowned = filterList(CHARACTERS.filter((c) => !this.p.isOwned(c.id)), 'ally', filter);   // 未所持も同じ条件(マスターのレアリティ)で絞る
@@ -425,13 +447,13 @@ export class AppScreens {
     const st = this.p.data.settings;
     st.collectionFilter = { ...(st.collectionFilter ?? {}), [cat]: key };
     this.p.save();
-    if (this.screen === 'collection') this.showCollection({}, { restore: true });
+    this.refreshSorted();
   }
   /** 絞り込み(シート):1カテゴリ1条件。各条件の件数も出す */
   showCollectionFilterSheet({ cat } = {}) {
     cat = COLLECTION_FILTERS[cat] ? cat : this.collectionTab ?? 'items';
     const rows = cat === 'items' ? this.ownedItems()
-      : cat === 'ally' ? this.p.ownedIds.map((id) => this.p.character(id))
+      : cat === 'ally' || cat === 'training' ? this.allyRows()
       : HEROINES.map((h) => ({ state: this.heroineState(h) }));
     const render = (first) => {
       const cur = currentFilter(this.p.data.settings, cat);
@@ -471,7 +493,7 @@ export class AppScreens {
         st.collectionSort = { ...(st.collectionSort ?? {}), [cat]: nextSort(currentSort(st, cat), cat, b.dataset.sort) };
         this.p.save();
         Haptic.light?.();
-        if (this.screen === 'collection') this.showCollection({}, { restore: true });
+        this.refreshSorted();
         render(false);
       });
     };

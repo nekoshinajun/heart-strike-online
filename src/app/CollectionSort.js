@@ -120,3 +120,7 @@ const filterOf = (cat, key) => COLLECTION_FILTERS[cat]?.find((f) => f.key === ke
 export function currentFilter(settings, cat) { return filterOf(cat, settings?.collectionFilter?.[cat])?.key ?? 'all'; }
 export function filterLabel(cat, key) { return filterOf(cat, key)?.label ?? 'すべて'; }
 export function filterList(list, cat, key) { const f = filterOf(cat, key); return f ? list.filter((x) => f.test(x)) : [...list]; }
+
+// 育成画面の所持キャラクター一覧:コレクションの「仲間」と同じ並び替え / 絞り込み(選んだ条件は 'training' として別に保存)
+COLLECTION_SORTS.training = COLLECTION_SORTS.ally;
+COLLECTION_FILTERS.training = COLLECTION_FILTERS.ally;
