@@ -1,18 +1,21 @@
 import { ATTRIBUTES, TYPES } from './GameData.js';
 import { Config } from '../core/Config.js';
-import { statEffect, abilityMul, abilityStatMul } from './Growth.js';
+import { statEffect, abilityMul, abilityStatMul, abilityPowerMul } from './Growth.js';
 
 /**
  * 戦闘まわりの計算(差し替え可能な純関数)。
  *
- * HeartGain = BaseHeart × Attack × Attribute × Rally × Energy × Special × GateChain × BankShot × FEVER
- *   BaseHeart … 部位ごとの基本値(球速・引っ張り量では変わらない)
- *   Attack    … キャラの ATTACK(レベルの基礎)→ GrowthData.STAT_EFFECTS.attack(50 = ×1.0 / 100 = ×1.25 / 125 = ×1.375)
- *               × アビリティの ATK 加算(POWER UP など)の倍率(別枠:+20 = ×1.10。基礎の高さに吸収されない)
- *   Ability   … アビリティの HEART 倍率(条件つき。GrowthData.ABILITIES)
- *   Attribute … 有利 1.3 / 通常 1.0 / 不利 0.7(ATTRIBUTE_MUL)
+ * 通常攻撃の与ダメージ(敵に届く HEART)= 次の4要素だけ:
+ *   NormalDamage = ATK × アビリティ倍率 × ハートゲート通過倍率 × 着弾倍率
+ *     ATK          … キャラの攻撃力(レベルで成長する値そのもの。ATK 120 → 基本値 120)
+ *     アビリティ倍率 … POWER UP など(+10% ずつ足し算)× 条件つきの HEART アビリティ(GrowthData.ABILITIES)。レベルの ATK とは別枠
+ *     ゲート倍率    … Heart Gate を通って命中した時の倍率(Config.space.gate.chainBonus)
+ *     着弾倍率      … 敵の中央縦ラインからの横方向の距離だけで決まる(Config.landing:PERFECT 1.5 / GREAT 1.3 / GOOD 1.15 / HIT 1.0 / 当たらなければ 0)
+ *   部位・球速・引っ張り量・STRAIGHT/CURVE・COMBO・SOLO/MULTI は与ダメージに使わない
+ *
+ * 属性相性(有利 1.3 / 通常 1.0 / 不利 0.7)・SPECIAL・FEVER は通常攻撃の式の「後」に掛ける別枠(finalDamage)。SPECIAL 固有の効果(回復など)は
+ * 最終ダメージが確定した後に effects/SpecialEffects.js が行う。丸めは最後に1回だけ(四捨五入)
  */
-export const BattleTuning = Config.battle;   // attributeMul(★ 調整パネルから変更可)
 
 export function attributeRelation(attacker, defender) {
   if (!attacker || !defender) return 'neutral';
@@ -21,29 +24,45 @@ export function attributeRelation(attacker, defender) {
   return 'neutral';
 }
 
+/** 属性相性の倍率(4要素の後に掛ける別枠。Config.battle.attributeMul)*/
 export function attributeMultiplier(attacker, defender) {
-  return Config.battle.attributeMul[attributeRelation(attacker, defender)];
+  return Config.battle.attributeMul[attributeRelation(attacker, defender)] ?? 1;
 }
 
-/** ATTACK(レベルの基礎)→ 与ダメージ倍率 × アビリティの ATK 加算の倍率(別枠)*/
-export function attackMultiplier(attack, bonus = 0) {
-  return statEffect('attack', attack ?? 50) * abilityStatMul('attack', bonus);
-}
-/** キャラ → 基礎ステータスの性能 × アビリティ加算の倍率(別枠)。key = attack | defence | control | curve */
+/** キャラ → 基礎ステータスの性能 × アビリティ加算の倍率(別枠)。key = defence | control | curve(attack は ATK をそのまま使う)*/
 export function statPerformance(chara, key) {
   return statEffect(key, chara?.stats?.[key] ?? 50) * abilityStatMul(key, chara?.bonusStats?.[key] ?? 0);
 }
 
-/** HeartGain の倍率部分(BaseHeart 以外)をまとめて返す。内訳は演出・デバッグ用 */
-export function heartMultiplier({ attack, attackBonus = 0, attribute, bossAttribute, rally, energy, special, fever = 1, gate = 1, bank = 1, ability = 1 }) {
-  // 球速(引っ張り量 / POWER / 初速)では HEART を変えない:速い球も遅い球も同じ(Config.power.heartFlat)
-  const powerMul = Config.power.heartFlat ?? 1;
-  const attackMul = attackMultiplier(attack, attackBonus);
-  const attrMul = attributeMultiplier(attribute, bossAttribute);
-  // FEVER 倍率は既存の全倍率(POWER/ATK/属性/RALLY/Energy/SPECIAL)の最後に掛ける(LOVE SPOT は BossController 側)
-  // 3D 空間ボーナス(GATE CHAIN / BANK SHOT)は FEVER の前に掛ける
-  const total = powerMul * attackMul * attrMul * rally * energy * special * gate * bank * fever * ability;
-  return { total, powerMul, attackMul, attrMul, fever, gate, bank, ability, relation: attributeRelation(attribute, bossAttribute) };
+/** 着弾判定:中央縦ラインからの横方向の距離 dx(敵の体の座標。Y は使わない)→ { grade, mul } */
+export function landingGrade(dx) {
+  const L = Config.landing, d = Math.abs(Number(dx) || 0);
+  const t = L.grades.find((x) => d <= x.within) ?? L.grades[L.grades.length - 1];
+  return { grade: t.id, mul: t.mul, dx: d };
+}
+
+/**
+ * アビリティ倍率:POWER UP(+10% ずつ足し算)× 条件つきの HEART アビリティ(SPECIAL MASTER / GATE MASTER / ULTIMATE)
+ *   ctx = { throwSpin, special, gates }(条件の判定だけに使う)
+ */
+export function abilityDamageMul(chara, ctx = {}) {
+  const ab = chara?.abilities ?? [];
+  return abilityPowerMul(ab) * abilityMul(ab, 'heart', ctx);
+}
+
+/** 通常攻撃の与ダメージ(丸める前)と内訳。atk = キャラの ATK(レベルの値)*/
+export function normalDamage({ atk, ability = 1, gate = 1, landing = 1 }) {
+  const a = Math.max(0, Number(atk) || 0);
+  return { atk: a, ability, gate, landing, raw: a * ability * gate * landing };
+}
+
+/**
+ * 最終ダメージ = 通常攻撃(丸める前)× 属性 × SPECIAL × FEVER → 最後に1回だけ四捨五入
+ *   属性 / SPECIAL / FEVER は通常攻撃の式とは別枠(通常攻撃の内訳には入れない)
+ */
+export function finalDamage(normal, { attribute = 1, special = 1, fever = 1 } = {}) {
+  // 1e-9 のずれ(1.1 + 0.1 = 1.2000000000000002 など)で四捨五入の向きが変わらないよう、小数第6位で揃えてから丸める
+  return Math.round(Math.round(normal.raw * attribute * special * fever * 1e6) / 1e6);
 }
 
 /**

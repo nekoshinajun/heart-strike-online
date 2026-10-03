@@ -4,7 +4,7 @@ import { Config } from '../core/Config.js';
  * 部位の状態(旧:NORMAL / DAMAGED / BROKEN → ハートを届けるほど段階が上がる)
  *   NORMAL    : 0 〜 warmAt 未満
  *   WARM      : warmAt 以上(リアクションが大きくなる段階)
- *   HEART_MAX : 満タン = LOVE SPOT(専用表情・差分・ボーナス)
+ *   HEART_MAX : 満タン(内部互換用。与ダメージのボーナスは無い)
  */
 export const PartState = Object.freeze({ NORMAL: 'NORMAL', WARM: 'WARM', HEART_MAX: 'HEART_MAX' });
 
@@ -16,7 +16,6 @@ export class BossPart {
     this.id = id;
     this.label = def.label;
     this.ja = def.ja;
-    this.heartGain = def.heartGain;   // 命中時に届く基本 HEART
     this.maxHeart = def.maxHeart;     // PartHeart 満タン値
     this.heart = 0;                   // PartHeart
     this.state = PartState.NORMAL;

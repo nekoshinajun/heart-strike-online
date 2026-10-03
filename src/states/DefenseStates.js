@@ -2,7 +2,7 @@ import { GameState } from '../core/StateMachine.js';
 import { Config, catchWin } from '../core/Config.js';
 import { Judge } from '../catch/CatchJudge.js';
 import { nearest } from '../defence/NotePath.js';
-import { DefenseCalculator, BattleTuning } from '../data/BattleCalc.js';
+import { DefenseCalculator } from '../data/BattleCalc.js';
 
 const JUDGE_COLOR = { PERFECT: '#ffd23e', GREAT: '#3ee8ff', GOOD: '#9dff7a', MISS: '#ff3d5a' };
 

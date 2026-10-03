@@ -214,20 +214,19 @@ export class BossController {
 
   /**
    * ハート玉が届いた:TotalHeart と PartHeart の両方が増える
-   * @param mul 倍率(POWER × RALLY × Energy × SPECIAL)
-   * @returns { heartGain, partGain, part, before, after, changed, loveSpot }
+   * @param damage 最終ダメージ(BattleCalc.finalDamage で確定した整数。ここでは倍率を掛けない)
+   * @param reaction 命中リアクションの大きさ
+   * @returns { heartGain, partGain, part, before, after, changed }
    */
-  addHeart(partId, mul, reaction = mul) {
-    const def = Config.parts[partId];
-    const loveSpot = this.parts.loveSpotMul(partId) > 1;
-    const heartGain = Math.round(def.heartGain * mul * this.parts.loveSpotMul(partId));
+  addHeart(partId, damage, reaction = 1) {
+    const heartGain = Math.max(0, Math.round(Number(damage) || 0));
     this.heart = Math.min(this.maxHeart, this.heart + heartGain);
     const r = this.parts.addHeart(partId, heartGain);
     this.view.playHit(partId, Math.min(2.5, reaction));
     if (r.changed && r.after === 'HEART_MAX') this.view.setExpression('love', 1.6);
     else this.view.setExpression('happy', 0.7);
     if (this.heart >= this.maxHeart && !this.full) { this.full = true; this.view.setHeartMax(); }
-    return { heartGain, loveSpot, ...r };
+    return { heartGain, ...r };
   }
 
   lookAtPlayer(x) { this.view.setLook(x); }

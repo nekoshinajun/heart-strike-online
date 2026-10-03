@@ -61,6 +61,12 @@ export function abilityStats(abilities = []) {
   }
   return out;
 }
+/** 与ダメージのアビリティ倍率(POWER UP など kind: 'power' の足し算)。1 + Σadd(POWER UP ×2 = ×1.20)*/
+export function abilityPowerMul(abilities = []) {
+  let m = 1;
+  for (const ab of abilities ?? []) for (const e of ab.effects ?? []) if (e.kind === 'power') m += Number(e.add) || 0;
+  return m;
+}
 /** 表示用:基礎 + アビリティの加算(戦闘の計算は基礎の倍率 × アビリティの倍率で別々に行う)*/
 export function totalStats(base, bonus) {
   const out = {};

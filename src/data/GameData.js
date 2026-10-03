@@ -8,7 +8,7 @@ export const ATTRIBUTES = {
   THUNDER: { id: 'THUNDER', label: 'THUNDER', icon: '⚡', color: '#ffd23e', beats: 'WATER' },
 };
 
-// 属性倍率(有利 1.3 / 通常 1.0 / 不利 0.7)は Config.battle.attributeMul(★ 調整パネルから変更可)
+// 属性倍率(有利 1.3 / 通常 1.0 / 不利 0.7)は Config.battle.attributeMul。4要素(ATK × アビリティ × ゲート × 着弾)の後に掛ける別枠(★ 調整パネルから変更可)
 
 // レアリティ(枠の色・光は全カード共通:src/app/Rarity.js + online.html の「レアリティ」)。color は小さな文字表示用
 export const RANKS = {
@@ -45,7 +45,7 @@ export const TYPES = {
  *   special     … (任意)キャラ固有の必殺技(SPECIAL)。育成画面の説明とバトルの効果は両方ここだけを見る(画面に説明文を書かない)
  *       name / description / highlight(強調する数値・効果)/ note(補足)
  *       effectType … 効果の種類(src/effects/SpecialEffects.js):'attack' = 通常の SPECIAL だけ / 'healAll' = 命中で味方全員を回復 / 今後:防御・バフ・デバフ・蘇生…
- *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.03 = 3%)
+ *       effectValue … 効果の数値(healAll なら与ダメージに対する割合 0.1 = 10%)
  *       visualEffect … 見た目の ID(src/effects/SpecialThrowEffects.js)。ダメージ・判定は変えない
  *     省略したキャラは DEFAULT_SPECIAL(全員共通の SPECIAL HEART)
  * 味方の女の子は ASMR を持たない(ASMR は攻略対象だけ。data/RomanceData.js)
@@ -121,10 +121,10 @@ export const CHARACTERS = [
     accent: { id: 'sera', glow: '#ffd76a' },
     special: {
       name: 'ANGEL HEART',
-      description: '必殺技の攻撃が命中すると、与えた最終ダメージの3%分、生存中の味方全員のHPを回復する。',
-      highlight: { value: '与ダメージの 3%', label: 'ALL HEAL' },
+      description: '必殺技の攻撃が命中すると、与えた最終ダメージの10%分、生存中の味方全員のHPを回復する。',
+      highlight: { value: '与ダメージの 10%', label: 'ALL HEAL' },
       note: '※ HP 0 の味方は回復しない(蘇生ではない)。MISS では回復しない。',
-      effectType: 'healAll', effectValue: 0.03, visualEffect: 'angelHeal',
+      effectType: 'healAll', effectValue: 0.1, visualEffect: 'angelHeal',
     },
   },
   // ---- 追加キャラ(画像は未登録:art を空にしておくと仮のシルエットで表示。画像キーを入れるだけで差し替わる)----
@@ -178,12 +178,14 @@ export const DEFAULT_PARTY = ['minamo', 'hinoka', 'raimu', 'shizuku'];
  *                stage = 攻略画面の立ち絵(x = 横位置 translateX の割合 / h = 高さの倍率)
  *   boss.profile … 返球プロファイル(Config.bossProfiles)
  *   boss.affection … 好感度の表情・会話イベントの設定(data/BossAffection.js のキー)
+ *   boss.maxHeart … Heart Capacity。与ダメージを「ATK × アビリティ × ゲート × 着弾」にした時(1発 ≈ 旧の約 1/3.7)に
+ *                   戦闘の長さが変わらないよう、旧 10000 / 15000 / 18000 を ×0.27 した値
  *   space … 3D 空間の特徴:patterns(使う RoutePattern。重複で出やすさ)/ energyDensity / gateCount / obstacleCount / obstacleSpeed
  */
 export const STAGES = [
   {
     id: 'stage01', no: '01', name: 'はじまりの告白',
-    boss: { name: 'リリス', attribute: 'FIRE', type: 'CURVE', image: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 10000 },
+    boss: { name: 'リリス', attribute: 'FIRE', type: 'CURVE', image: 'demon', layout: 'demon', profile: 'lilith', affection: 'lilith', maxHeart: 2700 },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 100,
     // 3D 空間の特徴:シンプルな3Dルート(動く障害物は無し、Gate は最大2)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'LOW_ROUTE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
@@ -191,7 +193,7 @@ export const STAGES = [
   },
   {
     id: 'stage02', no: '02', name: '深海のセレナーデ',
-    boss: { name: 'セイレーン', attribute: 'WATER', type: 'STRAIGHT', image: 'siren', layout: 'demon', profile: 'siren', affection: 'siren', maxHeart: 15000 },
+    boss: { name: 'セイレーン', attribute: 'WATER', type: 'STRAIGHT', image: 'siren', layout: 'demon', profile: 'siren', affection: 'siren', maxHeart: 4000 },
     recommended: 'THUNDER', difficulty: 'NORMAL', exp: 150,
     // 動く障害物が多い海の中。Gate は最大3
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'HIGH_ARC', 'S_CURVE', 'GATE_CHAIN', 'WALL_GAP', 'STAR_DRIFT', 'BANK_STARS', 'WALL_GAP', 'STAR_DRIFT'],
@@ -200,7 +202,7 @@ export const STAGES = [
   {
     id: 'stage03', no: '03', name: '甘い夜のおねだり',
     // 専用イラスト(assets/boss_milk.webp)・専用の当たり判定(colliderLayouts.milk)・専用の表情位置(BossAffection.milk)
-    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 18000,
+    boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 4800,
       art: { face: { u: 0.43, v: 0.43, w: 0.3 }, stage: { x: -0.24, h: 0.74 } } },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
     concept: '甘え上手な猫系の女の子。きらめくプレミアムコンカフェを舞台に、ハートを届けて口説き落とす。',

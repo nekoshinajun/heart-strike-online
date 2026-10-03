@@ -3,8 +3,7 @@ import * as THREE from '../lib/three.js';
 import { GameState } from '../core/StateMachine.js';
 import { Config } from '../core/Config.js';
 import { simulate } from '../physics/BallPhysics.js';
-import { heartMultiplier } from '../data/BattleCalc.js';
-import { abilityMul } from '../data/Growth.js';
+import { abilityDamageMul, normalDamage, finalDamage, landingGrade, attributeMultiplier, attributeRelation } from '../data/BattleCalc.js';
 import { powerStrength } from '../controllers/ThrowController.js';
 
 /** PendingSpecialThrowData:指を離した瞬間の投球情報を複製して保存(発射位置 / 初速 / カーブ) */
@@ -186,7 +185,7 @@ export class BallToBossState {
 
 /** BOSS_HIT(ハートが届いた):TotalHeart & PartHeart が増える → LOVE UP / LOVE MAX でリアクション・差分 */
 export class BossHitState {
-  constructor(g) { this.g = g; }
+  constructor(g) { this.g = g; this._center = new THREE.Vector3(); }
 
   enter({ result, th, vel, special, banks = 0, gates = 0, flight = null }) {
     const g = this.g;
@@ -204,26 +203,23 @@ export class BossHitState {
     if (result.type === 'hit') {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
       const partId = result.part;
-      // HeartGain = BaseHeart(部位) × Attack(ATTACK) × Attribute × Special × Gate × Bank × FEVER × Ability(球速・引っ張り量では変えない)
-      //   役割の分離:Heart Gate = ダメージ倍率 / Diamond = SPECIAL ゲージだけ / COMBO = FEVER ゲージだけ
-      //   → Diamond の数・COMBO(ラリー)は HEART の倍率に入れない
+      // 通常攻撃の与ダメージ = ATK × アビリティ倍率 × ハートゲート通過倍率 × 着弾倍率(data/BattleCalc.js)
+      //   部位・球速・引っ張り量・STRAIGHT/CURVE・COMBO・SOLO/MULTI では変えない
+      //   着弾倍率:敵の中央縦ラインからの横方向の距離だけ(当たり判定の点 = 止まった姿勢の攻撃面 → MULTI の全員で同じ)
       const ch = g.turn.current.chara;
-      const sMul = special ? special.heartMul : 1;
-      // アビリティ(条件つき):投げた子のアビリティ × この投球の内容(SPIN・SPECIAL・ゲート)
-      // ★ 統一ルール:引く量(球速)ではダメージは変わらない → HEART のアビリティ条件には pull を渡さない
-      const abilityHeart = abilityMul(ch?.abilities, 'heart', { throwSpin: th.throwSpin ?? th.spin, special: !!special, gates });
-      const hm = heartMultiplier({
-        attack: ch?.stats?.attack ?? 50, attackBonus: ch?.bonusStats?.attack ?? 0, ability: abilityHeart, attribute: ch?.attribute, bossAttribute: g.stage?.boss.attribute,
-        rally: 1, energy: 1, special: sMul, fever: g.fever.heartMul,
-        // 3D 空間:GATE CHAIN / BANK SHOT は「ボスに当たった時だけ」
-        gate: Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)],
-        bank: banks > 0 ? Config.space.bank.bonus : 1,
-      });
+      const land = landingGrade(point.x - g.boss.root.position.x);
+      const gateMul = Config.space.gate.chainBonus[Math.min(gates, Config.space.gate.chainBonus.length - 1)];
+      // アビリティ:POWER UP(足し算)× 条件つきの HEART アビリティ(SPIN・SPECIAL・ゲートの条件だけを見る。引く量は渡さない)
+      const ability = abilityDamageMul(ch, { throwSpin: th.throwSpin ?? th.spin, special: !!special, gates });
+      const normal = normalDamage({ atk: ch?.stats?.attack ?? 50, ability, gate: gateMul, landing: land.mul });
+      // 属性 / SPECIAL / FEVER は通常攻撃の式の後に掛ける別枠。丸めは最後に1回だけ
+      const relation = attributeRelation(ch?.attribute, g.stage?.boss.attribute), aMul = attributeMultiplier(ch?.attribute, g.stage?.boss.attribute);
+      const sMul = special ? special.heartMul : 1, fMul = g.fever.heartMul;
+      const damage = finalDamage(normal, { attribute: aMul, special: sMul, fever: fMul });
       const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
-      const heartMul = hm.total;
-      const r = g.boss.addHeart(partId, heartMul, heartMul / (hm.attackMul * hm.attrMul));
+      const r = g.boss.addHeart(partId, damage, gateMul * land.mul * sMul * fMul);
       // SPECIAL の効果(CharacterData.special.effectType):命中して最終ダメージ(r.heartGain)が確定した後に1回だけ
-      //   例:セラ ANGEL HEART = 最終ダメージ × 3% を生存中の味方全員に回復。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる
+      //   例:セラ ANGEL HEART = 最終ダメージ × 10% を生存中の味方全員に回復。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる
       //   MULTI:HP はここでは変えない(preview)。投げた人が回復量をサーバーへ送り、サーバーの HEAL(全員同じ値)で HP と演出を確定
       this.specialResult = special ? applySpecialEffect(ch, { players: g.turn.players, damage: r.heartGain, preview: !!g.online }) : null;
       if (this.specialResult?.type === 'healAll') {
@@ -242,26 +238,26 @@ export class BossHitState {
       // Heart50TriggerDelay:HEART 表示が 50% を超えてから会話(暗転)を始めるまでの実時間。ヒットストップ / スロー / FEVER に左右されない
       if (this.talkLead) { g.setTimeScale(g.cfg.talk.hitSlow); this.talkAt = performance.now() + g.cfg.talk.heart50TriggerDelay * 1000; g.heart50ReachedAt = performance.now(); }
       g.turn.addRally();
-      const perfect = hm.total / hm.attackMul >= 2 || r.loveSpot;
+      const perfect = land.grade === 'PERFECT';
       // ハートの演出(届いた量に応じて増える)
-      g.effects.heartBurst(point, Math.min(60, 10 + Math.round(r.heartGain / 16)), 6 + power * 3, 0.7 + (special ? 0.5 : 0));
+      g.effects.heartBurst(point, Math.min(60, 10 + Math.round(r.heartGain / 6)), 6 + power * 3, 0.7 + (special ? 0.5 : 0));
       g.effects.burst(point, '#ffffff', 12, 7, 0.5);
       g.effects.shockwave(point, special ? '#ffd23e' : '#ff5fa2', 3 + power * 2 * mul, g.cam.camera);
+      // ダメージ表示のラベル:倍率が掛かったものだけ(ゲート / 属性 / SPECIAL / FEVER)。着弾の段階は landingFx で別に出す
       const tags = [
-        special ? 'SPECIAL HEART' : '',
-        r.loveSpot ? 'LOVE SPOT' : '',
-        hm.relation === 'advantage' ? 'EFFECTIVE♡' : hm.relation === 'disadvantage' ? 'RESIST' : '',
-        hm.fever > 1 ? `FEVER ×${hm.fever}` : '',
-        gates > 0 ? `GATE ×${hm.gate}` : '',
-        banks > 0 ? `BANK SHOT ×${hm.bank}` : '',
-        th.spin ? 'CURVE' : '',
+        gates > 0 ? `GATE ×${gateMul}` : '',
+        relation === 'advantage' ? `EFFECTIVE♡ ×${aMul}` : relation === 'disadvantage' ? `RESIST ×${aMul}` : '',
+        special ? `SPECIAL ×${sMul}` : '',
+        fMul > 1 ? `FEVER ×${fMul}` : '',
       ].filter(Boolean).join(' ');
+      g.ui.landingFx(scr.x, scr.y, land, { lineX: g.player.toScreen(this._center.set(g.boss.root.position.x, point.y, point.z)).x });
+      if (perfect) { g.effects.shockwave(point, '#ffe28a', 4.5, g.cam.camera); }   // 中央ラインを射抜いた手応え
       g.ui.damageNumber(scr.x, scr.y, `+${r.heartGain} HEART`, {
         crit: perfect, color: '#ff7ab8', fever: g.fever.active ? g.fever.level : 0,
-        label: perfect ? `PERFECT HIT! ${tags}` : (tags || r.part.label),
+        label: tags,
       });
-      if (banks > 0) { g.stats.banks = (g.stats.banks ?? 0) + 1; g.ui.showJudge('BANK SHOT!', 'tier', '#b6ff5c', `HEART ×${hm.bank}`); }
-      else if (gates >= 1) g.ui.showJudge(`GATE ×${hm.gate}`, 'tier', '#ffd23e', gates >= 2 ? `GATE CHAIN ${gates} ・ HEART ×${hm.gate}` : `HEART ×${hm.gate}`);
+      if (banks > 0) { g.stats.banks = (g.stats.banks ?? 0) + 1; g.ui.showJudge('BANK SHOT!', 'tier', '#b6ff5c'); }
+      else if (gates >= 1) g.ui.showJudge(`GATE ×${gateMul}`, 'tier', '#ffd23e', gates >= 2 ? `GATE CHAIN ${gates} ・ HEART ×${gateMul}` : `HEART ×${gateMul}`);
       // COMBO:HIT → 「N COMBO」→ FEVER ゲージへ(12 COMBO で FEVER!)
       this.comboHit(scr);
       g.ui.setHeart(g.boss.heart, g.boss.maxHeart, true);
@@ -269,7 +265,7 @@ export class BossHitState {
       g.cam.shake(0.2 + (power - 0.8) * 0.4 + (mul - 1) * 0.2);
       g.hitstop(special ? special.hitstop : 0.05 + power * 0.04 + (perfect ? 0.04 : 0));
       if (special) { g.cam.shake(0.8); g.effects.heartBurst(point, 70, 12, 1.4); g.effects.shockwave(point, '#ffd23e', 9, g.cam.camera); g.ui.flash('#ffe0f0', 0.6); g.specialFx.hit(point, this.specialResult); }
-      g.ui.flash('#ffe6f2', 0.1 + (mul - 1) * 0.12);
+      g.ui.flash(perfect ? '#fff3c4' : '#ffe6f2', (perfect ? 0.24 : 0.1) + (mul - 1) * 0.12);
       g.audio.heart(power, perfect);
 
       // 部位ごとの PartHeart の段階変化(壊すのではなくリアクションが大きくなる)
@@ -312,7 +308,7 @@ export class BossHitState {
     const r = F.onHit();
     g.ui.setCombo(r.combo, { hit: true });
     const pct = r.gain > 0 ? `FEVER +${r.gain}%${r.max ? ' MAX!' : ''}` : '';
-    g.ui.flyTo(scr.x, scr.y + 34, 'feverBar', `<b>${r.combo}</b> COMBO${pct ? `<small>${pct}</small>` : ''}`, 'combo', 560).then(() => {
+    g.ui.flyTo(scr.x, scr.y + 86, 'feverBar', `<b>${r.combo}</b> COMBO${pct ? `<small>${pct}</small>` : ''}`, 'combo', 560).then(() => {
       F.updateUI(true);
       if (r.max) {
         // 100% → FEVER MAX → (次のフェーズの最初に)FEVER 突入
