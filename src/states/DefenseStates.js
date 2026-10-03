@@ -273,7 +273,7 @@ export class PlayerDefenseState {
       g.ball.returnTo(g.boss.spawnPoint(), n.world, n.lateEnd, n.duration, lateDurFor(n), null, n.motion);
       g.ball.setNoteLook?.(n.type);
       g.effects.burst(g.boss.spawnPoint(), '#ff3d7f', 10, 8, 0.6);
-      g.audio.bossSwing?.();
+      g.audio.noteLaunch?.();
     }
   }
 
@@ -501,6 +501,7 @@ export class PlayerDefenseState {
     if (targets.some((pl) => this.totalDamageFor(pl) > 0)) { g.hitstop(0.1); g.cam.shake(0.6); }
     g.ui.setPlayers(g.turn.players, g.turn.index);
 
+    if (downs.length) setTimeout(() => g.audio.allyDown?.(), 450);   // HP 0 を知らせる音(ダメージ音のあと)
     if (!g.online && g.turn.allDown) { g.ball.hide(); g.sm.change(GameState.GAME_OVER); return; }
     if (downs.length) {
       g.ui.showJudge(`${downs.map((d) => d.id).join('・')} DOWN`, 'miss', '#ff3d5a');
