@@ -1,5 +1,5 @@
 import { Config } from '../core/Config.js';
-import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById, DEFAULT_SPECIAL } from '../data/GameData.js';
+import { CHARACTERS, ATTRIBUTES, RANKS, TYPES, characterById, stageById, DEFAULT_SPECIAL, specialRequiredDiamonds } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
 import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
 import { staminaNextMs, HP_MAX } from '../data/Growth.js';
@@ -51,7 +51,7 @@ export function specialView(ch) {
   const fill = (t) => String(t ?? '').replace(/\{heartMul\}/g, String(Config.special.heartMul));
   const custom = sp !== DEFAULT_SPECIAL && sp.name !== DEFAULT_SPECIAL.name;
   return {
-    name: sp.name, description: fill(sp.description), note: sp.note ? fill(sp.note) : null, effectType: sp.effectType ?? 'attack',
+    name: sp.name, requiredDiamonds: specialRequiredDiamonds(ch), description: fill(sp.description), note: sp.note ? fill(sp.note) : null, effectType: sp.effectType ?? 'attack',
     highlight: { value: fill(sp.highlight?.value ?? ''), label: fill(sp.highlight?.label ?? '') },
     // 固有の必殺技も、土台は共通の SPECIAL HEART(次の1投の HEART 倍率)
     base: custom ? `＋ SPECIAL HEART:届く HEART ×${Config.special.heartMul}` : null,
@@ -127,6 +127,7 @@ export class AppScreens {
       <div class="sp-sheet" data-effect="${esc(sp.effectType)}">
         <small class="sp-chara">${esc(ch.name)}</small>
         <h3 class="sp-name">${esc(sp.name)}</h3>
+        <div class="sp-dia" aria-label="発動まで Diamond ${sp.requiredDiamonds}個"><i aria-hidden="true">💎</i>発動まで <b>×${sp.requiredDiamonds}</b></div>
         <div class="sp-hl"><b>${esc(sp.highlight.value)}</b><span>${esc(sp.highlight.label)}</span></div>
         <p class="sp-desc">${esc(sp.description)}</p>
         ${sp.note ? `<p class="sp-note">${esc(sp.note)}</p>` : ''}
