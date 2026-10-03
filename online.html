@@ -108,6 +108,11 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 /* ---- 2. インゲーム HUD(調整済み・変更しない)---- */
 /* 上部:推しの名前 + LOVE + RALLY / 判定 / 操作ヒント / 手番 / Catch Marker / 部位 / ダメージ / POWER / SPECIAL / 右下のパーティ */
 #game canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* MULTI 観戦(自分のキャラが全員 DOWN):画面を少し灰色に。判定の文字と観戦バナーは色のまま */
+#game.spectating canvas, #game.spectating #catchMarker, #game.spectating #noteFx { filter: grayscale(.75) brightness(.85); transition: filter .4s; }
+#spectateBanner { position: absolute; left: 50%; top: calc(88px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 999px; background: rgba(20,18,30,.72); border: 1px solid rgba(255,255,255,.25); color: #fff; font-size: 12px; white-space: nowrap; pointer-events: none; }
+#spectateBanner b { font-family: var(--display); letter-spacing: .08em; color: #c9c6d6; }
+#spectateBanner[hidden] { display: none; }
 #ui { position: absolute; inset: 0; pointer-events: none; }
 
 /* ---- ボスHP ---- */
