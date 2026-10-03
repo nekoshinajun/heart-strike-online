@@ -39,11 +39,13 @@ export class PlayerAttackState {
     // MULTI は全員が毎返球をキャッチするため、旧「NEXT キャッチ担当」予告は表示しない。
     if (g.online) g.ui.hideCatchNotice?.();
     g.thrower.cancel();
-    g.space.spawnForThrow(g.online?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
+    g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
+    g.tutorial?.onAttack();   // チュートリアル:レッスンに合わせて配置を減らす / 説明
   }
 
   update() {
     const g = this.g;
+    if (g.tutorial?.redirect()) return;   // チュートリアル:投げずにボスの攻撃 / FEVER へ
     if (!g.thrower.grabbing) {
       const s = g.player.heldBallScreen();
       g.ui.placeHint(s.x, s.y);
@@ -143,6 +145,7 @@ export class BallToBossState {
     this.feverThrow = g.fever.consumeThrow(g.turn.index);   // FEVER 投球を1回消費(発射時に1度だけ)
     g.turn.markThrown();   // このフェーズの投球として数える
     g.ui.tutorialDone('flick');
+    g.tutorial?.emit('throw', { spin: th.spin ?? 0, special: !!special });
     if (special) {
       // キャラ固有の SPECIAL 投球の見た目(CharacterData.specialThrowEffect。見た目だけ・ダメージは本体の1投だけ)
       g.specialFx.start(g.turn.current.chara, th);
@@ -203,12 +206,12 @@ export class BossHitState {
       // アビリティ:POWER UP(足し算)× 条件つきの HEART アビリティ(SPIN・SPECIAL・ゲートの条件だけを見る。引く量は渡さない)
       const ability = abilityDamageMul(ch, { throwSpin: th.throwSpin ?? th.spin, special: !!special, gates });
       const normal = normalDamage({ atk: ch?.stats?.attack ?? 50, ability, gate: gateMul, landing: land.mul });
-      // 属性 / SPECIAL / FEVER は通常攻撃の式の後に掛ける別枠。丸めは最後に1回だけ
+      // 属性 / SPECIAL は通常攻撃の式の後に掛ける別枠。丸めは最後に1回だけ(FEVER はダメージを増やさない:Diamond を集めるための時間)
       const relation = attributeRelation(ch?.attribute, g.stage?.boss.attribute), aMul = attributeMultiplier(ch?.attribute, g.stage?.boss.attribute);
-      const sMul = special ? special.heartMul : 1, fMul = g.fever.heartMul;
-      const damage = finalDamage(normal, { attribute: aMul, special: sMul, fever: fMul });
+      const sMul = special ? special.heartMul : 1;
+      const damage = finalDamage(normal, { attribute: aMul, special: sMul });
       const power = 0.8 + 0.5 * powerStrength(th.power);   // 演出の大きさだけ(速い球ほど派手に。HEART は変わらない)
-      const r = g.boss.addHeart(partId, damage, gateMul * land.mul * sMul * fMul);
+      const r = g.boss.addHeart(partId, damage, gateMul * land.mul * sMul);
       // SPECIAL の効果(CharacterData.special.effectType):命中して最終ダメージ(r.heartGain)が確定した後に1回だけ
       //   例:セラ ANGEL HEART = 最終ダメージ × 10% を生存中の味方全員に回復。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる
       //   MULTI:HP はここでは変えない(preview)。投げた人が回復量をサーバーへ送り、サーバーの HEAL(全員同じ値)で HP と演出を確定
@@ -227,17 +230,16 @@ export class BossHitState {
       g.effects.heartBurst(point, Math.min(60, 10 + Math.round(r.heartGain / 6)), 6 + power * 3, 0.7 + (special ? 0.5 : 0));
       g.effects.burst(point, '#ffffff', 12, 7, 0.5);
       g.effects.shockwave(point, special ? '#ffd23e' : '#ff5fa2', 3 + power * 2 * mul, g.cam.camera);
-      // ダメージ表示のラベル:倍率が掛かったものだけ(ゲート / 属性 / SPECIAL / FEVER)。着弾の段階は landingFx で別に出す
+      // ダメージ表示のラベル:倍率が掛かったものだけ(ゲート / 属性 / SPECIAL)。着弾の段階は landingFx で別に出す
       const tags = [
         gates > 0 ? `GATE ×${gateMul}` : '',
         relation === 'advantage' ? `EFFECTIVE♡ ×${aMul}` : relation === 'disadvantage' ? `RESIST ×${aMul}` : '',
         special ? `SPECIAL ×${sMul}` : '',
-        fMul > 1 ? `FEVER ×${fMul}` : '',
       ].filter(Boolean).join(' ');
       g.ui.landingFx(scr.x, scr.y, land, { lineX: g.player.toScreen(this._center.set(g.boss.root.position.x, point.y, point.z)).x });
       if (perfect) { g.effects.shockwave(point, '#ffe28a', 4.5, g.cam.camera); }   // 中央ラインを射抜いた手応え
       g.ui.damageNumber(scr.x, scr.y, `+${r.heartGain} HEART`, {
-        crit: perfect, color: '#ff7ab8', fever: g.fever.active ? g.fever.level : 0,
+        crit: perfect, color: '#ff7ab8', fever: g.fever.active,
         label: tags,
       });
       if (banks > 0) { g.stats.banks = (g.stats.banks ?? 0) + 1; g.ui.showJudge('BANK SHOT!', 'tier', '#b6ff5c'); }
@@ -269,6 +271,7 @@ export class BossHitState {
         }
       }
       g.ball.rebound(vel);
+      g.tutorial?.emit('hit', { grade: land.grade, gates, banks, special: !!special });
     } else {
       // 外れ:自動補正はしない。ラリーは途切れる
       // Gate を通っても最後にボスへ当たらなければ GATE CHAIN のボーナスは無し
@@ -282,6 +285,7 @@ export class BossHitState {
       if (result.type === 'short') g.ball.fadeOut(); else g.ball.hide();
       g.audio.whiff();
       this.wait = 0.8;
+      g.tutorial?.emit('miss', { type: result.type, gates, special: !!special });
     }
     g.cam.reset();
   }
@@ -308,7 +312,7 @@ export class BossHitState {
     this.wait -= dt;
     if (this.wait > 0) return;
     // 優先順:HEART MAX(LOVE MAX)→ FEVER 全員投げ終わり → 通常(次の味方 / ボスの反撃)。どれか1つだけに進む
-    if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // 攻略成功:反撃には移らない
+    if (g.boss.full && !g.tutorial) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // チュートリアルは攻略完了へ進まない(報酬なし)   // 攻略成功:反撃には移らない
     if (g.online && !g.online.throwResolved) return;   // MULTI:この投球の後の進行(次の人 / ボスの反撃)をサーバーから受け取るまで待つ
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
     g.afterThrow();   // 次の味方の投球 / 全員投げ終えたらボスの反撃
