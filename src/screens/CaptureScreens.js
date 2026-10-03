@@ -34,7 +34,8 @@ export function showShopMap(m, { shopId } = {}) {
       <div class="sm-city"></div>
       <div class="sm-shade" aria-hidden="true"></div>
       ${capTop(false)}
-      <header class="sm-head"><h1>お店を選ぶ<em class="script">Shop Select</em></h1><p>今日は、どのお店に行こう？<i>♡</i></p></header>
+      <header class="sm-head"><h1>お店を選ぶ</h1><em class="script sm-sub">Shop Select</em><p><i>♡</i>今日は、どのお店に行こう？<i>♡</i></p></header>
+      <button type="button" class="sm-area" data-act="areas" aria-label="エリア一覧"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 3.6 5.6 2l4.8 1.8L14.2 2v10.4l-3.8 1.6-4.8-1.8-3.8 1.6z"/><path d="M5.6 2v10.2M10.4 3.8V14"/></svg><b>エリア</b><i>›</i></button>
       <section class="sm-card" aria-live="polite"></section>
     </div>`;
   if (!m.city) {
@@ -53,28 +54,68 @@ export function showShopMap(m, { shopId } = {}) {
   const vh = m.body.clientHeight || 1, head = m.body.querySelector('.sm-head')?.getBoundingClientRect(), card = m.body.querySelector('.sm-card')?.getBoundingClientRect(), top = m.body.getBoundingClientRect().top;
   if (head && card) { m.city.band = { top: head.bottom - top, bottom: card.top - top }; m.city.focusY = Math.min(0.7, ((head.bottom - top + card.top - top) / 2 + 56) / vh); }
   m.city.select(m.shopSel, { snap: true, silent: true });
+  m.body.querySelector('[data-act="areas"]').addEventListener('click', () => openAreaList(m));
 }
+
+/** エリア一覧:街のお店を一覧で見て、選ぶとマップがそのお店へ移動する(入店はいつもの情報カードから)*/
+function openAreaList(m) {
+  const host = m.body.querySelector('.smap');
+  if (!host || host.querySelector('.sm-areas')) return;
+  const order = [...SHOPS].sort((a, b) => Number(!isShopOpen(m.progress, a)) - Number(!isShopOpen(m.progress, b)));
+  const row = (s) => {
+    const open = isShopOpen(m.progress, s), pr = shopProgress(m.progress, s, Config.difficultyOrder), thumb = m.city?.snapshot(s.id, 112, 112) ?? '';
+    return `<button type="button" class="sa-row${open ? '' : ' locked'}${s.id === m.shopSel ? ' sel' : ''}" data-area="${esc(s.id)}" style="--ac:${s.theme.accent};--gl:${s.theme.glow}">
+      <span class="sa-thumb" style="background-image:url('${thumb}')">${open ? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
+      <span class="sa-info"><span class="sa-name${s.name.length > 8 ? ' long' : ''}"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small>${s.badge ? `<em>${esc(s.badge)}</em>` : ''}</span>
+        <span class="sa-concept">${esc(s.concept ?? '')}</span>
+        <span class="sa-prog">${open ? `${ICON.cast}${pr.total}人<span>${ICON.book}${pr.cleared} / ${pr.total}</span><span class="mk">${ICON.heart}${pr.marks} / ${pr.maxMarks}</span>` : `${ICON.lock}${esc(shopLockText(s))}`}</span></span>
+      <i class="sa-go" aria-hidden="true">›</i></button>`;
+  };
+  const el = document.createElement('div');
+  el.className = 'sm-areas';
+  el.innerHTML = `<div class="sa-panel" role="dialog" aria-modal="true" aria-label="エリア一覧">
+      <header><h2>エリア一覧<em class="script">Area Guide</em></h2><button type="button" class="sa-close" data-act="close" aria-label="閉じる">×</button></header>
+      <p class="sa-lead">行きたいお店を選ぶと、街のその場所へ移動します</p>
+      <div class="sa-list">${order.map(row).join('')}</div>
+    </div>`;
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 200); };
+  el.addEventListener('click', (e) => { if (e.target === el) close(); });
+  el.querySelector('[data-act="close"]').addEventListener('click', close);
+  for (const b of el.querySelectorAll('[data-area]')) b.addEventListener('click', () => { m.city?.select(b.dataset.area); close(); });
+  host.appendChild(el);
+}
+
+/** 情報カードの小さなアイコン(線画。文字の色に合わせる)*/
+const ICON = {
+  cast: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="5.2" r="2.6"/><path d="M1.6 13.4c.5-2.6 2.3-4 4.4-4s3.9 1.4 4.4 4"/><circle cx="11.4" cy="5.8" r="2"/><path d="M11 9.4c1.9.1 3 1.3 3.4 3.4"/></svg>',
+  book: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.2c2-.6 4-.4 6 .8 2-1.2 4-1.4 6-.8v9.4c-2-.6-4-.4-6 .8-2-1.2-4-1.4-6-.8z"/><path d="M8 4v9.4"/></svg>',
+  heart: '<svg viewBox="0 0 16 16" aria-hidden="true"><path class="f" d="M8 13.6S2 10 2 6.1A3 3 0 0 1 8 4.6a3 3 0 0 1 6 1.5c0 3.9-6 7.5-6 7.5z"/></svg>',
+  lock: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7"/><rect class="f" x="3" y="7" width="10" height="7" rx="2"/></svg>',
+};
 
 function renderShopCard(m) {
   const s = shopById(m.shopSel), el = m.body.querySelector('.sm-card');
   if (!s || !el) return;
   const open = isShopOpen(m.progress, s), pr = shopProgress(m.progress, s, Config.difficultyOrder);
-  const thumb = m.city?.snapshot(s.id) ?? '';
+  const thumb = m.city?.snapshot(s.id, 112, 112) ?? '';
   el.style.setProperty('--ac', s.theme.accent);
   el.style.setProperty('--gl', s.theme.glow);
   el.classList.toggle('locked', !open);
   el.innerHTML = `
     <span class="sm-thumb" style="background-image:url('${thumb}')">${open ? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
     <span class="sm-info">
-      <span class="sm-name"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small></span>
+      <span class="sm-name${s.name.length > 8 ? ' long' : ''}"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small></span>
       ${s.concept ? `<span class="sm-concept">${esc(s.concept)}</span>` : ''}
       <p>${phrase(s.intro ?? s.tagline)}</p>
-      <span class="sm-prog">${open
-        ? `<i>キャスト ${pr.total}人</i><i>攻略 ${pr.cleared} / ${pr.total}</i><i class="mk">♥ ${pr.marks} / ${pr.maxMarks}</i>`
-        : `<i class="lock">🔒 ${esc(shopLockText(s))}</i>`}</span>
     </span>
-    <button type="button" class="sm-enter" data-act="enter" ${open ? '' : 'disabled'}>${open ? '<b>入店する</b><small>ENTER</small>' : '<b>準備中</b><small>SOON</small>'}</button>`;
+    <span class="sm-prog">${open
+      ? `<i>${ICON.cast}キャスト <b>${pr.total}</b>人</i><i>${ICON.book}攻略 <b>${pr.cleared} / ${pr.total}</b></i><i class="mk">${ICON.heart}<b>${pr.marks} / ${pr.maxMarks}</b></i>`
+      : `<i class="lock">${ICON.lock}${esc(shopLockText(s))}</i>`}</span>
+    <button type="button" class="sm-enter" data-act="enter" ${open ? '' : 'disabled'}>${open ? '<b>入店する<i>›</i></b><small>ENTER</small>' : '<b>準備中</b><small>SOON</small>'}</button>`;
   el.querySelector('[data-act="enter"]')?.addEventListener('click', () => enterShop(m, s.id));
+  // 長い店名は枠に収まるまで少しずつ小さく(筆記体はフォントによって幅が違う)
+  const nb = el.querySelector('.sm-name b');
+  if (nb) { let fs = parseFloat(getComputedStyle(nb).fontSize) || 30; while (nb.scrollWidth > nb.clientWidth + 1 && fs > 18) { fs -= 1; nb.style.fontSize = `${fs}px`; } }
 }
 
 function enterShop(m, id) {
@@ -142,23 +183,23 @@ function renderCasts(m, s) {
   for (const b of list.querySelectorAll('[data-stage]')) b.addEventListener('click', () => m.router.go('cast', { stageId: b.dataset.stage }));
 }
 
-/** キャスト = このお店で働く攻略相手。アニメゲームのキャラクター選択のカード(立ち絵 + 名前 + 難易度の進み)*/
+/** キャスト = このお店で働く攻略相手。1行1人の横長カード(左に大きな立ち絵 / 名前・攻略状態・難易度 / 右に遷移アイコン)*/
 function castCard({ heroine, stage, st }, k) {
-  const cleared = st.filter((x) => x.clear).length;
-  return `<button type="button" class="cc" data-cast="${esc(heroine.id)}" data-stage="${esc(stage.id)}" style="--i:${k}">
-    <span class="cc-art face-crop">${faceCrop(stage)}<i class="cc-no">No.${esc(stage.no ?? k + 1)}</i><i class="cc-heart" aria-hidden="true">♥</i></span>
+  const all = st.every((x) => x.clear), open = st.some((x) => x.open);
+  const state = all ? ['done', '♛ 完全攻略'] : open ? ['open', '♡ 攻略可能'] : ['lock', '🔒 ロック中'];
+  return `<button type="button" class="cc" data-cast="${esc(heroine.id)}" data-stage="${esc(stage.id)}" style="--i:${k}" aria-label="${esc(stage.boss.name)}(${state[1].slice(2)})">
+    <span class="cc-art face-crop">${faceCrop(stage)}</span>
     <span class="cc-body">
-      <span class="cc-name"><b>${esc(stage.boss.name)}</b>${heroine.roman ? `<em class="script">${esc(heroine.roman)}</em>` : ''}</span>
-      <p>${phrase(`「${castLine(heroine, stage)}」`)}</p>
-      <span class="cc-diffs">${st.map((x) => `<i class="${x.clear ? 'clear' : x.open ? 'open' : 'lock'}" style="--dc:${x.D.color}">${x.D.label}${x.clear ? ' ✓' : x.open ? '' : ' 🔒'}</i>`).join('')}</span>
-      <span class="cc-hearts" aria-label="攻略 ${cleared} / ${st.length}">${st.map((x) => `<i class="${x.clear ? 'on' : ''}">♥</i>`).join('')}</span>
+      <span class="cc-name"><b>${esc(stage.boss.name)}</b></span>
+      <span class="cc-state ${state[0]}">${state[1]}</span>
+      <span class="cc-diffs">${st.map((x) => `<i class="${x.clear ? 'clear' : x.open ? 'open' : 'lock'}" style="--dc:${x.D.color}">${x.D.label}${x.clear ? '<b>✓</b>' : x.open ? '' : '<b>🔒</b>'}</i>`).join('')}</span>
     </span>
     <i class="cc-go" aria-hidden="true">›</i></button>`;
 }
 function soonCard(k) {
-  return `<div class="cc soon" style="--i:${k}" aria-label="近日登場">
+  return `<div class="cc soon" style="--i:${k}" aria-label="近日登場(未解放)">
     <span class="cc-art"><i class="cc-soon">COMING<br>SOON</i></span>
-    <span class="cc-body"><span class="cc-name"><b>？？？</b></span><p>「…………」</p><span class="cc-diffs"><i>???</i><i>???</i><i>???</i></span></span>
+    <span class="cc-body"><span class="cc-name"><b>？？？</b></span><span class="cc-state lock">🔒 未解放</span><span class="cc-diffs"><i>???</i><i>???</i><i>???</i></span></span>
     <i class="cc-go" aria-hidden="true">🔒</i></div>`;
 }
 
@@ -183,11 +224,12 @@ function garland() {
   const lamps = [44, 100, 156].map((x, i) => `<line x1="${x}" y1="0" x2="${x}" y2="${i === 1 ? 40 : 30}"/><path class="sh" d="M${x - 11} ${(i === 1 ? 52 : 42)} Q${x} ${(i === 1 ? 34 : 24)} ${x + 11} ${(i === 1 ? 52 : 42)}z"/><circle class="bulb" cx="${x}" cy="${(i === 1 ? 53 : 43)}" r="3.6"/>`).join('');
   return `<svg class="shp-garland" viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true"><path class="rope" d="M0 12 Q100 40 200 12"/>${flags}${lamps}</svg>`;
 }
-/** 壁紙のモチーフ(お店のコンセプトごと:リボン / 肉球 / 星 / バラ / 桜 / ケーキ)*/
+/** 壁紙のモチーフ(お店のコンセプトごと:リボン / 肉球 / 星 / 帆と波 / バラ / 桜 / ケーキ)*/
 const MOTIF = {
   maid: '<path d="M12 12 q-7 -6 -8 1 q1 5 8 -1 q7 6 8 -1 q-1 -7 -8 1z"/><circle cx="12" cy="12" r="1.8"/>',
   cat: '<ellipse cx="12" cy="14" rx="4" ry="3.4"/><circle cx="6.5" cy="9" r="1.8"/><circle cx="10" cy="6.5" r="1.8"/><circle cx="14" cy="6.5" r="1.8"/><circle cx="17.5" cy="9" r="1.8"/>',
   star: '<path d="M12 3 l2.4 6 6.4 .4 -5 4 1.7 6.3 -5.5 -3.6 -5.5 3.6 1.7 -6.3 -5 -4 6.4 -.4z"/>',
+  marine: '<path d="M12 5 l6 9 h-12z"/><path d="M4 18 q2 -2 4 0 q2 2 4 0 q2 -2 4 0 q2 2 4 0" fill="none" stroke-width="1.4"/>',
   gothic: '<circle cx="12" cy="10" r="4.4"/><path d="M12 14 q-1 5 -5 6 M12 14 q1 5 5 6" fill="none" stroke-width="1.4"/>',
   wa: '<g transform="translate(12 12)">' + [0, 72, 144, 216, 288].map((a) => `<ellipse rx="2.6" ry="4.4" transform="rotate(${a}) translate(0 -4.4)"/>`).join('') + '</g>',
   sweets: '<path d="M5 14 h14 l-2 6 h-10z"/><path d="M5 14 q0 -7 7 -7 q7 0 7 7z"/><circle cx="12" cy="5.6" r="1.8"/>',

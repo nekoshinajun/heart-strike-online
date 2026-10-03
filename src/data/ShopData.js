@@ -10,8 +10,8 @@ import { heroineById } from './RomanceData.js';
  *     casts      … 所属キャストの heroineId(一覧の並び順)。キャスト ↔ ステージは RomanceData.HEROINES[].stageId
  *     soonSlots  … 一覧の最後に出す「近日登場」の枠の数(シルエット)
  *     unlock     … null = 最初から入れる / { type: 'soon' } = 準備中 / { type: 'clear', stageId, difficulty } = クリアで入店できる
- *     map        … コンカフェ街マップ上の位置(u, v = マップ全体の 0〜1)・外観(style)・名札の向き(label)
- *                  style:'maid'(王道メイド)/ 'cat'(猫)/ 'star'(星・宇宙)/ 'gothic'(ゴシック)/ 'wa'(和風)/ 'sweets'(スイーツ)
+ *     map        … コンカフェ街マップ上の位置(u, v = 街(上の空を除く)の 0〜1)・外観(style)・名札の向き(label)
+ *                  style:'maid'(王道メイド)/ 'cat'(猫)/ 'star'(星・宇宙)/ 'gothic'(ゴシック)/ 'marine'(水辺)/ 'wa'(和風)/ 'sweets'(スイーツ)
  *     theme      … お店の色(accent / glow / wall / roof / window / trim)と内装(interior:壁・腰板・カーテン・灯り・看板)
  *     badge      … 名札に付ける小さな札(例:'NEW')。省略可
  */
@@ -22,7 +22,7 @@ export const SHOPS = [
     intro: '薔薇とレースに囲まれた、ちょっぴり小悪魔なゴシックメイドカフェ。ティータイムのおともに、特別な出会いを——',
     detail: 'ステンドグラスのやわらかな光と、ラベンダー色のレースのカーテン。アンティークの家具が並ぶ店内で、小悪魔なキャストたちがあなたを待っている。',
     casts: ['lilith', 'siren'], soonSlots: 1, unlock: null,
-    map: { u: 0.36, v: 0.5, style: 'gothic', size: 3, label: 'left' },
+    map: { u: 0.5, v: 0.43, style: 'gothic', size: 4, label: 'right' },
     theme: { accent: '#a879d8', glow: '#e4cdfa', wall: '#efe6f6', roof: '#8e74b8', window: '#fff1d2', trim: '#ffffff',
       interior: { wall: '#f4eef9', wall2: '#d6c4ea', curtain: '#b596d9', light: '#fff0d4', sign: '#8d63bf' } },
   },
@@ -31,16 +31,16 @@ export const SHOPS = [
     tagline: 'リボンとハートの、王道メイドカフェ。',
     intro: 'リボンとハートの、王道メイドカフェ。「おかえりなさいませ」の声がいちばん似合うお店。',
     casts: [], soonSlots: 3, unlock: { type: 'soon' },
-    map: { u: 0.74, v: 0.36, style: 'maid', size: 3, label: 'left' },
+    map: { u: 0.79, v: 0.235, style: 'maid', size: 3, label: 'left' },
     theme: { accent: '#ff7fb0', glow: '#ffd3e4', wall: '#fffaf6', roof: '#f59ac0', window: '#fff3da', trim: '#ffffff',
       interior: { wall: '#fff6f8', wall2: '#f7c9da', curtain: '#ff9cc2', light: '#fff1d6', sign: '#f2679e' } },
   },
   {
-    id: 'stella', name: 'Stella', ja: 'ステラ', concept: '星と月のコンセプトカフェ',
+    id: 'stella', name: 'Stella', ja: 'ステラ', concept: '星空のコンセプトカフェ',
     tagline: '星降る天文台の、ちょっと不思議なコンセプトカフェ。',
     intro: '星降る天文台の、ちょっと不思議なコンセプトカフェ。',
     casts: ['rato'], soonSlots: 2, unlock: null, badge: 'NEW',
-    map: { u: 0.8, v: 0.58, style: 'star', size: 2, label: 'left' },
+    map: { u: 0.2, v: 0.25, style: 'star', size: 3, label: 'right' },
     theme: { accent: '#7f97f0', glow: '#d2dcff', wall: '#e6eaff', roof: '#8a92dc', window: '#fff6d6', trim: '#ffffff',
       interior: { wall: '#eef0ff', wall2: '#c9d0f5', curtain: '#9fb0f2', light: '#fff4d8', sign: '#6f83de' } },
   },
@@ -50,16 +50,25 @@ export const SHOPS = [
     intro: '猫耳メイドがお出迎え。ひだまりのような猫メイドカフェで、甘えん坊のキャストがにゃんとお待ちかね——',
     detail: '大きな窓から差し込むひだまりと、木のぬくもり。肉球マークのティーカップで、ゆっくりひと休みしていって。',
     casts: ['milk'], soonSlots: 2, unlock: null, badge: 'NEW',   // みるくは Éclat から Lumière へ移籍(所属はここだけで決まる)
-    map: { u: 0.18, v: 0.72, style: 'cat', size: 3, label: 'right' },
+    map: { u: 0.2, v: 0.635, style: 'cat', size: 3, label: 'right' },
     theme: { accent: '#f59a6c', glow: '#ffdcc2', wall: '#fff3e3', roof: '#e8a274', window: '#fff6d8', trim: '#ffffff',
       interior: { wall: '#fff6ea', wall2: '#e6c39c', curtain: '#ffb48c', light: '#fff1cf', sign: '#e07f4f' } },
+  },
+  {
+    id: 'sirene', name: 'Sirène', ja: 'シレーヌ', concept: '水辺のマリンカフェ',
+    tagline: '波の音がきこえる、海辺のマリンカフェ。',
+    intro: '白い灯台と青いドーム。波の音がきこえる、海辺のマリンカフェ。',
+    casts: [], soonSlots: 3, unlock: { type: 'soon' },
+    map: { u: 0.77, v: 0.635, style: 'marine', size: 3, label: 'left' },
+    theme: { accent: '#4fa9e0', glow: '#cdeafb', wall: '#f6fbff', roof: '#5f9fd8', window: '#fff6dc', trim: '#ffffff',
+      interior: { wall: '#f0f8ff', wall2: '#bfe0f5', curtain: '#8cc8ee', light: '#fff4d8', sign: '#3d93cc' } },
   },
   {
     id: 'mille', name: 'Pâtisserie Mille', ja: 'パティスリー・ミル', concept: 'スイーツメイドカフェ',
     tagline: 'ケーキの香りに包まれる、スイーツメイドカフェ。',
     intro: 'ケーキの香りに包まれる、スイーツメイドカフェ。',
     casts: [], soonSlots: 3, unlock: { type: 'soon' },
-    map: { u: 0.64, v: 0.84, style: 'sweets', size: 2, label: 'left' },
+    map: { u: 0.7, v: 0.88, style: 'sweets', size: 3, label: 'left' },
     theme: { accent: '#43c2ad', glow: '#c8f2e9', wall: '#fff2f4', roof: '#ffb3c4', window: '#fff6dc', trim: '#ffffff',
       interior: { wall: '#f2fbf8', wall2: '#bfe9df', curtain: '#ffb3c4', light: '#fff4dc', sign: '#2fa995' } },
   },
@@ -68,7 +77,7 @@ export const SHOPS = [
     tagline: '桜と抹茶の、はんなり和風メイドカフェ。',
     intro: '桜と抹茶の、はんなり和風メイドカフェ。',
     casts: [], soonSlots: 3, unlock: { type: 'soon' },
-    map: { u: 0.3, v: 0.17, style: 'wa', size: 2, label: 'right' },
+    map: { u: 0.22, v: 0.86, style: 'wa', size: 3, label: 'right' },
     theme: { accent: '#7aae62', glow: '#d6edc8', wall: '#f7ecdb', roof: '#6c8a95', window: '#fff3d8', trim: '#c9965f',
       interior: { wall: '#f8f1e4', wall2: '#cfa979', curtain: '#9ccb86', light: '#fff2d2', sign: '#5f9448' } },
   },
