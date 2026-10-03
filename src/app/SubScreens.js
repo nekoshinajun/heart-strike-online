@@ -1,7 +1,7 @@
 import { Config } from '../core/Config.js';
 import { CHARACTERS, ATTRIBUTES, RANKS, characterById, stageById, DEFAULT_SPECIAL, specialRequiredDiamonds } from '../data/GameData.js';
 import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } from '../data/RomanceData.js';
-import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
+import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX } from '../data/GrowthData.js';
 import { HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
 import { staminaHTML } from '../screens/MenuFlow.js';
@@ -244,9 +244,9 @@ export class AppScreens {
     if (this.trainSheet && !this.app.sheet.root.hidden) this.renderTrainSheet();
   }
 
-  /** アビリティ:Lv10〜100 は候補から1つ(未選択は無料・変更はリコネクトハート ×1)/ Lv100 は ULTIMATE(自動)も */
+  /** アビリティ:Lv10〜100 は候補から1つ(付け替えはいつでも無料)/ Lv100 は ULTIMATE(自動)も */
   abilityBoardHTML(id) {
-    const rows = this.p.abilityBoard(id), items = this.p.abilityResetItems, I = ABILITY_RESET_ITEM;
+    const rows = this.p.abilityBoard(id);
     const open = this.abilityOpen ?? null;
     const rowHTML = (row) => {
       const sel = row.candidates.find((c) => c.id === row.selected);
@@ -258,24 +258,24 @@ export class AppScreens {
       const choosing = !sel || open === row.level;
       const cands = choosing ? `<div class="ab-cands">${row.candidates.map((c) => {
         const isCur = c.id === row.selected;
-        return `<button type="button" class="ab-cand${isCur ? ' cur' : ''}" data-lv="${row.level}" data-ab="${c.id}" ${isCur || (sel && items < 1) ? 'disabled' : ''}><b>${esc(c.name)}</b><small>${esc(c.desc)}</small>${sel && !isCur ? `<em>${I.icon} ×1 で変更</em>` : ''}${isCur ? '<em>選択中</em>' : ''}</button>`;
+        return `<button type="button" class="ab-cand${isCur ? ' cur' : ''}" data-lv="${row.level}" data-ab="${c.id}" ${isCur ? 'disabled' : ''}><b>${esc(c.name)}</b><small>${esc(c.desc)}</small>${isCur ? '<em>選択中</em>' : ''}</button>`;
       }).join('')}</div>` : '';
       return `<li class="ab-row${sel ? ' set' : ' new'}" data-lv="${row.level}"><span class="ab-lv">Lv.${row.level}</span>
         <div class="ab-main">${sel ? `<b>${esc(sel.name)}</b><p>${esc(sel.desc)}</p>` : '<b class="ab-pick">NEW ♡ 1つ選んでね</b>'}${cands}</div>
         ${sel ? `<button type="button" class="ab-change" data-lv="${row.level}">${open === row.level ? 'やめる' : '変更'}</button>` : ''}</li>`;
     };
     return `<section class="tc-ability">
-      <header><b>✦ ABILITY</b><span>${I.icon} ${esc(I.name)} ×<b class="ab-items">${items}</b></span></header>
+      <header><b>✦ ABILITY</b><span>いつでも付け替えOK</span></header>
       <ul class="ab-list">${rows.map(rowHTML).join('')}</ul></section>`;
   }
   wireAbilityBoard(id, root = this.body) {
     for (const b of root.querySelectorAll('.ab-change')) b.addEventListener('click', () => { const lv = Number(b.dataset.lv); this.abilityOpen = this.abilityOpen === lv ? null : lv; this.renderTrainSheet(); });
     for (const b of root.querySelectorAll('.ab-cand')) b.addEventListener('click', () => {
       const r = this.p.selectAbility(id, Number(b.dataset.lv), b.dataset.ab);
-      if (!r.ok) { this.app.toast?.(r.reason === 'noItem' ? `${ABILITY_RESET_ITEM.name}が足りません` : 'このアビリティは選べません'); return; }
+      if (!r.ok) { this.app.toast?.('このアビリティは選べません'); return; }
       this.abilityOpen = null;
       Haptic.light?.();
-      this.app.toast?.(r.changed ? `アビリティを変更しました(${ABILITY_RESET_ITEM.name} 残り ${r.itemsLeft})` : 'アビリティを習得しました♡');
+      this.app.toast?.(r.changed ? 'アビリティを変更しました' : 'アビリティを習得しました♡');
       this.refreshTrain();
     });
   }
