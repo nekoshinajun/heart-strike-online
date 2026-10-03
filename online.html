@@ -2232,6 +2232,14 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #onlineLobby .ol-slot > span:last-child { display: grid; min-width: 0; }
 #onlineLobby .ol-slot small { font-size: 10px; color: var(--hs-pink-deep); white-space: nowrap; }
 #onlineLobby .ol-slot b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#onlineLobby .ol-slot { position: relative; }
+#onlineLobby .ol-chg { margin-left: auto; flex: none; font-style: normal; font-size: 10px; color: var(--hs-pink-deep); }
+/* キャラ一覧パネル:担当の枠をタップで開く。ロビーの上に重ね、中だけスクロール */
+#onlineLobby .ol-pickpanel { position: fixed; z-index: 5; left: 50%; top: 12px; bottom: calc(94px + env(safe-area-inset-bottom, 0px)); width: min(400px, calc(100% - 20px)); transform: translateX(-50%); display: flex; flex-direction: column; padding: 12px 12px 0; box-sizing: border-box; border: 1px solid var(--hs-line); border-radius: 24px; background: #fffafd; box-shadow: 0 0 0 100vmax rgba(91,43,69,.28), var(--hs-shadow-lg); text-align: left; }
+#onlineLobby .ol-pickhead { display: flex; align-items: center; gap: 8px; margin: 0 2px 8px; }
+#onlineLobby .ol-pickhead b { font: 800 15px var(--round); color: var(--hs-pink-deep); }
+#onlineLobby .ol-card .ol-pickclose { width: 36px; min-height: 36px; margin: 0 0 0 auto; padding: 0; border: 1px solid var(--hs-line); border-radius: 50%; background: #fff; color: var(--hs-ink-soft); box-shadow: none; font-size: 14px; }
+#onlineLobby .ol-pickscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 0 2px 12px; }
 #onlineLobby .ol-sorts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 8px; text-align: left; }
 #onlineLobby .ol-sorts small { flex: 1 0 100%; font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
 #onlineLobby .ol-card .ol-sort { width: auto; min-height: 32px; margin: 0; padding: 0 11px; border: 1px solid var(--hs-line); border-radius: 16px; background: #fff; color: var(--hs-ink-soft); box-shadow: none; font: 800 11px var(--round); }
