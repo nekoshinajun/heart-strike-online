@@ -110,7 +110,7 @@ export const CHARACTERS = [
       highlight: { value: '1 → 3 → 7', label: 'HEART SPLIT' },
       note: '※ 分裂は演出。ダメージ判定は1回(SPECIAL 1回分)。',
       effectType: 'attack', effectValue: null, visualEffect: 'dragonSplit',
-      requiredDiamonds: 12,
+      requiredDiamonds: 15,
     },
   },
   {

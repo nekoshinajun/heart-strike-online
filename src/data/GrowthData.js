@@ -66,7 +66,7 @@ export const CHARACTER_GROWTH = {
   //   SSR 250 / 510・SR 210 / 450・R 190 / 410(Lv100 は旧データの成長幅を 2 倍にした値)
   //   キャラの個性(得意・不得意)は形で出す。hp = バトルの最大 HP(Lv1 → Lv100)。HP もランクが高いほど高いのが基本
   // ---- SSR ----
-  yoruna: { hp: [125, 245], attack: [75, 125], defence: [55, 125], control: [55, 125], curve: [65, 135] },   // ダークドラゴン:火力とカーブ
+  yoruna: { hp: [125, 245], attack: [84, 140], defence: [55, 125], control: [55, 125], curve: [65, 135] },   // ダークドラゴン:火力とカーブ(ATK は 75→84 / 125→140 に強化。合計は SSR 基準より 9 / 15 高い)
   sera: { hp: [132, 258], attack: [60, 116], defence: [65, 125], control: [65, 129], curve: [60, 140] },     // 天使:回復型(HP・DEF・CONTROL が高い)
   // ---- SR ----
   minamo: { hp: [108, 212], attack: [68, 122], defence: [48, 120], control: [60, 120], curve: [34, 88] },     // 高火力ストレート型
