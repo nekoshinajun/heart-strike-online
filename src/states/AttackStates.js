@@ -34,8 +34,7 @@ export class PlayerAttackState {
     if (g.ball.mode !== 'held' && g.ball.mode !== 'catching') g.ball.hold(g.player.holdAnchor);
     g.ball.setStyle(p.color, g.turn.tierLevel);
     g.ball.setDisabledLook?.(!!g.online && !g.online.isMyTurn());
-    if (g.affection.answerMode) g.cam.focusOn(g.boss.partCenter('head'), 14);
-    else g.cam.reset();
+    g.cam.reset();
     g.ui.showPrompt('flick', p.color);
     // MULTI は全員が毎返球をキャッチするため、旧「NEXT キャッチ担当」予告は表示しない。
     if (g.online) g.ui.hideCatchNotice?.();
@@ -134,19 +133,15 @@ export class BallToBossState {
     if (Config.debug.showLastTrajectory && Config.debug.showTrajectoryPreview) g.preview.showGhost(sim.points);
     else g.preview.hideGhost();
 
-    g.affection.showAnswerHint(false);
-    // 50% 会話の回答の1投だけ、回答エリア(髪・顔・手・衣装)を部位より手前に足す
-    g.ball.launch(th.velocity, th.curveAccel, g.affection.throwColliders(), strength, (result, flight) => {
+    g.ball.launch(th.velocity, th.curveAccel, g.boss.hitPlane, strength, (result, flight) => {
       g.space.endThrow();
-      g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, gateRoute: g.space.passedRoute, flight });
+      g.sm.change(GameState.BOSS_HIT, { result, th, vel: flight.vel.clone(), special, banks: flight.obstacleHits, gates: g.space.chain, gateRoute: g.space.passedRoute });
     }, th.start, g.space.obstacles.length ? g.space : null, th.drive ?? null);
     g.ball.flight.live = true;
-    if (g.affection.answerMode) g.ball.flight.planeZ = g.boss.root.position.z;   // 回答の1投:絵の面を通った位置を記録
     g.space.beginThrow();    // Heart Gate の判定もここから(SPECIAL はカットイン完了後)
     g.energy.beginThrow();   // SPECIAL でも Energy を回収できる
     this.feverThrow = g.fever.consumeThrow(g.turn.index);   // FEVER 投球を1回消費(発射時に1度だけ)
-    // このフェーズの投球として数える(50% 会話の回答をフェーズの最後の人の後に投げる「おまけの1投」は数えない)
-    if (g.answerExtraThrow) g.answerExtraThrow = false; else g.turn.markThrown();
+    g.turn.markThrown();   // このフェーズの投球として数える
     g.ui.tutorialDone('flick');
     if (special) {
       // キャラ固有の SPECIAL 投球の見た目(CharacterData.specialThrowEffect。見た目だけ・ダメージは本体の1投だけ)
@@ -187,7 +182,7 @@ export class BallToBossState {
 export class BossHitState {
   constructor(g) { this.g = g; this._center = new THREE.Vector3(); }
 
-  enter({ result, th, vel, special, banks = 0, gates = 0, flight = null }) {
+  enter({ result, th, vel, special, banks = 0, gates = 0 }) {
     const g = this.g;
     this.specialResult = null;
     const mul = g.turn.mul;
@@ -195,10 +190,6 @@ export class BossHitState {
     const point = result.point;
     const scr = g.player.toScreen(point);
     this.wait = 0.55;
-    this.talkLead = false;
-
-    // 回答の1投:当たった場所 → リアクション(当たらなければ MISS)
-    this.answer = g.affection.answerMode ? g.affection.resolveAnswer(result, flight) : null;
     g.ui.setHitInfo(result, g.space.passedRoute);   // デバッグ:命中位置 / 部位 / 通ったゲートのルート
     if (result.type === 'hit') {
       g.hitMarker.show(result);   // 実際に Collider に当たった座標へ着弾マーク(約1秒。MISS では出さない)
@@ -230,13 +221,6 @@ export class BossHitState {
       g.stats.heart += r.heartGain;
       g.stats.bestHit = Math.max(g.stats.bestHit ?? 0, r.heartGain);   // 記録:BestHeartPerThrow
       g.affection.onHeartChanged();   // LOVE 25% ごとの表情
-      // HEART 50% 会話の直前:命中の瞬間にゲーム速度を一瞬落とす(HEART MAX になった時は除く)
-      const pendingTalk = !g.boss.full && !g.affection.answerMode ? g.affection.pendingTalk() : null;
-      // MULTI:この投球でフェーズが終わる(この後ボスの反撃)時は会話を次のフェーズの命中まで持ち越す(回答の1投を投げる人がいないため)
-      if (g.online && pendingTalk && g.online.canStartTalk?.()) g.online.requestTalk50(pendingTalk);
-      this.talkLead = !g.online && !!pendingTalk;
-      // Heart50TriggerDelay:HEART 表示が 50% を超えてから会話(暗転)を始めるまでの実時間。ヒットストップ / スロー / FEVER に左右されない
-      if (this.talkLead) { g.setTimeScale(g.cfg.talk.hitSlow); this.talkAt = performance.now() + g.cfg.talk.heart50TriggerDelay * 1000; g.heart50ReachedAt = performance.now(); }
       g.turn.addRally();
       const perfect = land.grade === 'PERFECT';
       // ハートの演出(届いた量に応じて増える)
@@ -321,22 +305,10 @@ export class BossHitState {
 
   update(dt) {
     const g = this.g;
-    // HEART 50% 到達:命中演出(HEART 加算表示・Hit Effect・Hit Reaction)の後、他の処理(返球・キャッチ・手番交代・FEVER FINISH)より先に会話へ
-    if (this.talkLead) {
-      if (performance.now() < this.talkAt) return;
-      this.talkLead = false;
-      g.setTimeScale(1);
-      const talk = g.affection.pendingTalk();
-      if (talk && !g.boss.full) { g.sm.change(GameState.TALK_QUESTION, { talk }); return; }
-      this.wait = 0;
-    }
     this.wait -= dt;
     if (this.wait > 0) return;
-    // 優先順:回答へのリアクション → HEART MAX(LOVE MAX)→ 50% 会話 → FEVER 全員投げ終わり → 通常(次の味方 / ボスの反撃)。どれか1つだけに進む
-    if (this.answer) { const answer = this.answer; this.answer = null; g.sm.change(GameState.TALK_REACTION, { answer }); return; }
+    // 優先順:HEART MAX(LOVE MAX)→ FEVER 全員投げ終わり → 通常(次の味方 / ボスの反撃)。どれか1つだけに進む
     if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // 攻略成功:反撃には移らない
-    const talk = g.affection.pendingTalk();
-    if (talk && !g.online) { g.sm.change(GameState.TALK_QUESTION, { talk }); return; }
     if (g.online && !g.online.throwResolved) return;   // MULTI:この投球の後の進行(次の人 / ボスの反撃)をサーバーから受け取るまで待つ
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
     g.afterThrow();   // 次の味方の投球 / 全員投げ終えたらボスの反撃
