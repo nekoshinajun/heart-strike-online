@@ -1380,7 +1380,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .shp-garland .bulb { fill: #fff3c4; filter: drop-shadow(0 0 6px #ffd98a); animation: shBulb 3.6s ease-in-out infinite; }
 @keyframes shBulb { 50% { filter: drop-shadow(0 0 10px #ffe6a8); } }
 /* 掛け看板(木の板 + お店の名前)*/
-.shp-sign { position: absolute; right: 7%; top: calc(var(--sat) + 62px); transform: rotate(-2deg); padding: 2px 13px 5px; border-radius: 12px; border: 2px solid #fff; color: #fff;
+.shp-sign { position: absolute; z-index: 2; right: 7%; top: calc(var(--sat) + 88px); transform: rotate(-2deg); padding: 2px 13px 5px; border-radius: 12px; border: 2px solid #fff; color: #fff;
   background: linear-gradient(180deg, color-mix(in srgb, var(--sg) 80%, #fff 6%), var(--sg)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--sg) 60%, #8a6a5a), 0 8px 14px rgba(150,100,120,.25); white-space: nowrap; animation: shSwing 4.5s ease-in-out infinite; transform-origin: 50% -26px; }
 .shp-sign::before, .shp-sign::after { content: ""; position: absolute; top: -26px; width: 1.5px; height: 26px; background: #b08a6a; }
 .shp-sign::before { left: 18px; } .shp-sign::after { right: 18px; }
