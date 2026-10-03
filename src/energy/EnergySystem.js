@@ -1,6 +1,6 @@
 import * as THREE from '../lib/three.js';
 import { Config, bossProfile } from '../core/Config.js';
-import { abilityMul } from '../data/Growth.js';
+import { SpecialGauges, specialOrbGain } from '../data/SpecialGauge.js';
 import { simulate } from '../physics/BallPhysics.js';
 import { glowTexture, shadowTexture } from '../world/Textures.js';
 
@@ -10,6 +10,8 @@ const tmp = new THREE.Vector3();
 /**
  * Diamond(コード上は Energy Orb)と SPECIAL(必殺技)ゲージ。
  *   役割は1つだけ:Diamond 1個 = SPECIAL +10%(Config.energy.orbValue / max)。10個で MAX → SPECIAL READY
+ *   SPECIAL ゲージはキャラごと(data/SpecialGauge.js)。Diamond は投げたキャラ本人のゲージにだけ入り、必殺技で 0 に戻るのも本人だけ
+ *   画面左下の SPECIAL 表示 = 今操作中のキャラのゲージ / 右下のアイコンの小さなゲージ = 各キャラのゲージ
  *   Diamond を取ってもダメージ倍率・FEVER ゲージは増えない(Heart Gate = ダメージ / COMBO = FEVER)
  *
  * Orb の配置は「ルート」単位のデータ(Config.energy.routes)で定義する。
@@ -21,8 +23,9 @@ const tmp = new THREE.Vector3();
 export class EnergySystem {
   constructor(g) {
     this.g = g;
-    this.energy = 0;
+    this.gauges = new SpecialGauges();
     this.armed = false;
+    this.throwerIndex = null;   // この1投を投げたキャラの index(Diamond はこのキャラのゲージへ)
     this.arrangementIndex = 0;
     this.orbs = [];
     this.collecting = false;
@@ -53,16 +56,43 @@ export class EnergySystem {
     }
   }
 
-  get max() { return Config.energy.max; }
-  get ready() { return this.energy >= this.max; }
+  /** 今操作中のキャラの SPECIAL(値 / 最大 / 使えるか)*/
+  get index() { return this.g.turn.index; }
+  get energy() { return this.gauges.value(this.index); }
+  get max() { return this.gauges.max(this.index); }
+  get ready() { return this.gauges.ready(this.index); }
 
+  /** バトル開始(リトライ・次のバトルも):全キャラのゲージを初期値へ */
   reset() {
-    this.energy = 0;
+    this.gauges.reset(this.g.turn.players);
     this.armed = false;
+    this.throwerIndex = null;
     this.arrangementIndex = Math.floor(Math.random() * 5);
     this.clear();
-    this.g.ui.setEnergy(0, this.max, false, false);
+    this.refreshUI();
   }
+
+  /** 画面の SPECIAL 表示:左下 = 今操作中のキャラ / アイコン横 = 全キャラ */
+  refreshUI(bump = false) {
+    this.g.ui.setEnergy(this.energy, this.max, this.ready, this.armed, bump);
+    this.g.ui.setSpecialGauges?.(this.gauges.entries.map((_, i) => ({ ratio: this.gauges.ratio(i), ready: this.gauges.ready(i) })));
+  }
+
+  /** 手番が変わった:予約は手番のキャラだけのもの → 解除して表示を切り替える(ゲージの値は各キャラが保持)*/
+  onTurn() {
+    if (this.armed && !this.g.specialSequencePlaying) { this.armed = false; this.g.ball.setSpecial(false); }
+    this.refreshUI();
+  }
+
+  /** MULTI:サーバーが確定した値(他のプレイヤーのキャラ / 必殺技で 0)*/
+  applyRemote(i, value) {
+    if (!this.gauges.at(i)) return;
+    this.gauges.set(i, value);
+    this.refreshUI();
+  }
+
+  /** MULTI:このキャラの値を決めるのは自分(担当のプレイヤー)か。SOLO は全員自分 */
+  ownsGauge(i) { return !this.g.online || !!this.g.turn.players[i]?.mine; }
 
   /**
    * 次の投球用に Orb を配置。
@@ -164,7 +194,7 @@ export class EnergySystem {
   }
 
   /** 投球開始:ここから Orb を取得できる */
-  beginThrow() { this.collecting = true; this.combo = 0; }
+  beginThrow() { this.collecting = true; this.combo = 0; this.throwerIndex = this.g.turn.index; }
   /** この1投で取った Energy 数 */
   get throwCount() { return this.combo; }
   endThrow() { this.collecting = false; }
@@ -190,23 +220,30 @@ export class EnergySystem {
     o.taken = true;
     o.fly = 0.001;
     this.combo++;
-    const before = this.energy;
-    // Diamond 1個 = SPECIAL +10%。投げた子が SPECIAL CHARGE を持っていれば +12%(×1.2)。100% で止める(超えた分は切り捨て)
-    const charge = abilityMul(g.turn.current?.chara?.abilities, 'specialCharge');
-    const gain = Math.round(Config.energy.orbValue * charge);
-    this.energy = Math.min(this.max, this.energy + gain);
+    // Diamond 1個 = 投げたキャラ本人の SPECIAL +10%。本人が SPECIAL CHARGE を持っていれば +12%(×1.2)。100% で止める(超えた分は切り捨て)
+    const i = this.throwerIndex ?? g.turn.index;
+    const chara = g.turn.players[i]?.chara;
+    const { gain, charged } = specialOrbGain(chara);
+    const own = this.ownsGauge(i);
+    const wasReady = this.gauges.ready(i);
+    // MULTI で他のプレイヤーのキャラ:値は担当プレイヤー → サーバーから届く(ここでは演出だけ。二重加算しない)
+    if (own) {
+      this.gauges.add(i, gain);
+      g.online?.sendSpecialGauge?.(i, this.gauges.value(i));
+    }
     g.stats.orbs = (g.stats.orbs ?? 0) + 1;
     g.ball.pulseBoost(0.8);
     g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
     g.audio.orb(this.combo);
     // 「SPECIAL +10%」→ Diamond が SPECIAL ゲージへ飛ぶ → 着いたらゲージが増える(MAX なら SPECIAL READY)
     const s = g.player.toScreen(o.pos);
-    const add = Math.round((gain / this.max) * 100);
-    const reached = before < this.max && this.ready;
-    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: charge > 1 ? '#ffd27a' : '#ffb3e0', label: charge > 1 ? '◆ DIAMOND ・ SPECIAL CHARGE' : '◆ DIAMOND' });
-    g.ui.flyTo(s.x, s.y, 'energy', '<i class="dia">◆</i>', 'diamond', 480).then(() => {
-      g.ui.setEnergy(this.energy, this.max, this.ready, this.armed, true);
-      if (reached && this.ready) {
+    const add = Math.round((gain / this.gauges.max(i)) * 100);
+    const reached = own && !wasReady && this.gauges.ready(i);
+    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: charged ? '#ffd27a' : '#ffb3e0', label: charged ? '◆ DIAMOND ・ SPECIAL CHARGE' : '◆ DIAMOND' });
+    const target = i === g.turn.index ? 'energy' : g.ui.cards?.[i]?.d;
+    g.ui.flyTo(s.x, s.y, target, '<i class="dia">◆</i>', 'diamond', 480).then(() => {
+      this.refreshUI(i === g.turn.index);
+      if (reached && this.gauges.ready(i)) {
         g.ui.partCallout('♡ SPECIAL READY! ♡', 'all');
         g.ui.showJudge('SPECIAL READY!', 'specialready', '#ffd23e', 'ゲージをタップで必殺技');
         g.audio.rallyUp();
@@ -214,21 +251,22 @@ export class EnergySystem {
     });
   }
 
-  /** 必殺技の予約/解除(READY の時だけ) */
+  /** 必殺技の予約/解除(今操作中のキャラのゲージが READY の時だけ。MULTI は自分の手番だけ)*/
   toggleArm() {
     if (!this.ready || this.g.specialSequencePlaying) return false;
+    if (this.g.online && !this.g.online.isMyTurn()) return false;
     this.armed = !this.armed;
-    this.g.ui.setEnergy(this.energy, this.max, this.ready, this.armed);
+    this.refreshUI();
     this.g.ball.setSpecial(this.armed);
     return this.armed;
   }
 
-  /** 投球時:予約されていれば必殺技を消費して効果を返す */
+  /** 投球時:予約されていれば必殺技を消費して効果を返す(使ったキャラのゲージだけ 0。他のキャラは保持)*/
   consumeSpecial() {
     if (!this.armed || !this.ready || this.g.specialSequencePlaying) return null;
     this.armed = false;
-    this.energy = 0;
-    this.g.ui.setEnergy(0, this.max, false, false);
+    this.gauges.consume(this.g.turn.index);
+    this.refreshUI();
     return { ...Config.special };   // heartMul / ballScale / hitstop
   }
 

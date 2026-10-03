@@ -120,6 +120,8 @@ export class GameManager {
     this.bus.on('keyrelease', (e) => this.sm.dispatch('onKeyRelease', e));
     // ラリー(内部:ボスの返球の強さ)はハート玉の光り方だけに使う。画面の数字は COMBO(FeverSystem)
     this.bus.on('rally', () => this.ball.setStyle(this.turn.current.color, this.turn.tierLevel));
+    // SPECIAL ゲージはキャラごと:手番が変わったら左下の SPECIAL 表示をそのキャラのゲージへ
+    this.bus.on('turn', () => this.energy?.onTurn());
 
     // デバッグ切替(キー / 画面右上ボタン)
     window.addEventListener('keydown', (e) => {
