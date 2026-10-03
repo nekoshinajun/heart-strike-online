@@ -369,7 +369,6 @@ export class PlayerDefenseState {
     const multi = this.notes.length > 1;
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], multi ? `${this.idx + 1} / ${this.notes.length}${why ? ` ・ ${why}` : ''}` : why);
     g.online?.sendNoteJudge?.(this.idx, this.notes.length, r);   // 観戦中の仲間に1個ずつの判定を見せる
-    g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
     g.tutorial?.emit('catch', { grade: r, why, type: this.note.type });
     if (r === Judge.PERFECT && !multi) g.setTimeScale(0.2); // 到達までスローモーション(1個の攻撃だけ)
@@ -384,8 +383,9 @@ export class PlayerDefenseState {
     g.setTimeScale(1);
     g.catchTarget.flash(r !== Judge.MISS);
     this.grades.push(r);
-    if (r === Judge.PERFECT) { g.hitstop(this.notes.length > 1 ? 0.06 : 0.2); g.cam.shake(0.3); g.ui.flash('#fff6c8', 0.4); g.effects.burst(pos, '#ffd23e', 30, 8, 0.35); g.effects.shockwave(pos, '#ffd23e', 1.4, g.cam.camera); g.audio.catchBall(); }
-    else if (r !== Judge.MISS) { g.hitstop(0.05); g.cam.shake(0.25); g.effects.burst(pos, p.color, 18, 6, 0.3); g.audio.catchBall(); }
+    g.audio.guard(r);   // MISS だけダメージ音。それ以外はガードの段階ごとの音(PERFECT が一番気持ちいい)
+    if (r === Judge.PERFECT) { g.hitstop(this.notes.length > 1 ? 0.06 : 0.2); g.cam.shake(0.3); g.ui.flash('#fff6c8', 0.4); g.effects.burst(pos, '#ffd23e', 30, 8, 0.35); g.effects.shockwave(pos, '#ffd23e', 1.4, g.cam.camera); }
+    else if (r !== Judge.MISS) { g.hitstop(0.05); g.cam.shake(0.25); g.effects.burst(pos, p.color, 18, 6, 0.3); }
     else { g.cam.shake(0.5); g.ui.flash('#ff2040', 0.35); }
     if (this.idx < this.notes.length - 1) {
       // 次のハート:少し間を置いて発射(MULTI)
