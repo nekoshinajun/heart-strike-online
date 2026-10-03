@@ -127,7 +127,7 @@ export class BossReturnState {
   enter() {
     const g = this.g;
     // 自分のキャッチフェーズへ入る直前に、事前予告テロップを消す。
-    if (g.online) { g.ui.hideCatchNotice?.(); g.online.beginAllCatch?.(); g.ui.showJudge('CATCH!', 'tier', g.turn.current.color); }
+    if (g.online) { g.ui.hideCatchNotice?.(); g.online.beginAllCatch?.(); g.ui.showJudge(g.online.isDown() ? 'WATCH' : 'CATCH!', 'tier', g.turn.current.color, g.online.isDown() ? g.online.spectateLabel() : ''); }
     g.cam.reset();
     const forcedCatch = g.online ? g.online.catchPos : null;
     // ★ = この戦闘でボスが攻撃した回数(1回目 ★1 … 5回目以降 ★5)。MULTI はサーバーの回数(全員同じ)
@@ -147,7 +147,7 @@ export class BossReturnState {
     g.catchTarget.show(plan.markerWorld, g.turn.current.color);
     g.catchTarget.setNote?.(plan.notes?.[0]);
     g.catchTarget.setNext?.(plan.notes?.[1]);
-    g.ui.showPrompt(promptFor(plan.notes?.[0]), g.turn.current.color);
+    g.ui.showPrompt(g.online?.isDown() ? null : promptFor(plan.notes?.[0]), g.turn.current.color);   // 観戦中は操作の説明を出さない
     g.boss.view.playCharge();
     g.ball.hide();
     // 攻撃の予備動作(tell):色の違う溜め + ボスが何度か溜め直す + 短い表示(FEINT など。必ず見切れるサイン)
@@ -211,11 +211,54 @@ export class PlayerDefenseState {
 
   get note() { return this.notes[this.idx]; }
 
+  /** MULTI で自分のキャラが全員 DOWN:操作できないので、ハートは届いた所で自動で進める(観戦)*/
+  get spectating() { return !!this.g.online?.isDown(); }
+
+  /** 観戦:ハートが届いた → HOLD はメーター / FLICK はスライダーボールを最後まで動かす(判定はしない)*/
+  ghostStart() {
+    const g = this.g, n = this.note;
+    this.ghost = true;
+    if (n.type === 'HOLD') { this.noteState = 'holding'; this.holdEnd = this.arrival + (n.hold ?? Config.defence.hold.sec); g.catchTarget.setHold?.(0, 'holding'); return; }
+    if (n.type === 'FLICK') {
+      this.noteState = 'sliding';
+      this.slideEnd = this.arrival + (n.slideSec ?? Config.defence.flick.slideSec);
+      this.slide = { consumed: 0, guide: 0, finger: null, reached: false, fail: false };
+      g.catchTarget.setSlide?.(this.slide);
+      return;
+    }
+    this.ghostFinish();
+  }
+
+  /** 観戦:1個のハートが終わった → 次のハートへ / 全部終わったら他の人のキャッチを待つ(ダメージ・判定・送信なし)*/
+  ghostFinish() {
+    const g = this.g;
+    this.noteState = 'done';
+    this.ghost = false;
+    this.noteImpacted = this.idx;
+    g.catchTarget.setHold?.(null);
+    g.catchTarget.setSlide?.(null);
+    g.ball.setPressed?.(0);
+    g.catchTarget.flash(true);
+    g.effects.burst(g.ball.pos.clone(), g.turn.current.color, 12, 5, 0.3);
+    g.ball.hide();
+    if (this.idx < this.notes.length - 1) {
+      this.idx++;
+      this.nextAt = g.clock + (Config.defence.multi.gap ?? 0.1);
+      this.pendingNote = this.note;
+      return;
+    }
+    this.impacted = true;
+    const ct = g.catchTarget, shown = ct.world;
+    setTimeout(() => { if (ct.world === shown) ct.hide(); }, 180);
+    g.sm.change(GameState.PLAYER_CATCH, { down: true });
+  }
+
   /** k 番目のハートの判定を始める(1個目は BOSS_RETURN で発射済み)*/
   beginNote(k, arrival) {
     const g = this.g, n = this.notes[k];
     this.arrival = arrival;
     this.noteState = 'wait';
+    this.ghost = false;
     this.noteGrade = null;
     this.slide = null;
     this.fxKeep = false;
@@ -226,7 +269,7 @@ export class PlayerDefenseState {
       g.catchJudge.begin(arrival, n.markerLead ?? Math.min(0.9, n.duration * 0.9));
       g.catchTarget.show(n.markerWorld, g.turn.current.color);
       g.catchTarget.setNote?.(n);
-      g.ui.showPrompt(promptFor(n), g.turn.current.color);
+      g.ui.showPrompt(this.spectating ? null : promptFor(n), g.turn.current.color);
       g.ball.returnTo(g.boss.spawnPoint(), n.world, n.lateEnd, n.duration, lateDurFor(n), null, n.motion);
       g.ball.setNoteLook?.(n.type);
       g.effects.burst(g.boss.spawnPoint(), '#ff3d7f', 10, 8, 0.6);
@@ -325,6 +368,7 @@ export class PlayerDefenseState {
     g.ball.setPressed?.(0);
     const multi = this.notes.length > 1;
     g.ui.showJudge(r, r.toLowerCase(), JUDGE_COLOR[r], multi ? `${this.idx + 1} / ${this.notes.length}${why ? ` ・ ${why}` : ''}` : why);
+    g.online?.sendNoteJudge?.(this.idx, this.notes.length, r);   // 観戦中の仲間に1個ずつの判定を見せる
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
     g.tutorial?.emit('catch', { grade: r, why, type: this.note.type });
@@ -389,6 +433,7 @@ export class PlayerDefenseState {
       g.catchTarget.setHold?.(Math.max(0, Math.min(1, k)), k >= 1 ? 'ready' : 'holding');
       g.ball.pinAt?.(n.markerWorld ?? n.world);   // ハートはマーカーの中央に固定
       g.ball.setPressed?.(Math.max(0.2, Math.min(1, k)));
+      if (this.ghost) { if (k >= 1) this.ghostFinish(); return; }
       const late = (Config.defence.hold.releaseWindowMul ?? 2) * catchWin('goodTime');
       if (now > this.holdEnd + late) this.finishNote(Judge.MISS, '離さなかった');
       return;
@@ -400,11 +445,13 @@ export class PlayerDefenseState {
       // ハート = osu! のスライダーボール:指ではなく、理想の速さ(slideSec)でトラックを進む。指はそれについていく
       const b = g.catchTarget.pointOnPath?.(sl.guide, n);
       g.ball.pinAt?.(b ? g.player.screenToWorld(b.x, b.y, Config.ball.catchDepth) : n.markerWorld ?? n.world);
+      if (this.ghost) { sl.consumed = sl.guide; sl.reached = sl.guide >= 1; if (sl.guide >= 1) this.ghostFinish(); return; }
       const late = (Config.defence.flick.endWindowMul ?? 3) * catchWin('goodTime');
       if (now > this.slideEnd + late) { if (sl.reached) { this.fxKeep = true; this.finishNote(Judge.MISS, '離すのが遅い'); } else this.failSlide('終点まで運んでいない'); }
       return;
     }
     if (this.noteState === 'done') { if (this.noteImpacted !== this.idx && now >= this.arrival) this.noteImpact(); return; }
+    if (this.spectating && now >= this.arrival) { this.ghostStart(); return; }
     if (now > judge.lateLimit) { if (g.online && g.online.isDown()) return; this.finishNote(Judge.MISS, 'タップなし'); }
   }
 

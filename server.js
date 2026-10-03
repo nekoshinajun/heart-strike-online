@@ -111,6 +111,8 @@ const server=http.createServer(async(req,res)=>{try{
      const damages={};for(let i=0;i<r.units.length;i++){const u=r.units[i];if(u.ownerId!==p.id||u.alive===false)continue;const v=Number(b.damages?.[i]??b.damage);const dmg=grade==='PERFECT'?0:Math.max(0,Math.min(u.maxHp||100,Number.isFinite(v)?Math.round(v):0));u.hp=Math.max(0,u.hp-dmg);if(u.hp<=0)u.alive=false;damages[i]=dmg}
      const mine=r.units.filter(u=>u.ownerId===p.id);p.alive=mine.some(u=>u.alive!==false);p.hp=mine.reduce((a,u)=>a+u.hp,0);
      r.catchResults[p.id]={grade,deltaMs:Number.isFinite(d)?d:null,damages,down:p.alive===false};send(r,'CATCH_PLAYER',{playerId:p.id,grade,deltaMs:Number.isFinite(d)?d:null,damages,down:p.alive===false});finishCatchRound(r);return json(res,200,{ok:true,grade,damages});}
+   // 観戦中(DOWN)の人へ、生き残っている人のハート1個ずつの判定を配る(表示だけ。HP やラウンドは変えない)
+   if(b.action==='NOTE'){const order=['PERFECT','GREAT','GOOD','MISS'];if(r.status!=='PLAYING'||r.phase!=='WAIT_CATCH'||p.alive===false||!order.includes(b.grade))return json(res,409,{error:'NOT_CATCH_PLAYER'});send(r,'NOTE_JUDGE',{playerId:p.id,k:Math.max(0,Math.floor(Number(b.k)||0)),n:Math.max(1,Math.floor(Number(b.n)||1)),grade:b.grade});return json(res,200,{ok:true});}
    if(b.action==='PLAYER_DOWN'){if(r.status!=='PLAYING')return json(res,409,{error:'NOT_PLAYING'});dropFromBattle(r,p);return json(res,200,{ok:true});}
    return json(res,400,{error:'BAD_ACTION'});
  }
