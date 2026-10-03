@@ -156,6 +156,7 @@ export class BossReturnState {
     this.tellEvery = this.tellKicks ? plan.chargeTime / (this.tellKicks + 1) : 0;
     this.tellNext = this.tellEvery;
     if (tell?.label) { const s = g.player.toScreen(plan.spawn); g.ui.damageNumber(s.x, s.y - 30, tell.label, { color: tell.color, label: plan.attack.label }); }
+    g.tutorial?.emit('bossAttack', { kinds: plan.attack?.kinds ?? [] });
   }
   update(dt) {
     const g = this.g;
@@ -326,6 +327,7 @@ export class PlayerDefenseState {
     g.audio.judge(r);
     g.stats[r.toLowerCase()]++;
     g.fever.onCatch(r);   // FEVER 中の PERFECT で FEVER LEVEL UP(既存)
+    g.tutorial?.emit('catch', { grade: r, why, type: this.note.type });
     if (r === Judge.PERFECT && !multi) g.setTimeScale(0.2); // 到達までスローモーション(1個の攻撃だけ)
     if (r === Judge.MISS || g.clock >= this.arrival || this.note.type !== 'NORMAL') this.noteImpact();
   }
@@ -443,7 +445,7 @@ export class PlayerDefenseState {
     targets.forEach((pl, k) => {
       const dmg = this.totalDamageFor(pl);
       if (dmg <= 0) return;
-      if (g.online) { pl.hp = Math.max(0, (this.hpBefore?.get(pl) ?? pl.hp) - dmg); g.bus.emit('playerHp', pl); } else g.turn.damage(pl, dmg);
+      if (g.online) { pl.hp = Math.max(0, (this.hpBefore?.get(pl) ?? pl.hp) - dmg); g.bus.emit('playerHp', pl); } else g.turn.damage(pl, dmg, g.tutorial ? 1 : 0);   // チュートリアルは負けない(HP 1 で止まる)
       const i = g.turn.players.indexOf(pl);
       g.ui.hitPlayer(i);
       g.ui.damageNumber(s0.x + (k - (targets.length - 1) / 2) * 46, s0.y + 40 + (k % 2) * 26, `-${dmg}`, { color: '#ff5a6e', label: pl.id });
@@ -458,6 +460,7 @@ export class PlayerDefenseState {
       if (g.online && g.online.myUnitIndexes().every((i) => !(g.turn.players[i]?.hp > 0))) { g.ball.hide(); g.sm.change(GameState.PLAYER_CATCH, { down: true }); return; }
     }
     g.sm.change(GameState.PLAYER_CATCH, { judge: r });
+    g.tutorial?.emit('defenseEnd', { result: r, grades: [...this.grades] });
   }
 
   exit() {

@@ -45,6 +45,7 @@ export class FeverOutroState {
     if (this.done || g.sm.current !== this) return;
     this.done = true;
     g.fever.finish();
+    g.tutorial?.emit('feverEnd');
     g.afterThrow();
   }
 }

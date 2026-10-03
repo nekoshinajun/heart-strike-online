@@ -16,6 +16,7 @@ import { AppScreens } from './SubScreens.js';
 import { GachaUI } from '../gacha/GachaUI.js';
 import { Log, safe, nullObject, Haptic } from './Platform.js';
 import { MENU_SLOT } from '../audio/BgmTracks.js';
+import { showTutorialScreen } from '../tutorial/TutorialScreen.js';
 
 /**
  * HEART STRIKE のアプリ本体(ゲームの「外側」)。
@@ -66,6 +67,7 @@ export class App {
     R.register('mission', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showMission() });
     R.register('present', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showPresent() });
     R.register('settings', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showSettings() });
+    R.register('tutorial', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => showTutorialScreen(this, S) });
     R.register('detail', { kind: KIND.SUB, layer: null, overlay: true, opaque: true, show: (p, c) => { if (!c.restore) this.detail.open(p.id); }, hide: () => this.detail.hide() });
     // 育成 → キャラクター詳細:アビリティ / プレゼントはボタンで開くシート(詳細の下へ直接並べない)
     R.register('trainAbility', { kind: KIND.SHEET, show: () => S.openTrainSheet('ability'), hide: () => { S.trainSheet = null; this.sheet.close(); } });

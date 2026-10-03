@@ -39,11 +39,13 @@ export class PlayerAttackState {
     // MULTI は全員が毎返球をキャッチするため、旧「NEXT キャッチ担当」予告は表示しない。
     if (g.online) g.ui.hideCatchNotice?.();
     g.thrower.cancel();
-    g.space.spawnForThrow(g.online?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
+    g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
+    g.tutorial?.onAttack();   // チュートリアル:レッスンに合わせて配置を減らす / 説明
   }
 
   update() {
     const g = this.g;
+    if (g.tutorial?.redirect()) return;   // チュートリアル:投げずにボスの攻撃 / FEVER へ
     if (!g.thrower.grabbing) {
       const s = g.player.heldBallScreen();
       g.ui.placeHint(s.x, s.y);
@@ -143,6 +145,7 @@ export class BallToBossState {
     this.feverThrow = g.fever.consumeThrow(g.turn.index);   // FEVER 投球を1回消費(発射時に1度だけ)
     g.turn.markThrown();   // このフェーズの投球として数える
     g.ui.tutorialDone('flick');
+    g.tutorial?.emit('throw', { spin: th.spin ?? 0, special: !!special });
     if (special) {
       // キャラ固有の SPECIAL 投球の見た目(CharacterData.specialThrowEffect。見た目だけ・ダメージは本体の1投だけ)
       g.specialFx.start(g.turn.current.chara, th);
@@ -269,6 +272,7 @@ export class BossHitState {
         }
       }
       g.ball.rebound(vel);
+      g.tutorial?.emit('hit', { grade: land.grade, gates, banks, special: !!special });
     } else {
       // 外れ:自動補正はしない。ラリーは途切れる
       // Gate を通っても最後にボスへ当たらなければ GATE CHAIN のボーナスは無し
@@ -282,6 +286,7 @@ export class BossHitState {
       if (result.type === 'short') g.ball.fadeOut(); else g.ball.hide();
       g.audio.whiff();
       this.wait = 0.8;
+      g.tutorial?.emit('miss', { type: result.type, gates, special: !!special });
     }
     g.cam.reset();
   }
@@ -308,7 +313,7 @@ export class BossHitState {
     this.wait -= dt;
     if (this.wait > 0) return;
     // 優先順:HEART MAX(LOVE MAX)→ FEVER 全員投げ終わり → 通常(次の味方 / ボスの反撃)。どれか1つだけに進む
-    if (g.boss.full) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // 攻略成功:反撃には移らない
+    if (g.boss.full && !g.tutorial) { g.fever.abort(); g.sm.change(GameState.GAME_CLEAR); return; }   // チュートリアルは攻略完了へ進まない(報酬なし)   // 攻略成功:反撃には移らない
     if (g.online && !g.online.throwResolved) return;   // MULTI:この投球の後の進行(次の人 / ボスの反撃)をサーバーから受け取るまで待つ
     if (g.fever.done) { g.sm.change(GameState.FEVER_OUTRO); return; }
     g.afterThrow();   // 次の味方の投球 / 全員投げ終えたらボスの反撃
