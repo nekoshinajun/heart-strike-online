@@ -231,6 +231,7 @@ export class EnergySystem {
       g.online?.sendSpecialGauge?.(i, this.gauges.value(i));
     }
     g.stats.orbs = (g.stats.orbs ?? 0) + 1;
+    g.tutorial?.emit('orb');
     g.ball.pulseBoost(0.8);
     g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
     g.audio.orb(this.combo);
@@ -257,6 +258,7 @@ export class EnergySystem {
     this.armed = !this.armed;
     this.refreshUI();
     this.g.ball.setSpecial(this.armed);
+    this.g.tutorial?.emit('specialArmed', { armed: this.armed });
     return this.armed;
   }
 
@@ -299,9 +301,9 @@ export class EnergySystem {
       const dk = o.depth ?? 0.5;
       o.slot.halo.material.opacity = (0.95 - dk * 0.35) + Math.sin(this.time * 5 + o.phase) * 0.15;
       o.slot.core.scale.setScalar(1.2 - dk * 0.35);
-      // FEVER 中は少しだけ強く発光(Lv が上がるほど)。形・位置は変えない(視認性優先)
-      const fl = this.g.fever?.active ? this.g.fever.level : 0;
-      o.slot.halo.scale.setScalar(1.3 * (1.15 - dk * 0.3) * (1 + fl * 0.1) * (fl ? 1 + Math.sin(this.time * 8 + o.phase) * 0.06 : 1));
+      // FEVER 中は少しだけ強く発光。形・位置は変えない(視認性優先)
+      const fv = !!this.g.fever?.active;
+      o.slot.halo.scale.setScalar(1.3 * (1.15 - dk * 0.3) * (fv ? 1.1 * (1 + Math.sin(this.time * 8 + o.phase) * 0.06) : 1));
     }
   }
 }

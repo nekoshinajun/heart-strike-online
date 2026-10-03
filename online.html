@@ -108,6 +108,11 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 /* ---- 2. インゲーム HUD(調整済み・変更しない)---- */
 /* 上部:推しの名前 + LOVE + RALLY / 判定 / 操作ヒント / 手番 / Catch Marker / 部位 / ダメージ / POWER / SPECIAL / 右下のパーティ */
 #game canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* MULTI 観戦(自分のキャラが全員 DOWN):画面を少し灰色に。判定の文字と観戦バナーは色のまま */
+#game.spectating canvas, #game.spectating #catchMarker, #game.spectating #noteFx { filter: grayscale(.75) brightness(.85); transition: filter .4s; }
+#spectateBanner { position: absolute; left: 50%; top: calc(88px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 999px; background: rgba(20,18,30,.72); border: 1px solid rgba(255,255,255,.25); color: #fff; font-size: 12px; white-space: nowrap; pointer-events: none; }
+#spectateBanner b { font-family: var(--display); letter-spacing: .08em; color: #c9c6d6; }
+#spectateBanner[hidden] { display: none; }
 #ui { position: absolute; inset: 0; pointer-events: none; }
 
 /* ---- ボスHP ---- */
@@ -221,7 +226,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #catchMarker.miss #cmInner { border-color: var(--boss); }
 /* ---- DEFENCE:文字を使わず形と動きで操作を見せる ---- */
 /* HOLD:塗りつぶした「押す面」+ 外周のゴールの輪。押すと中心から外へメーターが溜まり、輪まで届いて光ったら離す */
-#catchMarker[data-note="HOLD"] #cmOuter { --pc: #ffd23e; border-width: 8px; }
 #catchMarker[data-note="HOLD"] #cmInner { border-color: #fff6cf; }
 #catchMarker[data-note="HOLD"] #cmInner::after { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: #ffd23e; }
 #cmPad { background: radial-gradient(circle, rgba(255,240,170,.95), rgba(255,196,60,.75) 55%, rgba(255,160,20,.45)); box-shadow: 0 0 18px rgba(255,200,60,.7), inset 0 0 0 3px rgba(255,255,255,.55); animation: cmBreath 1.1s ease-in-out infinite; }
@@ -232,6 +236,8 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 /* 押している間は押す面を暗くして、溜まっていくメーターとの境目をはっきり見せる */
 #catchMarker.holding #cmPad { animation: none; scale: 1; background: radial-gradient(circle, rgba(70,45,0,.55), rgba(40,25,0,.7)); box-shadow: inset 0 0 0 3px rgba(255,214,80,.5); }
 @keyframes cmPress { 0%, 100% { scale: .84; } 50% { scale: .92; } }
+/* 押す前のゴールの輪は控えめに(TAP と同じ縮む円が主役。円が重なる相手は中央の輪)*/
+#catchMarker[data-hold="idle"] #cmHold { opacity: .3; border-width: 2px; border-style: dashed; }
 #catchMarker.holding #cmHold { filter: drop-shadow(0 0 calc(2px + 10px * var(--hk, 0)) #ffd23e); }
 #catchMarker[data-note="HOLD"]:is(.holding, .ready, .early) #cmInner { opacity: 0; }
 #catchMarker.holding #cmOuter, #catchMarker.holding #cmZone, #catchMarker.ready #cmOuter, #catchMarker.ready #cmZone, #catchMarker.early #cmOuter, #catchMarker.early #cmZone { opacity: 0; }
@@ -249,7 +255,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @keyframes cmShake { 0%, 100% { translate: 0 0; } 25% { translate: -5px 0; } 75% { translate: 5px 0; } }
 /* FLICK:osu! のスライダー。開始のヒットサークル(アプローチサークルが縮む)+ 縁取りの太いトラック + 終点のサークル。押すとボール(ハート)が進み、フォローサークルの中に指を保つ */
 #catchMarker[data-note="FLICK"] #cmZone { display: none; }
-#catchMarker[data-note="FLICK"] #cmOuter { --pc: #5ad8ff; border-width: 4px; box-shadow: 0 0 10px var(--pc); }
 #catchMarker[data-note="FLICK"] #cmInner { border: 5px solid #fff; background: radial-gradient(circle, rgba(140,230,255,.12) 0 45%, rgba(40,170,230,.4) 80%, rgba(20,120,190,.6)); box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 0 14px rgba(90,216,255,.8); }
 #catchMarker[data-note="FLICK"] #cmInner::after { display: none; }
 #catchMarker[data-note="FLICK"].near #cmInner { border-color: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 0 24px #fff, 0 0 30px #5ad8ff; }
@@ -485,15 +490,12 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @keyframes fshine { to { background-position: -200% 0; } }
 #feverFx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 #feverFx .ff-edge { position: absolute; inset: 0; box-shadow: inset 0 0 28px 6px rgba(255,79,168,.45); border: 2px solid rgba(255,150,210,.35); animation: fedge 1.4s ease-in-out infinite alternate; }
-#game.fever-lv2 #feverFx .ff-edge { box-shadow: inset 0 0 36px 9px rgba(255,79,168,.55), inset 0 0 70px 0 rgba(255,210,62,.18); }
-#game.fever-lv3 #feverFx .ff-edge { box-shadow: inset 0 0 44px 12px rgba(255,79,168,.62), inset 0 0 90px 0 rgba(255,210,62,.28); border-color: rgba(255,230,140,.55); }
 @keyframes fedge { from { opacity: .75; } to { opacity: 1; } }
 /* 小さなハートは画面の左右の端だけ(投球軌道・Energy の邪魔をしない) */
 #feverFx .ff-h { position: absolute; bottom: -20px; font-style: normal; font-size: 12px; color: #ff9ccc; opacity: 0; text-shadow: 0 0 6px #ff4fa8;
   left: calc(var(--i) * 1% + 2%); animation: fheart 3.2s linear infinite; animation-delay: calc(var(--i) * -0.34s); }
 #feverFx .ff-h:nth-child(odd) { left: auto; right: calc(var(--i) * 1% + 2%); }
 @keyframes fheart { 0% { transform: translateY(0) scale(.8); opacity: 0; } 15% { opacity: .55; } 100% { transform: translateY(-105vh) scale(1.2); opacity: 0; } }
-#game.fever-lv3 #feverFx .ff-h { color: #ffe28a; font-size: 14px; }
 #feverFx .ff-pattern { position: absolute; left: 0; right: 0; top: calc(92px + env(safe-area-inset-top, 0px)); text-align: center; font-family: var(--display); font-size: 10px; letter-spacing: .12em; color: #ffe9f4; text-shadow: 0 1px 0 #000, 0 0 8px #ff4fa8; opacity: .85; }
 #feverBanner { position: absolute; inset: 0; z-index: 13; pointer-events: none; overflow: hidden; }
 #feverBanner .fb-hearts i { position: absolute; left: -14px; top: -14px; font-style: normal; font-size: 28px; color: #ff6fb5; text-shadow: 0 0 10px #ff4fa8, 0 2px 0 #000; will-change: transform; }
@@ -501,8 +503,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #feverBanner[data-kind="outro"] .fb-text { font-size: 30px; color: #ffe9b0; }
 #feverBanner .fb-flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
 .dmg.fever { color: #fff; text-shadow: 0 3px 0 #000, 0 0 18px #ff4fa8, 0 0 30px #ffd23e; }
-.dmg.fever.fl2 { font-size: 46px; }
-.dmg.fever.fl3 { font-size: 52px; color: #ffe28a; }
 .dmg.fever.crit { font-size: 60px; }
 .pcard.fdone::after { content: "✓"; position: absolute; left: -6px; top: -4px; width: 15px; height: 15px; border-radius: 50%; background: #ff4fa8; color: #fff; font: 800 10px/15px var(--body); text-align: center; box-shadow: 0 0 0 1.5px #000; }
 #game.fever .pcard.active::before { content: "FEVER ▶"; background: #ff4fa8; }
@@ -731,6 +731,44 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pk-t b { display: inline-block; font: 800 11px/1.5 var(--round); padding: 0 7px; border-radius: 8px; color: #fff; background: var(--dc); vertical-align: 1px; }
 .pk-s { font-size: 11px; font-weight: 800; color: var(--hs-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pk-go { flex: none; min-height: 44px; display: grid; place-items: center; padding: 0 14px; border-radius: 22px; border: 1px solid rgba(255,255,255,.7); background: var(--hs-cta); color: #fff; font-weight: 800; font-size: 13px; box-shadow: 0 6px 16px rgba(255,79,154,.3); }
+/* チュートリアルの入口(キャラの足元に小さく。TODAY'S PICK の上)*/
+.hm-tut { position: absolute; z-index: 15; left: calc(var(--ax, .42) * 100%); bottom: calc(var(--navh) + var(--sab) + 98px); transform: translateX(-50%); display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px 0 5px; border-radius: 14px; border: 1px solid var(--hs-line); background: var(--hs-panel-strong); color: var(--hs-pink-deep); font: 800 11px var(--round); white-space: nowrap; box-shadow: var(--hs-shadow); }
+.hm-tut > i:first-child { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--hs-pink); color: #fff; font-style: normal; font-size: 11px; }
+.hm-tut .dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--hs-pink); box-shadow: 0 0 0 2px #fff; }
+#home.no-pick .hm-tut { bottom: calc(var(--navh) + var(--sab) + 14px); }
+/* チュートリアル画面(SUB)*/
+.tut-intro { display: flex; flex-direction: column; gap: 3px; margin: 0 0 12px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, #fff 50%, var(--hs-pink-soft, #ffe0ee)); border: 1px solid var(--hs-line-soft); box-shadow: var(--hs-shadow); }
+.tut-intro b { font: 800 15px var(--round); color: var(--hs-pink-deep); }
+.tut-intro span { font-size: 12px; font-weight: 700; color: var(--hs-ink-soft); line-height: 1.5; }
+.tut-intro em { font-style: normal; font-size: 11px; font-weight: 800; color: var(--hs-ink); }
+.tut-no { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--hs-pink-soft, #ffe0ee); color: var(--hs-pink-deep); font: 800 13px var(--round); font-style: normal; }
+.tut-lessons .cleared .tut-no { background: var(--hs-pink); color: #fff; }
+.tut-h { margin: 20px 4px 8px; font: 800 13px var(--round); color: var(--hs-ink); }
+.tut-help { display: flex; flex-direction: column; gap: 8px; }
+.tut-help details { padding: 10px 14px; border-radius: 14px; border: 1px solid var(--hs-line-soft); background: var(--hs-panel); box-shadow: var(--hs-shadow); }
+.tut-help summary { font-weight: 800; font-size: 14px; color: var(--hs-ink); cursor: pointer; }
+.tut-help ul { margin: 8px 0 2px; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--hs-ink-soft); font-weight: 700; }
+/* インゲームのチュートリアル(案内・説明カード・やめる)*/
+#tutorial { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+#tutorial .tut-quit { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 10px); top: calc(env(safe-area-inset-top, 0px) + 78px); pointer-events: auto; height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid rgba(255,255,255,.5); background: rgba(30,10,30,.55); color: #fff; font: 800 12px var(--round, sans-serif); }
+#tutorial .tut-coach { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 118px); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 8px 16px; border-radius: 18px; background: rgba(255,255,255,.94); color: #c2185b; font: 800 13px/1.45 var(--round, sans-serif); text-align: center; box-shadow: 0 6px 18px rgba(120,0,60,.25); }
+#tutorial .tut-coach.tip { background: #fff4c2; color: #8a4b00; }
+#tutorial .tut-coach.in { animation: tutin .25s ease-out; }
+@keyframes tutin { from { opacity: 0; transform: translate(-50%, -6px); } }
+#tutorial .tut-card { position: absolute; inset: 0; pointer-events: auto; display: grid; place-items: center; padding: 16px; background: rgba(20,0,20,.35); }
+#tutorial .tut-card[hidden] { display: none; }
+#tutorial .tut-box { width: min(340px, 100%); box-sizing: border-box; padding: 18px 18px 14px; border-radius: 22px; background: #fff; color: #3a2633; box-shadow: 0 16px 40px rgba(80,0,40,.35); animation: tutpop .22s ease-out; }
+@keyframes tutpop { from { opacity: 0; transform: scale(.94); } }
+#tutorial .tut-box small { font: 800 10px var(--round, sans-serif); letter-spacing: .2em; color: #ff5fa2; }
+#tutorial .tut-box h3 { margin: 2px 0 6px; font: 800 20px var(--round, sans-serif); color: #d81b72; }
+#tutorial .tut-box p { margin: 0 0 6px; font-size: 14px; font-weight: 800; line-height: 1.55; }
+#tutorial .tut-box ul { margin: 0 0 4px; padding-left: 18px; font-size: 12px; font-weight: 700; line-height: 1.6; color: #6b5562; }
+#tutorial .tut-box ul:empty { display: none; }
+#tutorial .tut-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#tutorial .tut-btns button { flex: 1 1 40%; min-height: 42px; border-radius: 21px; border: 1px solid #ffc2dc; background: #fff; color: #d81b72; font: 800 14px var(--round, sans-serif); }
+#tutorial .tut-btns button.primary { flex-basis: 100%; border: 0; background: linear-gradient(135deg, #ff5fa2, #ff8ac0); color: #fff; box-shadow: 0 6px 16px rgba(255,79,154,.3); }
+.tut-focus { outline: 3px solid #ffd23e; outline-offset: 3px; border-radius: 12px; animation: tutfocus 1s ease-in-out infinite; }
+@keyframes tutfocus { 50% { outline-color: #ff5fa2; } }
 
 /* =====================================================================
    7. 汎用画面(育成 / コレクション / ミッション / プレゼント / 設定)
@@ -910,6 +948,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .sp-sheet { display: grid; gap: 8px; padding: 2px 2px 6px; text-align: center; }
 .sp-sheet .sp-chara { font-weight: 800; color: var(--hs-ink-soft); }
 .sp-sheet .sp-name { margin: 0; font: 900 22px var(--display, var(--round)); color: #6b2a57; letter-spacing: .03em; }
+.sp-sheet .sp-dia { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 999px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--hs-pink-soft, #ffc2df); font: 800 12px var(--round); color: var(--hs-ink); }
+.sp-sheet .sp-dia i { font-style: normal; font-size: 14px; }
+.sp-sheet .sp-dia b { font: 900 16px var(--round); color: var(--hs-pink-deep, #e0418a); }
 .sp-sheet .sp-hl { justify-self: center; display: flex; align-items: baseline; gap: 6px; padding: 6px 16px; border-radius: 14px; background: linear-gradient(135deg, #ff8cc6, #ff5fa2); color: #fff; box-shadow: 0 4px 14px rgba(255,95,162,.35); }
 .sp-sheet[data-effect="healAll"] .sp-hl { background: linear-gradient(135deg, #f3c55a, #e0a335); box-shadow: 0 4px 14px rgba(224,163,53,.4); }
 .sp-sheet .sp-hl b { font: 900 20px var(--round); }

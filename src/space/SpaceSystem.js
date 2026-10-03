@@ -344,6 +344,13 @@ export class SpaceSystem {
     this.updateObstacles(0);
   }
 
+  /** 配置したゲート / 障害物だけを消す(チュートリアル:レッスンで扱わないものを出さない)*/
+  strip({ gates = false, obstacles = false } = {}) {
+    const free = (s) => { s.busy = false; s.group.visible = false; s.shadow.visible = false; };
+    if (gates) { for (const gt of this.gates) free(gt.slot); this.gates = []; }
+    if (obstacles) { for (const o of this.obstacles) free(o.slot); this.obstacles = []; }
+  }
+
   clear() {
     for (const k of Object.keys(this.pool)) for (const s of this.pool[k]) { s.busy = false; s.group.visible = false; s.shadow.visible = false; }
     this.gates = [];
