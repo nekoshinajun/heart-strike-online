@@ -344,9 +344,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #curveRing .cr-head { stroke: none; }
 #curveRing[data-dir="right"] { color: #3ee8ff; } #curveRing[data-dir="left"] { color: #ff6fb1; } #curveRing[data-dir="straight"] { color: #fff; }
 #curveRing .cr-arc { stroke: currentColor; } #curveRing .cr-head { fill: currentColor; }
-#curveRing .cr-label { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 2px); padding: 1px 8px; border-radius: 9px; background: rgba(7,7,10,.6); color: currentColor; font: 800 10px var(--round); letter-spacing: .06em; white-space: nowrap; }
+#curveRing .cr-label { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); padding: 1px 8px; border-radius: 9px; background: rgba(7,7,10,.6); color: currentColor; font: 800 10px var(--round); letter-spacing: .06em; white-space: nowrap; }
 #curveRing.reset .cr-label { animation: crreset .5s ease-out; }
-@keyframes crreset { 0% { transform: translate(-50%, 2px) scale(1.25); background: rgba(255,255,255,.85); color: #5b2b45; } 100% { transform: translate(-50%, 2px) scale(1); } }
+@keyframes crreset { 0% { transform: translate(-50%, -2px) scale(1.25); background: rgba(255,255,255,.85); color: #5b2b45; } 100% { transform: translate(-50%, -2px) scale(1); } }
 #powerGauge { position: absolute; left: 10px; top: 60%; width: 150px; pointer-events: none; display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; background: rgba(7,7,10,.78); border: 1px solid rgba(255,255,255,.1); border-radius: 13px; padding: 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 #powerGauge span { font-family: var(--display); font-size: 11px; color: var(--gold); letter-spacing: .08em; }
 #powerGauge b { font-family: var(--display); font-weight: 400; font-size: 13px; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
