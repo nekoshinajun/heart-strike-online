@@ -202,14 +202,14 @@ export class AudioManager {
       this.tone(2637, 0.3, 'sine', 0.05);
       [1568, 2093, 2637, 3136].forEach((f, i) => setTimeout(() => this.tone(f, 0.16, 'sine', 0.07), 70 + i * 40));   // キラキラ
     } else if (r === 'GREAT') {
-      this.noise(0.05, 0.28, 4200);
-      this.tone(1046.5, 0.2, 'triangle', 0.2);                    // 「カキンッ」(ド → ソと2音で弾く)
-      setTimeout(() => { this.tone(1568, 0.3, 'triangle', 0.16); this.tone(3136, 0.18, 'sine', 0.04); }, 45);
-      setTimeout(() => this.tone(2093, 0.14, 'sine', 0.05), 110);
+      // PERFECT と同じ系統の澄んだ響き(ノイズなし = 「ボフッ」と鳴らない)。少し短く、キラキラは2粒
+      this.tone(1174.7, 0.42, 'triangle', 0.2);                   // D6 + A6
+      this.tone(1760, 0.3, 'sine', 0.08);
+      [1568, 2349.3].forEach((f, i) => setTimeout(() => this.tone(f, 0.14, 'sine', 0.06), 70 + i * 45));
     } else if (r === 'GOOD') {
-      this.noise(0.05, 0.25, 3600);
-      this.tone(784, 0.16, 'triangle', 0.2, 1.12);                // 「ポンッ」(少し上がる明るい1音+5度上の響き)
-      this.tone(1175, 0.2, 'sine', 0.08);
+      // 同じ系統でいちばん控えめ:澄んだ1音+5度上の響き(ノイズなし)
+      this.tone(1046.5, 0.3, 'triangle', 0.18);                   // C6 + G6
+      this.tone(1568, 0.2, 'sine', 0.06);
     } else this.judge('MISS');   // ダメージ音
   }
   /** 味方の HP が 0 になった(DOWN)。ダメージ音のあとに鳴らす、下がっていく寂しい「ピロロ…ン」*/
