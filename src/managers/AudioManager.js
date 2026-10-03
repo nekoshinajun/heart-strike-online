@@ -203,12 +203,19 @@ export class AudioManager {
       [1568, 2093, 2637, 3136].forEach((f, i) => setTimeout(() => this.tone(f, 0.16, 'sine', 0.07), 70 + i * 40));   // キラキラ
     } else if (r === 'GREAT') {
       this.noise(0.05, 0.28, 4200);
-      this.tone(1046.5, 0.22, 'triangle', 0.2);                   // 「カンッ」
-      this.tone(1568, 0.14, 'sine', 0.07);
+      this.tone(1046.5, 0.2, 'triangle', 0.2);                    // 「カキンッ」(ド → ソと2音で弾く)
+      setTimeout(() => { this.tone(1568, 0.3, 'triangle', 0.16); this.tone(3136, 0.18, 'sine', 0.04); }, 45);
+      setTimeout(() => this.tone(2093, 0.14, 'sine', 0.05), 110);
     } else if (r === 'GOOD') {
-      this.noise(0.05, 0.25, 3200);
-      this.tone(784, 0.14, 'triangle', 0.18);                     // 軽い「コンッ」
+      this.noise(0.05, 0.25, 3600);
+      this.tone(784, 0.16, 'triangle', 0.2, 1.12);                // 「ポンッ」(少し上がる明るい1音+5度上の響き)
+      this.tone(1175, 0.2, 'sine', 0.08);
     } else this.judge('MISS');   // ダメージ音
+  }
+  /** 味方の HP が 0 になった(DOWN)。ダメージ音のあとに鳴らす、下がっていく寂しい「ピロロ…ン」*/
+  allyDown() {
+    [784, 659.25, 523.25, 392].forEach((f, i) => setTimeout(() => this.tone(f, i === 3 ? 0.6 : 0.2, 'triangle', 0.18), i * 110));
+    setTimeout(() => this.tone(196, 0.6, 'sine', 0.12), 330);
   }
   /** 連続攻撃の2個目以降が飛んでくる音(軽い「ヒュッ」。ガード直後に鳴るので、被弾っぽいこもった音にしない)*/
   noteLaunch() { this.noise(0.12, 0.12, 3600); this.tone(900, 0.1, 'sine', 0.05, 1.6); }
