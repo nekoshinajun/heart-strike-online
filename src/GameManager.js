@@ -250,6 +250,7 @@ export class GameManager {
     Config.boss.name = b.name;
     Config.boss.layout = b.layout;
     Config.boss.profile = b.profile;
+    Config.boss.live2d = b.live2d ?? null;   // Live2D のボス(data/Live2DData.js のキー)
     // 最終設定 = StageData × DifficultyData(ATK / DEF は変えない)
     const D = difficultyData(this.difficulty);
     Config.boss.maxHeart = Config.boss.heartOverride || Math.round(b.maxHeart * Config.battle.heartCapacityScale * D.heartCapacity);
@@ -260,11 +261,13 @@ export class GameManager {
   /** ボスを作り直す(HEART・部位・表情をリセット) */
   rebuildBoss() {
     this.scene.remove(this.boss.root);
+    this.boss.dispose();
     this.boss = new BossController(this.scene);
     this.player.boss = this.boss;
     this.returnBall.boss = this.boss;
+    // Live2D のボスは画像を貼らない(boss.image は攻略画面などのサムネイル用)
     const key = this.stage?.boss.image;
-    const img = key ? (this.bossImgs[key] ?? this.bossImgs[this.stage.boss.fallbackImage]) : this.customImage;
+    const img = Config.boss.live2d ? null : key ? (this.bossImgs[key] ?? this.bossImgs[this.stage.boss.fallbackImage]) : this.customImage;
     const apply = (im) => {
       this.customImage = im;
       const d = Config.bossImage[Config.boss.layout] ?? Config.bossImage.demon;
