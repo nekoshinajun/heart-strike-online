@@ -652,7 +652,7 @@ export const Config = {
     // タイミングは実時間(ms)で判定(60Hz / 120Hz 端末で幅が変わらない)。全難易度共通。値は ±片側(秒)
     perfectTime: 0.00835,  // ★ PERFECT:合計 約1F(16.7ms = ±8.3ms)
     greatTime: 0.0333,     // ★ GREAT:合計 約4F(66.7ms = ±33.3ms)
-    goodTime: 0.0667,      // ★ GOOD:合計 約8F(133.3ms = ±66.7ms)。それ以外は MISS
+    goodTime: 0.1,         // ★ GOOD:合計 約12F(200ms = ±100ms)。それ以外は MISS
     perfectRadius: 0.07,   // ★ PerfectPositionRadius(画面短辺比)
     greatRadius: 0.12,     // ★ GreatPositionRadius
     goodRadius: 0.19,      // ★ GoodPositionRadius
