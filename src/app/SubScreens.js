@@ -175,13 +175,13 @@ export class AppScreens {
           <div class="td-exp"><i class="tc-bar exp"><i style="transform:scaleX(${expRatio})"></i></i><small>${ch.maxLevel ? 'MAX' : `EXP ${ch.expInto} / ${ch.expNeed}`}</small></div>
           ${si >= 0 || home ? `<div class="td-chips">${si >= 0 ? `<span class="td-chip in">✓ 編成中 ${'ABCD'[si]}</span>` : ''}${home ? '<span class="td-chip home">⌂ ホーム設定中</span>' : ''}</div>` : ''}
         </section>
-        ${specialCardHTML(ch)}
         <section class="td-panel">
           <div class="td-radar">${radar}</div>
           <div class="td-meta"><div class="td-stam${ch.tired ? ' tired' : ''}"><div class="td-stamrow"><span>STAMINA</span><i class="tc-bar stam"><i style="transform:scaleX(${ch.stamina / ch.staminaMax})"></i></i><small><b>${ch.stamina}</b>/${ch.staminaMax}</small></div>${ch.tired ? `<p>${stamNote}</p>` : ''}</div>
           <div class="td-abil"><small>ABILITY${pending ? '<em class="td-abnew">NEW</em>' : ''}</small><div class="td-abs">${active.length ? active.slice(0, 2).map((x) => `<span class="td-ab${x.ultimate ? ' ult' : ''}">${esc(x.name)}</span>`).join('') + (active.length > 2 ? `<span class="td-ab more" title="${esc(active.slice(2).map((x) => x.name).join(' / '))}">+${active.length - 2}</span>` : '') : '<span class="td-ab none">まだありません</span>'}</div></div></div>
         </section>
         </div>
+        ${specialCardHTML(ch)}
         <nav class="td-actions">
           <button type="button" data-act="gift"><i>🎁</i><span>プレゼント</span></button>
           <button type="button" data-act="ability"><i>✦</i><span>アビリティ</span>${pending ? '<em class="dot" aria-label="新しいアビリティ"></em>' : ''}</button>
