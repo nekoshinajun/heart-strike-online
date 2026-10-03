@@ -14,7 +14,9 @@ import { storage, Log } from '../app/Platform.js';
  *       selectedAbilities … { '10': abilityId, … }(Lv10〜100 で選んだアビリティ。その枠の候補に無い ID は読み込み時に消す)
  *       growthVersion … 育成データの版(GrowthData.GROWTH_VERSION)。古い / 無いキャラは Lv1 / EXP 0 / アビリティなしから始める
  *         ★ 正式リリース前のため、旧育成(旧 Lv / EXP / 旧アビリティ)は引き継がない
- *   inventory = { presents: { giftId: 所持数 }, abilityResetItems: 数 }(旧 items はここへ移す)
+ *   inventory = { presents: { giftId: 所持数 }, abilityResetItems: 数, goods: { itemId: 所持数 }, acquiredAt: { itemKey: 最後に入手した時刻 } }(旧 items はここへ移す)
+ *       goods      … プレゼント / リコネクトハート以外の今後のアイテム(イベント・交換・強化素材など。ItemCatalog.EXTRA_ITEMS)
+ *       acquiredAt … コレクションの「入手順」の並び替え用(キー = ItemCatalog の itemKey。所持数とは別に持つ時刻だけ)
  *   heroines[heroineId] = { voiceUnlocked: { voiceId: 解放時刻 }, voiceSeen: { voiceId: 初めて開いた時刻 } }   ← 攻略対象(味方ではない)のクリア報酬ボイス
  *       (旧 asmrUnlocked / asmrSeen は読み込み時に voiceUnlocked / voiceSeen へ移す)
  *   party[4] / favoriteCharacterId
@@ -77,7 +79,7 @@ function blankSave() {
     party: [...DEFAULT_PARTY],
     favoriteCharacterId: null,
     heroines: {},
-    inventory: { presents: {}, abilityResetItems: 0 },
+    inventory: { presents: {}, abilityResetItems: 0, goods: {}, acquiredAt: {} },
     records: {},
     cleared: [],
     wallet: { heartGem: 10000 },       // 新規セーブの初期 HEART GEM(既存セーブの所持数は変えない)
@@ -91,7 +93,8 @@ function blankSave() {
     presents: [],
     gacha: { transactions: [], pending: null, seq: 0, pulls: 0, seenSequenceCount: 0 },
     // audio:音量(0〜1)とミュート。bgm は旧設定(互換用。bgmMuted と同期)
-    settings: { gachaPlaybackMode: 'FULL', haptic: true, bgm: true, favoriteSwipe: false, audio: { bgmVolume: 0.5, bgmMuted: false, seVolume: 1, voiceVolume: 1 } },
+    // collectionSort:コレクションの並び替え(カテゴリごとに最後に選んだ条件 { items: { key, dir }, ally, heroine })
+    settings: { gachaPlaybackMode: 'FULL', haptic: true, bgm: true, favoriteSwipe: false, audio: { bgmVolume: 0.5, bgmMuted: false, seVolume: 1, voiceVolume: 1 }, collectionSort: {} },
     home: { lastLines: [], visits: 0, lastVisitAt: null },
     stats: { totalClears: 0 },
     lastPlayedAt: null,
@@ -179,7 +182,8 @@ export function normalizeV2(d) {
   // インベントリ:旧 items(プレゼントの所持数)を inventory.presents へ移す
   const inv = d.inventory && typeof d.inventory === 'object' && !Array.isArray(d.inventory) ? d.inventory : {};
   const presents = { ...(d.items && typeof d.items === 'object' && !Array.isArray(d.items) ? d.items : {}), ...(inv.presents && typeof inv.presents === 'object' ? inv.presents : {}) };
-  d.inventory = { ...inv, presents, abilityResetItems: Math.max(0, Math.floor(Number(inv.abilityResetItems) || 0)) };
+  const obj = (o) => (o && typeof o === 'object' && !Array.isArray(o) ? o : {});
+  d.inventory = { ...inv, presents, abilityResetItems: Math.max(0, Math.floor(Number(inv.abilityResetItems) || 0)), goods: obj(inv.goods), acquiredAt: obj(inv.acquiredAt) };
   delete d.items;
   if (!Array.isArray(d.party) || d.party.length !== 4 || d.party.some((id) => !characterById(id))) d.party = [...DEFAULT_PARTY];
   d.wallet.heartGem = Math.max(0, Math.floor(Number(d.wallet.heartGem) || 0));
@@ -437,7 +441,13 @@ export class PlayerProgress {
 
   // ---------------- アビリティ ----------------
   get abilityResetItems() { return this.data.inventory.abilityResetItems; }
-  addAbilityResetItems(n = 1) { this.data.inventory.abilityResetItems = Math.max(0, this.abilityResetItems + Math.floor(Number(n) || 0)); this.save(); return this.abilityResetItems; }
+  addAbilityResetItems(n = 1) {
+    const k = Math.floor(Number(n) || 0);
+    this.data.inventory.abilityResetItems = Math.max(0, this.abilityResetItems + k);
+    if (k > 0) this.markAcquired(`growth:${ABILITY_RESET_ITEM.id}`);
+    this.save();
+    return this.abilityResetItems;
+  }
   /** Lv の枠の状態 → [{ level, candidates: [ability…], selected, unlocked, ultimate }] */
   abilityBoard(id) {
     const ch = this.character(id), sel = ch.selectedAbilities;
@@ -490,12 +500,27 @@ export class PlayerProgress {
 
   // ---------------- プレゼント(所持数 / 渡す)----------------
   itemCount(giftId) { return Math.max(0, Math.floor(num(this.data.inventory.presents[giftId]))); }
-  addItem(giftId, n = 1) {
+  addItem(giftId, n = 1, { save = true, at = now() } = {}) {
     if (!giftById(giftId)) return false;
-    this.data.inventory.presents[giftId] = this.itemCount(giftId) + Math.floor(num(n));
-    this.save();
+    const k = Math.floor(num(n));
+    this.data.inventory.presents[giftId] = this.itemCount(giftId) + k;
+    if (k > 0) this.markAcquired(`present:${giftId}`, at);
+    if (save) this.save();
     return true;
   }
+
+  // ---------------- その他のアイテム(ItemCatalog.EXTRA_ITEMS)/ 入手時刻 ----------------
+  goodsCount(itemId) { return Math.max(0, Math.floor(num(this.data.inventory.goods[itemId]))); }
+  addGoods(itemId, n = 1) {
+    const k = Math.floor(num(n));
+    this.data.inventory.goods[itemId] = Math.max(0, this.goodsCount(itemId) + k);
+    if (k > 0) this.markAcquired(`goods:${itemId}`);
+    this.save();
+    return this.goodsCount(itemId);
+  }
+  /** アイテムを最後に入手した時刻(コレクションの「入手順」用。保存は呼び出し側)*/
+  markAcquired(itemKey, at = now()) { this.data.inventory.acquiredAt[itemKey] = at; }
+  acquiredAt(itemKey) { return this.data.inventory.acquiredAt[itemKey] ?? null; }
   /**
    * 味方の女の子にプレゼントを1つ渡す → 親密度 EXP(ランクの EXP。好物なら ×1.5)
    *   → { gift, gainedExp, levelUps, newAbilitySlots, reaction, before, after } / 渡せない時は null

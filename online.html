@@ -746,7 +746,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .as-lead b { color: var(--hs-pink-deep); }
 .as-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .as-card { padding: 0; border: 0; background: none; min-width: 0; text-align: center; }
-.as-card.unowned { border-radius: 12px; border: 1px dashed var(--hs-line); background: rgba(255,255,255,.55); padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.as-card.unowned { position: relative; border-radius: 12px; border: 1px dashed var(--hs-line); background: rgba(255,255,255,.55); padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .un-sil { width: 64%; aspect-ratio: 2/3; background-size: contain; background-repeat: no-repeat; background-position: center; filter: brightness(0) opacity(.18); }
 .un-q { font: 800 14px var(--round); color: var(--hs-ink-soft); }
 .un-how { font-size: 9px; font-weight: 800; color: var(--hs-ink-soft); }
@@ -1025,12 +1025,82 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .tg-exp { font-size: 9px; font-weight: 800; color: var(--hs-pink-deep); }
 .rpresent small { display: block; font-size: 10px; color: var(--hs-ink-soft); }
 
-/* ---- コレクション:仲間 / 攻略対象 ---- */
-.col-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 10px; padding: 5px; border-radius: 18px; border: 1px solid var(--hs-line-soft); background: rgba(255,255,255,.7); }
-.col-tabs button { min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--hs-ink-soft); font-weight: 800; font-size: 14px; }
-.col-tabs button small { font-size: 10px; opacity: .8; }
-.col-tabs button.ally.sel { background: var(--ally); color: #fff; box-shadow: 0 5px 14px rgba(255,95,162,.3); }
-.col-tabs button.heroine.sel { background: var(--heroine); color: #fff; box-shadow: 0 5px 14px rgba(139,108,240,.3); }
+/* ---- コレクション:所持アイテム / 仲間 / 攻略対象(上部はスクロールしても残る)---- */
+.col-head { position: sticky; top: -4px; z-index: 20; margin: 0 calc(-16px - var(--sar)) 4px calc(-16px - var(--sal)); padding: 6px calc(var(--sar) + 16px) 6px calc(var(--sal) + 16px); background: linear-gradient(180deg, rgba(255,244,249,.97) 0%, rgba(255,240,247,.93) 100%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--hs-line-soft); }
+.col-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 0 0 8px; padding: 4px; border-radius: 18px; border: 1px solid var(--hs-line-soft); background: rgba(255,255,255,.78); box-shadow: inset 0 1px 2px rgba(205,84,140,.08); }
+.col-tabs button { min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 2px 2px; border: 0; border-radius: 14px; background: transparent; color: var(--hs-ink-soft); font-weight: 800; font-size: 13px; line-height: 1.25; white-space: nowrap; transition: background .15s, color .15s; }
+.col-tabs button small { font-size: 10px; opacity: .8; font-variant-numeric: tabular-nums; }
+.col-tabs button.sel { color: #fff; transform: translateY(-1px); }
+.col-tabs button.items.sel { background: linear-gradient(135deg, #ffb35c, #ff7aa8); box-shadow: 0 5px 14px rgba(255,140,110,.35); }
+.col-tabs button.ally.sel { background: var(--ally); box-shadow: 0 5px 14px rgba(255,95,162,.3); }
+.col-tabs button.heroine.sel { background: var(--heroine); box-shadow: 0 5px 14px rgba(139,108,240,.3); }
+.col-bar { display: flex; align-items: center; gap: 8px; }
+.col-lead { flex: 1; min-width: 0; margin: 0; font-size: 11px; font-weight: 800; color: var(--hs-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-sort { flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; max-width: 62%; padding: 0 12px; border-radius: 18px; border: 1px solid var(--hs-line); background: #fff; color: var(--hs-ink); box-shadow: var(--hs-shadow); white-space: nowrap; }
+.col-sort small { font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+.col-sort b { font-size: 12px; color: var(--hs-pink-deep); overflow: hidden; text-overflow: ellipsis; }
+.col-sort i { font-style: normal; font-weight: 800; color: var(--hs-pink-deep); }
+.col-filter { display: flex; gap: 6px; margin: 8px calc(-16px - var(--sar)) 0 calc(-16px - var(--sal)); padding: 0 calc(var(--sar) + 16px) 2px calc(var(--sal) + 16px); overflow-x: auto; scrollbar-width: none; touch-action: pan-x; }
+.col-filter::-webkit-scrollbar { display: none; }
+.col-filter button { flex: none; min-height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--hs-line-soft); background: rgba(255,255,255,.85); color: var(--hs-ink-soft); font-size: 12px; font-weight: 800; }
+.col-filter button.sel { background: var(--hs-ink); border-color: var(--hs-ink); color: #fff; }
+.col-sub { display: flex; align-items: baseline; gap: 8px; margin: 18px 2px 8px; }
+.col-sub b { font: 800 14px var(--round); color: var(--hs-ink); }
+.col-sub small { font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+.col-empty { display: grid; justify-items: center; gap: 6px; margin: 36px 16px; padding: 24px 16px; border-radius: 20px; border: 1px dashed var(--hs-line); background: rgba(255,255,255,.6); text-align: center; color: var(--hs-ink-soft); }
+.col-empty i { font-style: normal; font-size: 34px; }
+.col-empty b { font-size: 14px; color: var(--hs-ink); }
+.col-empty span { font-size: 11px; font-weight: 800; line-height: 1.7; }
+.col-val { position: absolute; left: 5px; bottom: 50px; padding: 1px 7px; border-radius: 10px; background: rgba(91,43,69,.78); color: #fff; font: 800 10px/16px var(--round); }
+.col-val b { color: #ffd36b; }
+/* 所持アイテム:アイコン + 名前 + 所持数のタイル(3列。数が増えても縦にスクロールするだけ)*/
+.ci-grid, .col-ally { isolation: isolate; }
+.ci-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.ci-item { --gk: var(--hs-rosegold); position: relative; display: grid; justify-items: center; align-content: start; gap: 3px; min-width: 0; min-height: 124px; padding: 12px 6px 9px; border-radius: 18px; border: 2px solid #fff; background: radial-gradient(ellipse at 50% 30%, #fff 0, color-mix(in srgb, var(--gk) 14%, #fff) 70%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gk) 40%, transparent), var(--hs-shadow); color: var(--hs-ink); text-align: center; }
+.ci-item:active { transform: scale(.97); }
+.ci-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0, color-mix(in srgb, var(--gk) 22%, #fff) 70%); box-shadow: inset 0 0 0 2px #fff, 0 0 0 1.5px color-mix(in srgb, var(--gk) 55%, transparent), 0 4px 10px rgba(205,84,140,.15); }
+.ci-icon i { font-style: normal; font-size: 30px; line-height: 1; }
+.ci-icon img { width: 40px; height: 40px; object-fit: contain; }
+.ci-rank { position: absolute; left: 6px; top: 6px; padding: 0 6px; border-radius: 6px; background: var(--gk); color: #fff; font: 800 9px/1.6 var(--round); font-style: normal; text-shadow: 0 1px 1px rgba(91,43,69,.3); }
+.ci-count { position: absolute; right: 6px; top: 6px; padding: 0 7px; border-radius: 10px; background: var(--hs-pink-deep); color: #fff; font: 800 11px/18px var(--round); font-variant-numeric: tabular-nums; box-shadow: 0 3px 8px rgba(255,79,154,.3); }
+.ci-name { max-width: 100%; margin-top: 4px; font-size: 12px; font-weight: 800; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ci-cat { font-size: 9px; font-weight: 800; color: var(--hs-ink-soft); }
+/* アイテムの詳細(シート)*/
+.ci-sheet { --gk: var(--hs-rosegold); display: grid; gap: 12px; padding-bottom: 4px; }
+.cis-top { display: flex; align-items: center; gap: 14px; }
+.cis-icon { flex: none; display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0, color-mix(in srgb, var(--gk) 26%, #fff) 70%); box-shadow: inset 0 0 0 3px #fff, 0 0 0 2px color-mix(in srgb, var(--gk) 60%, transparent), var(--hs-shadow); }
+.cis-icon i { font-style: normal; font-size: 46px; line-height: 1; }
+.cis-icon img { width: 60px; height: 60px; object-fit: contain; }
+.cis-main { min-width: 0; flex: 1; }
+.cis-tags { display: flex; align-items: center; gap: 6px; }
+.cis-tags .ci-rank { position: static; }
+.cis-cat { padding: 1px 8px; border-radius: 999px; background: var(--hs-pink-pale); color: var(--hs-pink-deep); font-size: 10px; font-weight: 800; box-shadow: inset 0 0 0 1px var(--hs-line-soft); }
+.cis-main h3 { margin: 4px 0 2px; font: 800 20px var(--round); color: var(--hs-ink); }
+.cis-count { display: flex; align-items: baseline; gap: 6px; }
+.cis-count small { font-size: 11px; font-weight: 800; color: var(--hs-ink-soft); }
+.cis-count b { font: 800 22px var(--round); color: var(--hs-pink-deep); font-variant-numeric: tabular-nums; }
+.cis-desc { margin: 0; font-size: 13px; line-height: 1.7; }
+.cis-sec { padding: 10px 12px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1px var(--hs-line-soft); }
+.cis-sec small { display: block; margin-bottom: 2px; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--hs-pink-deep); }
+.cis-sec p { margin: 0; font-size: 12px; line-height: 1.7; }
+/* 並び替え(シート)*/
+.cs-now { margin: 0; text-align: center; font-size: 12px; font-weight: 800; color: var(--hs-ink-soft); }
+.cs-now b { color: var(--hs-pink-deep); }
+.cs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cs-opt { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--hs-line-soft); background: #fff; color: var(--hs-ink); text-align: left; box-shadow: var(--hs-shadow); }
+.cs-opt.sel { border-color: var(--hs-pink); background: linear-gradient(135deg, #fff, var(--hs-pink-pale)); box-shadow: 0 0 0 1.5px var(--hs-pink), var(--hs-shadow); }
+.cs-check { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--hs-line); color: #fff; font-size: 12px; font-weight: 800; }
+.cs-opt.sel .cs-check { border-color: var(--hs-pink); background: var(--hs-pink); }
+.cs-opt b { flex: 1; font-size: 14px; }
+.cs-dirs { display: inline-flex; padding: 2px; border-radius: 12px; background: var(--hs-pink-pale); box-shadow: inset 0 0 0 1px var(--hs-line-soft); }
+.cs-dirs i { padding: 0 8px; border-radius: 10px; font-style: normal; font-size: 11px; font-weight: 800; line-height: 24px; color: var(--hs-ink-soft); }
+.cs-dirs i.on { background: var(--hs-pink); color: #fff; box-shadow: 0 2px 6px rgba(255,79,154,.3); }
+.cs-hint { margin: 0; text-align: center; font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); }
+/* 攻略対象:攻略状況 */
+.hc-state { justify-self: start; align-self: flex-start; padding: 1px 9px; border-radius: 999px; font-style: normal; font-size: 11px; font-weight: 800; }
+.hc-state.none { background: #f1edf5; color: #8f84a8; }
+.hc-state.progress { background: var(--heroine-soft); color: #6a4fd6; box-shadow: inset 0 0 0 1px rgba(139,108,240,.35); }
+.hc-state.complete { background: linear-gradient(90deg, #ff5fa2, #8b6cf0); color: #fff; box-shadow: 0 3px 10px rgba(139,108,240,.3); }
 .hc-list { display: grid; gap: 12px; }
 .hc-card { display: grid; grid-template-columns: 110px 1fr; min-height: 132px; padding: 0; overflow: hidden; border-radius: 20px; border: 2px solid #fff; background: linear-gradient(135deg, #fff, var(--heroine-soft)); box-shadow: 0 8px 22px rgba(139,108,240,.18); text-align: left; }
 .hc-art { background-size: cover; background-position: calc(var(--fu, .5) * 100%) calc(var(--fv, .15) * 100%); }
