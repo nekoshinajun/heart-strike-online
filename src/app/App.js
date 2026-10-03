@@ -56,7 +56,9 @@ export class App {
     R.register('home', { kind: KIND.TAB_ROOT, layer: 'home', opaque: true, show: (p, c) => this.home.show(p, c), hide: () => this.home.hide() });
     R.register('training', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: () => S.showTraining() });
     R.register('gacha', { kind: KIND.TAB_ROOT, layer: 'gacha', opaque: true, show: (p, ctx) => this.gacha.showTop(p, ctx) });
-    R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p) => S.showCollection(p) });
+    R.register('collection', { kind: KIND.TAB_ROOT, layer: 'app', opaque: true, show: (p, c) => S.showCollection(p, c) });
+    R.register('collectionItem', { kind: KIND.SHEET, show: (p) => S.showItemSheet(p), hide: () => this.sheet.close() });
+    R.register('collectionSort', { kind: KIND.SHEET, show: (p) => S.showCollectionSortSheet(p), hide: () => this.sheet.close() });
     R.register('trainChar', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showTrainChar(p) });
     R.register('heroine', { kind: KIND.SUB, layer: 'app', opaque: true, show: (p) => S.showHeroine(p), hide: () => S.stopVoice(), leave: () => S.stopVoice() });
     R.register('mission', { kind: KIND.SUB, layer: 'app', opaque: true, show: () => S.showMission() });

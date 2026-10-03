@@ -4,13 +4,24 @@ import { HEROINES, GIFTS, heroineById, giftName, giftIcon, giftRank, giftExp } f
 import { STAT_KEYS, STAT_LABELS, STAT_DISPLAY_MAX, ABILITY_RESET_ITEM } from '../data/GrowthData.js';
 import { staminaNextMs, HP_MAX } from '../data/Growth.js';
 import { artUrl } from '../data/CharacterArt.js';
-import { cardHTML, staminaHTML } from '../screens/MenuFlow.js';
+import { staminaHTML } from '../screens/MenuFlow.js';
 import { RewardService } from '../home/Guidance.js';
 import { statRadarSVG } from '../screens/StatRadar.js';
 export { statRadarSVG };
 import { Haptic } from './Platform.js';
 import { roleTag, clearChips, voiceStatus, rewardLabel, rewardLockText } from './Roles.js';
 import { rarityAttr, rarityBadge, raritySparkle, charAccent } from './Rarity.js';
+import { ITEM_CATEGORIES, collectionItems, itemCategory } from '../data/ItemCatalog.js';
+import { COLLECTION_SORTS, currentSort, nextSort, sortLabel, sortList } from './CollectionSort.js';
+
+/** コレクションの上部カテゴリ(表示順。開いた時は先頭の「所持アイテム」)*/
+const COLLECTION_TABS = [
+  { id: 'items', label: '所持アイテム', icon: '🎁' },
+  { id: 'ally', label: '仲間', icon: '♡' },
+  { id: 'heroine', label: '攻略対象', icon: '🎧' },
+];
+/** 並び替えの向きの印(向きの無い項目は無し)*/
+const sortArrow = (cat, sort) => (COLLECTION_SORTS[cat]?.options.find((o) => o.key === sort.key)?.dirs ? (sort.dir === 'desc' ? '↓' : '↑') : '');
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -20,7 +31,7 @@ const fmtTime = (sec) => (Number.isFinite(sec) ? `${Math.floor(sec / 60)}:${Stri
 
 /**
  * 明るい HEART STRIKE テーマの汎用画面(レイヤー 'app')
- *   TAB_ROOT:育成(仲間の一覧)・コレクション(仲間 / 攻略対象)
+ *   TAB_ROOT:育成(仲間の一覧)・コレクション(所持アイテム / 仲間 / 攻略対象)
  *   SUB     :仲間の育成画面(trainChar)・攻略対象の画面(heroine:クリア報酬ボイス)・MISSION・PRESENT・SETTINGS
  * どれもデータが空でも破綻しない(空状態の表示あり)。
  */
@@ -79,7 +90,7 @@ export class AppScreens {
 
   // ---------------- 育成(TAB_ROOT):上 = 今の編成 / 下 = 所持キャラクター一覧 ----------------
   /** キャラクターカード(画像・名前・親密度 Lv・レアリティ・属性 / タイプ・STAMINA・編成中 ✓・ホーム設定中)*/
-  trainCardHTML(id, { party = false } = {}) {
+  trainCardHTML(id, { party = false, extra = '' } = {}) {
     const ch = this.p.character(id), a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
     const si = this.p.party.indexOf(id), home = this.p.favoriteId === id;
     void r;
@@ -89,7 +100,7 @@ export class AppScreens {
       ${si >= 0 ? `<span class="tl-in" title="編成中"><i>✓</i>${'ABCD'[si]}</span>` : ''}
       ${home ? '<span class="tl-home" title="ホーム設定中">⌂</span>' : ''}
       <span class="tl-info"><b class="tl-name">${esc(ch.name)}</b><span class="tl-lv">Lv.<b>${ch.level}</b></span>
-        <span class="tl-type">${a.icon} ${t.label}</span><span class="tl-row">${staminaHTML(ch, 'sm')}<span class="tl-hp">HP <b>${ch.maxHp}</b></span></span></span>
+        <span class="tl-type">${a.icon} ${t.label}</span><span class="tl-row">${staminaHTML(ch, 'sm')}<span class="tl-hp">HP <b>${ch.maxHp}</b></span></span></span>${extra}
     </button>`;
   }
   showTraining() {
@@ -294,37 +305,138 @@ export class AppScreens {
     setTimeout(() => el.remove(), 2600);
   }
 
-  // ---------------- コレクション(TAB_ROOT):仲間 / 攻略対象 ----------------
-  showCollection({ tab } = {}) {
-    if (tab) this.collectionTab = tab;
-    const cur = this.collectionTab ?? 'ally';
+  // ---------------- コレクション(TAB_ROOT):所持アイテム / 仲間 / 攻略対象 ----------------
+  /**
+   * 開いた時は「所持アイテム」。戻る(育成 / 攻略対象の画面から)の時は見ていたカテゴリのまま。
+   * どのカテゴリも既存の所持データ(inventory / characters / records)をそのまま読む。並び替えは表示順だけ
+   */
+  showCollection({ tab } = {}, ctx = {}) {
+    if (tab && COLLECTION_TABS.some((t) => t.id === tab)) this.collectionTab = tab;
+    else if (!ctx.restore) this.collectionTab = 'items';
+    const cur = this.collectionTab ?? 'items';
+    const keepScroll = ctx.restore || ctx.keepScroll ? this.body.scrollTop : 0;
     this.frame('collection', 'コレクション');
-    const owned = new Set(this.p.ownedIds);
-    const nA = CHARACTERS.filter((c) => owned.has(c.id)).length;
-    const nH = HEROINES.filter((h) => this.p.isCleared(h.stageId)).length;
-    const tabs = `<div class="col-tabs" role="tablist">
-      <button type="button" class="ally${cur === 'ally' ? ' sel' : ''}" data-tab="ally" role="tab">♡ 仲間 <small>${nA} / ${CHARACTERS.length}</small></button>
-      <button type="button" class="heroine${cur === 'heroine' ? ' sel' : ''}" data-tab="heroine" role="tab">🎧 攻略対象 <small>${nH} / ${HEROINES.length}</small></button></div>`;
-    if (cur === 'ally') {
-      this.body.innerHTML = `${tabs}
-        <p class="as-lead">${roleTag('ally')} 一緒に戦ってくれる女の子。ガチャで出会えます</p>
-        <div class="as-grid">${CHARACTERS.map((c) => owned.has(c.id)
-          ? `<button type="button" class="as-card" data-id="${c.id}">${cardHTML(this.p.character(c.id))}</button>`
-          : `<div class="as-card unowned rar-frame" data-rank="${c.rank}" ${rarityAttr(c.rank)}>${rarityBadge(c.rank, 'un-rank')}<div class="un-sil" style="background-image:url('${artUrl(c, 'cutout')}')"></div><div class="un-q">？？？</div><div class="un-how">ガチャで出会える</div></div>`).join('')}</div>`;
-      for (const b of this.body.querySelectorAll('button[data-id]')) b.addEventListener('click', () => this.app.router.go('detail', { id: b.dataset.id }));
-    } else {
-      this.body.innerHTML = `${tabs}
-        <p class="as-lead">${roleTag('heroine')} コンカフェで口説く女の子。仲間にはなりません。クリアするとボイス、HELL クリアで ASMR が聴けます</p>
-        <div class="hc-list">${HEROINES.map((h) => {
-          const st = stageById(h.stageId);
-          return `<button type="button" class="hc-card" data-heroine="${h.id}">
+    const view = cur === 'items' ? this.collectionItemsView() : cur === 'ally' ? this.collectionAllyView() : this.collectionHeroineView();
+    const sort = currentSort(this.p.data.settings, cur);
+    const tabs = `<div class="col-tabs" role="tablist">${COLLECTION_TABS.map((t) => `<button type="button" class="${t.id}${cur === t.id ? ' sel' : ''}" data-tab="${t.id}" role="tab" aria-selected="${cur === t.id}"><span>${t.icon} ${t.label}</span><small>${t.id === cur ? view.count : this.collectionCount(t.id)}</small></button>`).join('')}</div>`;
+    const bar = `<div class="col-bar"><p class="col-lead">${view.lead}</p><button type="button" class="col-sort" data-act="sort" aria-label="並び替え(${esc(sortLabel(cur, sort))})"><small>⇅ 並び替え</small><b>${esc(sortLabel(cur, sort))}</b><i aria-hidden="true">${sortArrow(cur, sort)}</i></button></div>`;
+    this.body.innerHTML = `<div class="col-head">${tabs}${bar}${view.filters ?? ''}</div>${view.html}`;
+    this.body.scrollTop = keepScroll;
+    for (const b of this.body.querySelectorAll('.col-tabs [data-tab]')) b.addEventListener('click', () => { if (b.dataset.tab !== this.collectionTab) this.showCollection({ tab: b.dataset.tab }); });
+    for (const b of this.body.querySelectorAll('[data-act="sort"]')) b.addEventListener('click', () => this.app.router.go('collectionSort', { cat: cur }));
+    view.wire?.();
+  }
+  /** タブの数字(所持数 / 全体)*/
+  collectionCount(tab) {
+    if (tab === 'items') return `${this.ownedItems().length}`;
+    if (tab === 'ally') return `${this.p.ownedIds.length} / ${CHARACTERS.length}`;
+    return `${HEROINES.filter((h) => this.p.isCleared(h.stageId)).length} / ${HEROINES.length}`;
+  }
+  /** 所持数 1 以上のアイテム(+ 所持数・入手時刻)。定義は ItemCatalog、所持数は PlayerProgress から */
+  ownedItems() {
+    return collectionItems().map((x) => ({ ...x, count: x.count(this.p), acquiredAt: this.p.acquiredAt(x.key) })).filter((x) => x.count > 0);
+  }
+  itemIconHTML(x, cls = 'ci-icon') {
+    return `<span class="${cls}">${x.image ? `<img src="${esc(x.image)}" alt="" draggable="false">` : `<i>${esc(x.icon)}</i>`}</span>`;
+  }
+  collectionItemsView() {
+    const all = this.ownedItems();
+    const cats = ITEM_CATEGORIES.filter((c) => all.some((x) => x.category === c.id));
+    if (this.itemFilter && !cats.some((c) => c.id === this.itemFilter)) this.itemFilter = null;
+    const f = this.itemFilter;
+    const list = sortList(all.filter((x) => !f || x.category === f), 'items', currentSort(this.p.data.settings, 'items'));
+    const filters = cats.length > 1 ? `<div class="col-filter" role="group" aria-label="種類で絞り込み">${[{ id: '', label: 'すべて', icon: '' }, ...cats].map((c) => `<button type="button" class="${(f ?? '') === c.id ? 'sel' : ''}" data-filter="${c.id}">${c.icon ? `${c.icon} ` : ''}${esc(c.label)}</button>`).join('')}</div>` : '';
+    const tile = (x) => `<button type="button" class="ci-item" data-item="${esc(x.key)}"${x.rank ? ` style="--gk:${x.rank.color}"` : ''} aria-label="${esc(x.name)} ×${x.count}">
+        ${this.itemIconHTML(x)}${x.rank ? `<em class="ci-rank">${esc(x.rank.label)}</em>` : ''}<b class="ci-count">×${x.count.toLocaleString()}</b>
+        <span class="ci-name">${esc(x.name)}</span><small class="ci-cat">${esc(itemCategory(x.category).label)}</small></button>`;
+    return {
+      count: `${all.length}`,
+      lead: 'タップで詳細',
+      filters,
+      html: list.length ? `<div class="ci-grid">${list.map(tile).join('')}</div>` : '<div class="col-empty"><i>🎁</i><b>アイテムはまだありません</b><span>ガチャのおまけや攻略のクリア報酬で<br>プレゼントがもらえます</span></div>',
+      wire: () => {
+        for (const b of this.body.querySelectorAll('[data-filter]')) b.addEventListener('click', () => { this.itemFilter = b.dataset.filter || null; this.showCollection({}, { keepScroll: true, restore: true }); });
+        for (const b of this.body.querySelectorAll('[data-item]')) b.addEventListener('click', () => this.app.router.go('collectionItem', { key: b.dataset.item }));
+      },
+    };
+  }
+  /** アイテムの詳細(シート):名前・説明・所持数・用途 */
+  showItemSheet({ key } = {}) {
+    const x = this.ownedItems().find((i) => i.key === key) ?? collectionItems().map((i) => ({ ...i, count: i.count(this.p) })).find((i) => i.key === key);
+    if (!x) return;
+    const cat = itemCategory(x.category);
+    this.app.sheet.open('アイテム', `
+      <div class="ci-sheet"${x.rank ? ` style="--gk:${x.rank.color}"` : ''}>
+        <div class="cis-top">${this.itemIconHTML(x, 'cis-icon')}
+          <div class="cis-main"><div class="cis-tags"><span class="cis-cat">${cat.icon} ${esc(cat.label)}</span>${x.rank ? `<em class="ci-rank">${esc(x.rank.label)}</em>` : ''}</div>
+            <h3>${esc(x.name)}</h3><div class="cis-count"><small>所持数</small><b>${x.count.toLocaleString()}</b></div></div></div>
+        ${x.desc ? `<p class="cis-desc">${esc(x.desc)}</p>` : ''}
+        ${x.usage ? `<section class="cis-sec"><small>用途</small><p>${esc(x.usage)}</p></section>` : ''}
+        ${x.source ? `<section class="cis-sec"><small>入手方法</small><p>${esc(x.source)}</p></section>` : ''}
+      </div>`);
+  }
+  collectionAllyView() {
+    const ids = this.p.ownedIds;
+    const rows = ids.map((id) => {
+      const ch = this.p.character(id);
+      return { id, name: ch.name, level: ch.level, rankOrder: RANKS[ch.rank]?.order ?? null, atk: (ch.totalStats ?? ch.stats).attack, hp: ch.maxHp, obtainedAt: this.p.data.characters[id]?.obtainedAt ?? null };
+    });
+    const sort = currentSort(this.p.data.settings, 'ally');
+    const list = sortList(rows, 'ally', sort);
+    const unowned = CHARACTERS.filter((c) => !this.p.isOwned(c.id));
+    const atk = (r) => (sort.key === 'atk' ? `<span class="col-val">ATK <b>${r.atk}</b></span>` : '');
+    return {
+      count: `${ids.length} / ${CHARACTERS.length}`,
+      lead: `${roleTag('ally')} タップで育成`,
+      html: `${list.length ? `<div class="tl-grid col-ally">${list.map((r) => this.trainCardHTML(r.id, { extra: atk(r) })).join('')}</div>` : '<div class="col-empty"><i>♡</i><b>仲間はまだいません</b><span>ガチャで出会えます</span></div>'}
+        ${unowned.length ? `<header class="col-sub"><b>まだ出会っていない仲間</b><small>${unowned.length}人 ・ ガチャで出会える</small></header>
+        <div class="as-grid">${unowned.map((c) => `<div class="as-card unowned rar-frame" data-rank="${c.rank}" ${rarityAttr(c.rank)}>${rarityBadge(c.rank, 'un-rank')}<div class="un-sil" style="background-image:url('${artUrl(c, 'cutout')}')"></div><div class="un-q">？？？</div><div class="un-how">ガチャで出会える</div></div>`).join('')}</div>` : ''}`,
+      wire: () => { for (const b of this.body.querySelectorAll('.tl-card[data-id]')) b.addEventListener('click', () => this.app.router.go('trainChar', { id: b.dataset.id })); },
+    };
+  }
+  /** 攻略状況:未攻略 / 攻略中(クリアした難易度の数)/ 完全攻略(全難易度クリア)*/
+  heroineState(h) {
+    const order = Config.difficultyOrder, n = order.filter((d) => this.p.isCleared(h.stageId, d)).length;
+    return { clears: n, total: order.length, id: n === 0 ? 'none' : n >= order.length ? 'complete' : 'progress', label: n === 0 ? '未攻略' : n >= order.length ? '完全攻略 ♡' : `攻略中 ${n} / ${order.length}` };
+  }
+  collectionHeroineView() {
+    const rows = HEROINES.map((h) => { const st = stageById(h.stageId); return { h, st, stageNo: st.no, name: st.boss.name, state: this.heroineState(h), clears: this.heroineState(h).clears }; });
+    const list = sortList(rows, 'heroine', currentSort(this.p.data.settings, 'heroine'));
+    return {
+      count: `${rows.filter((r) => r.clears > 0).length} / ${rows.length}`,
+      lead: `${roleTag('heroine')} クリアでボイス解放`,
+      html: `<div class="hc-list">${list.map(({ h, st, state }) => `<button type="button" class="hc-card" data-heroine="${h.id}" data-state="${state.id}">
             <span class="hc-art" style="background-image:url('${this.app.bossThumb(st)}');${this.app.bossFocus(st)}"></span>
-            <span class="hc-main"><small>STAGE ${st.no}</small><b>${esc(st.boss.name)}</b>${clearChips(this.p, st.id, Config.difficultyOrder)}${voiceStatus(this.p, h)}</span>
-          </button>`;
-        }).join('')}</div>`;
-      for (const b of this.body.querySelectorAll('[data-heroine]')) b.addEventListener('click', () => this.app.router.go('heroine', { id: b.dataset.heroine }));
-    }
-    for (const b of this.body.querySelectorAll('.col-tabs [data-tab]')) b.addEventListener('click', () => this.showCollection({ tab: b.dataset.tab }));
+            <span class="hc-main"><small>STAGE ${st.no}</small><b>${esc(st.boss.name)}</b><em class="hc-state ${state.id}">${esc(state.label)}</em>${clearChips(this.p, st.id, Config.difficultyOrder)}${voiceStatus(this.p, h)}</span>
+          </button>`).join('')}</div>`,
+      wire: () => { for (const b of this.body.querySelectorAll('[data-heroine]')) b.addEventListener('click', () => this.app.router.go('heroine', { id: b.dataset.heroine })); },
+    };
+  }
+  /** 並び替え(シート):項目を選ぶ。向きのある項目は、選択中のものをもう一度押すと 高い順 ⇄ 低い順 */
+  showCollectionSortSheet({ cat } = {}) {
+    cat = COLLECTION_SORTS[cat] ? cat : this.collectionTab ?? 'items';
+    const render = (first) => {
+      const cur = currentSort(this.p.data.settings, cat);
+      const html = `
+        <p class="cs-now">並び替え:<b>${esc(sortLabel(cat, cur))}</b></p>
+        <ul class="cs-list">${COLLECTION_SORTS[cat].options.map((o) => {
+          const on = o.key === cur.key;
+          const dirs = o.dirs ? `<span class="cs-dirs">${['desc', 'asc'].map((d) => `<i class="${on && cur.dir === d ? 'on' : ''}">${esc(o.dirs[d])}</i>`).join('')}</span>` : '';
+          return `<li><button type="button" class="cs-opt${on ? ' sel' : ''}" data-sort="${o.key}" aria-pressed="${on}"><span class="cs-check" aria-hidden="true">${on ? '✓' : ''}</span><b>${esc(o.label)}</b>${dirs}</button></li>`;
+        }).join('')}</ul>
+        <p class="cs-hint">選択中の項目をもう一度タップすると、順番が逆になります</p>`;
+      const body = first ? this.app.sheet.open('並び替え', html) : this.app.sheet.body;
+      if (!first) body.innerHTML = html;
+      for (const b of body.querySelectorAll('[data-sort]')) b.addEventListener('click', () => {
+        const st = this.p.data.settings;
+        st.collectionSort = { ...(st.collectionSort ?? {}), [cat]: nextSort(currentSort(st, cat), cat, b.dataset.sort) };
+        this.p.save();
+        Haptic.light?.();
+        if (this.screen === 'collection') this.showCollection({}, { restore: true });
+        render(false);
+      });
+    };
+    render(true);
   }
 
   // ---------------- 攻略対象の画面(SUB):プロフィール + クリア状況 + クリア報酬ボイス ----------------
