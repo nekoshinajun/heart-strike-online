@@ -303,7 +303,7 @@ export class UIManager {
       flick: ['FLICK!', 'ハートを持って、投げたい方へフリック'],
       grab: ['THROW!', 'くるくる回すとカーブ(時計回り=右 / 反時計回り=左)'],
       catch: ['CATCH!', 'リングが重なる瞬間にタップ'],
-      catchHold: ['HOLD!', 'リングが重なったら押し続けて、ゲージが一周して光ったら離す'],
+      catchHold: ['HOLD!', 'リングが重なったら押し続けて、メーターが外の輪に届いたら離す'],
       catchFlick: ['SLIDE!', 'リングが重なったら押して、動くハートについていき終点で離す'],
     }[type];
     this.el.promptMain.textContent = text[0];

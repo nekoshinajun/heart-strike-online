@@ -382,7 +382,7 @@ export class PlayerDefenseState {
     if (prog > 0 && prog < 0.5) g.cam.kickFov((0.5 - prog) * 5);
     // タイミングを知らせるカウント音は鳴らさない(見た目だけで判断する)
     if (this.noteState === 'holding') {
-      // ゲージが一周(100%)→ 光る = 離してよい。終わりが近いほどゲージの色・脈動が強くなる(CSS:--hk)
+      // メーターが中心から外の輪まで届く(100%)→ 光る = 離してよい(CSS:--hk = メーターの大きさ)
       const n = this.note, k = 1 - (this.holdEnd - now) / (n.hold ?? Config.defence.hold.sec);
       g.catchTarget.setHold?.(Math.max(0, Math.min(1, k)), k >= 1 ? 'ready' : 'holding');
       g.ball.pinAt?.(n.markerWorld ?? n.world);   // ハートはマーカーの中央に固定
