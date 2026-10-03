@@ -9,7 +9,7 @@
  *   attack  … DEFENCE で出す攻撃:{ notes: ['HOLD'] など、interval?, path?(Config.enemyAttacks.patterns の ID)}
  *   slow    … ボスの攻撃中のゲーム速度(1 = 通常)。初めてでも見えるように少しゆっくり
  *   steps   … 順に進む。1ステップ = do(開始時の処理)→ coach を出して wait を待つ → card(タップで次へ)
- *     wait(e, d) … イベント e(attack / throw / hit / miss / orb / specialArmed / bossAttack / catch / defenseEnd / feverEnd)で true なら次へ
+ *     wait(e, d) … イベント e(attack / throw / hit / miss / orb / specialArmed / phaseEnd(全員投げ終えた)/ bossAttack / catch / defenseEnd / feverEnd)で true なら次へ
  *     tip(e, d)  … 待っている間の失敗の一言(文字列を返すと coach に一時的に出す)
  *     tries      … この回数だけ投げても(DEFENCE は受けても)できなければ、先へ進める(詰まらないように)
  *     card       … { title, text, points?: [..], focus?: 光らせる要素の CSS セレクタ }
@@ -39,19 +39,29 @@ export const TUTORIAL_LESSONS = [
     done: 'これで基本はばっちり! 次はレッスンで、カーブやハートゲートを覚えよう。',
   },
   {
-    id: 'curve', title: 'カーブ', summary: 'くるくる回してから投げると曲がる',
+    id: 'curve', title: 'カーブ', summary: 'ハートの周りをぐるぐる回してから投げると曲がる',
     field: 'none',
     steps: [
-      { card: { title: 'カーブ', text: 'ハートを持ったまま、くるくる回してから投げると曲がるよ。', points: ['時計回り = 右 / 反時計回り = 左', '弧を描いて投げても同じように曲がる'] } },
+      { card: { title: 'カーブ', text: 'ハートを持ったまま、ハートの周りを指でぐるぐる回してから投げると曲がるよ。', points: ['時計回り = 右 / 反時計回り = 左', '1周で少し、3周で最大まで曲がる'] } },
       {
-        coach: 'ハートを持ったまま くるくる回して、そのまま投げよう',
-        wait: (e, d) => e === 'throw' && d.spin !== 0,
-        tip: (e, d) => (e === 'throw' && d.spin === 0 ? 'まっすぐ飛んだよ。投げる前に、指でくるくる回してね' : null),
+        coach: 'ハートを持ったまま、ハートの周りをぐるっと1周させてから投げよう',
+        wait: (e, d) => e === 'throw' && d.turns >= 0.75, tries: 3,
+        tip: (e, d) => (e === 'throw' ? 'まだ1周回っていないよ。ハートの周りを指でぐるっと1周させてね' : null),
       },
       {
         wait: ANY_THROW_END,
-        card: { title: 'その調子!', text: '回した量はハートの上に RIGHT CURVE / LEFT CURVE と出るよ。', points: ['3回転で最大まで曲がる', '曲がりやすさはキャラで違う(CURVE タイプ・CURVE ステータスが高いほど大きく曲がる)'] },
+        card: { title: '1周', text: '1周だと少しだけ曲がるよ。次は3周回してみよう!' },
       },
+      {
+        coach: '今度はハートの周りをぐるぐる3周させてから投げよう',
+        wait: (e, d) => e === 'throw' && d.turns >= 2.6, tries: 3,
+        tip: (e, d) => (e === 'throw' ? `${Math.max(0.5, Math.floor(d.turns * 2) / 2)}周だったよ。3周回すと最大まで曲がる!` : null),
+      },
+      {
+        wait: ANY_THROW_END,
+        card: { title: '3周', text: '回した量はハートの上に RIGHT CURVE / LEFT CURVE と出るよ。3周で最大まで曲がる!', points: ['曲がりやすさはキャラで違う(CURVE タイプ・CURVE ステータスが高いほど大きく曲がる)'] },
+      },
+      { coach: '残りのメンバーも、カーブで投げてみよう', wait: (e) => e === 'phaseEnd' },
     ],
     done: 'カーブで、横にあるハートゲートも狙えるよ。',
   },
@@ -66,6 +76,7 @@ export const TUTORIAL_LESSONS = [
         tip: (e, d) => (e === 'miss' && d.gates > 0 ? '輪はくぐれた! でもボスに当たらないとボーナスなし' : e === 'hit' ? 'ボスには当たったけど、輪をくぐっていないよ' : null),
         card: { title: 'GATE!', text: 'ゲートの倍率がダメージに乗ったよ。', points: ['難易度が上がるとゲートは小さくなる'] },
       },
+      { coach: '残りのメンバーも、ゲートを狙って投げてみよう', wait: (e) => e === 'phaseEnd' },
     ],
     done: 'ゲートの位置を見て、まっすぐ・カーブ・山なりを使い分けよう。',
   },

@@ -103,7 +103,7 @@ export class ScreenRouter {
     this.container.dataset.screen = entry.id;
     this.container.dataset.kind = d.kind;
     this.container.classList.toggle('nav-on', this.navVisible);
-    this.container.classList.toggle('app-opaque', !!d.opaque || (d.overlay && !!root?.opaque));
+    this.container.classList.toggle('app-opaque', !!(d.opaque || (d.overlay && root?.opaque)));   // 必ず true / false(undefined だと切り替えになる)
     Log.info('ROUTER', `${ctx.restore ? 'back to' : 'go'} ${entry.id} (${d.kind})`);
     d.show?.(entry.params ?? {}, ctx);
     for (const fn of this.listeners) fn(entry.id, d, ctx);
