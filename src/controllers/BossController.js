@@ -190,6 +190,7 @@ export class BossController {
 
   /** 返球の発射位置・体が止まった姿勢(揺れ・溜めの動きに左右されない計算用。MULTI で全員同じ)*/
   restSpawnPoint(out = new THREE.Vector3()) {
+    if (this.spawnFrom) return this.spawnFrom(out);   // 雑魚戦の間は雑魚から(GameManager.syncWaveTarget)
     const body = this.view.anchors.body, parent = body.parent ?? this.root;
     this.root.updateMatrixWorld(true);
     return out.copy(this.spawnAnchor.position).applyMatrix4(parent.matrixWorld);   // 体の揺れ・のけぞり(body の動き)を除いた位置
@@ -237,6 +238,7 @@ export class BossController {
 
   /** 返球の発射位置(ワールド) */
   spawnPoint(out = new THREE.Vector3()) {
+    if (this.spawnFrom) return this.spawnFrom(out);
     this.root.updateMatrixWorld(true);
     return this.spawnAnchor.getWorldPosition(out);
   }

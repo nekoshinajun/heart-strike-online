@@ -556,6 +556,24 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #opening .op-line { margin: 8px auto 0; max-width: 340px; font-size: 15px; font-weight: 800; color: #ffe2f1; text-shadow: 0 0 8px #ff5fa2, 0 1px 3px #000; }
 #opening.name .op-target, #opening.name .op-name, #opening.diff .op-diff, #opening.text .op-profile, #opening.text .op-line { opacity: 1; transform: none; }
 #opening.out .op-card, #opening.out .op-dim { opacity: 0; transition: opacity .35s ease; }   /* .dim より後に書く(同じ詳細度で上書き)*/
+/* 雑魚戦(src/minion/MinionWave.js):雑魚の頭の上の HP バー / WAVE 中は上のボスの LOVE バーを隠す / 奥へ進む演出(WaveAdvanceState)*/
+#game.wave .heartrow, #game.wave #partsWrap { display: none; }
+.mn-hud { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.mn-hp { position: absolute; left: 0; top: 0; width: 132px; text-align: center; transition: opacity .3s ease; }
+.mn-hp b { display: block; font-size: 12px; font-weight: 900; color: #fff; letter-spacing: .04em; text-shadow: 0 0 6px #b46bff, 0 1px 2px #000; white-space: nowrap; }
+.mn-hp i { display: block; height: 9px; margin-top: 2px; border-radius: 99px; background: rgba(20,8,30,.72); border: 1.5px solid rgba(255,255,255,.85); overflow: hidden; box-shadow: 0 1px 4px #0008; }
+.mn-hp s { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #ff4f9a, #ff9bd0); transition: transform .25s ease; }
+.mn-hp em { display: block; font-style: normal; font-family: var(--display); font-size: 11px; color: #ffe2f1; text-shadow: 0 1px 2px #000; }
+.mn-hp.bump i { animation: mnBump .3s ease; }
+.mn-hp.down { opacity: 0; transition-delay: .3s; }
+@keyframes mnBump { 40% { transform: scale(1.12); } }
+#opening .op-minions { font-size: 30px; }
+#opening .op-minions span { margin: 0 .3em; font-size: .6em; color: #ffb3dc; }
+#waveFx { position: absolute; inset: 0; z-index: 8; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 42%, #fff 0%, rgba(255,240,250,.95) 22%, rgba(255,180,220,.55) 48%, rgba(120,60,160,0) 75%); transform: scale(.4); }
+#waveFx.go { animation: waveGo 1s cubic-bezier(.6,0,.9,.5) forwards; }
+#waveFx.arrive { animation: waveArrive .7s ease-out forwards; }
+@keyframes waveGo { 0% { opacity: 0; transform: scale(.4); } 70% { opacity: .55; } 100% { opacity: 1; transform: scale(3); } }
+@keyframes waveArrive { 0% { opacity: 1; transform: scale(3); } 100% { opacity: 0; transform: scale(3); } }
 #throwInfo { position: absolute; top: 164px; right: 10px; max-width: 46%; text-align: right; font-size: 10px; line-height: 1.5; color: var(--dim); text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; }
 #throwInfo b { color: var(--ink); }
 #game[data-state="TITLE"] #debug, #game[data-state="TITLE"] #throwInfo, #game[data-state="TITLE"] #partsWrap { display: none; }
@@ -2308,6 +2326,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       </div>
     </div>
 
+    <div id="waveFx"></div>
     <div id="opening" hidden aria-live="polite"></div>
     <div id="menu" class="menu">
       <div class="mhead">
