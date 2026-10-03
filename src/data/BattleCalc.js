@@ -79,16 +79,30 @@ export function throwModifiers(chara) {
 }
 
 /**
- * DefenseCalculator:キャッチ判定時のペナルティ。判定ごとの基本割合 × 返球の強さ × 防御補正。
+ * DefenseCalculator:キャッチ判定時のペナルティ。判定ごとの基本割合 × 返球の強さ × パーティ DEF の補正 × 個人のガード。
+ *   パーティ DEF = パーティ4人の DEF の合計(全員共通。DOWN したキャラの分も残る)。4人 × 50 = 200 で等倍、400 で ×0.75
+ *   HP と ULTIMATE のガード(受けるダメージ ×0.8 など)はキャラごと。ゆらぎ(±damageSpread)はキャラごとに別々に引く
  * 別の式に差し替える場合はこのオブジェクトの penalty を置き換える。
  */
 export const DefenseCalculator = {
   get judgeRate() { return Config.judgeDamageRate; },   // PERFECT 0 / GREAT 小 / GOOD 中 / MISS 大
   /** DEFENCE(レベルの基礎)→ 被ダメージ倍率(50 = ×1.0 / 100 = ×0.75 / 125 = ×0.625)× アビリティの DEF 加算の倍率(別枠:+20 = ×0.90)*/
   defenseMul(defence, bonus = 0) { return statEffect('defence', defence ?? 50) * abilityStatMul('defence', bonus); },
-  /** chara:キャラ(stats.defence / アビリティの guard)。PERFECT は judgeRate 0 なので常に 0 */
-  penalty(judge, returnPower, chara) {
-    const guard = abilityMul(chara?.abilities, 'guard', { judge });
-    return Math.round(returnPower * (this.judgeRate[judge] ?? 1) * this.defenseMul(chara?.stats?.defence, chara?.bonusStats?.defence ?? 0) * guard);
+  /** パーティ DEF:charas(4人)の DEF の合計 / アビリティの DEF 加算の合計 */
+  partyDefence(charas = []) {
+    const list = charas.filter(Boolean);
+    return { defence: list.reduce((a, c) => a + (c.stats?.defence ?? 50), 0), bonus: list.reduce((a, c) => a + (c.bonusStats?.defence ?? 0), 0), size: list.length };
   },
+  /** パーティ DEF → 被ダメージ倍率。合計を Config.defence.partySize(4人)で割って、1人分の DEF のカーブ(defenseMul)に当てる */
+  partyDefenseMul(party) {
+    const n = Config.defence.partySize ?? 4;
+    return this.defenseMul(party.defence / n, party.bonus / n);
+  },
+  /** chara:キャラ(アビリティの guard)/ party:partyDefence() の値。PERFECT は judgeRate 0 なので常に 0 */
+  penalty(judge, returnPower, chara, party = this.partyDefence([chara, chara, chara, chara])) {
+    const guard = abilityMul(chara?.abilities, 'guard', { judge });
+    return returnPower * (this.judgeRate[judge] ?? 1) * this.partyDefenseMul(party) * guard;
+  },
+  /** キャラごとの被ダメージのゆらぎ(1 ± damageSpread)。rand は 0〜1 */
+  spread(rand = Math.random()) { const s = Config.defence.damageSpread ?? 0; return 1 + (rand * 2 - 1) * s; },
 };

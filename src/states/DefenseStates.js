@@ -458,15 +458,17 @@ export class PlayerDefenseState {
   /** テスト / デバッグ:今のハートの判定を直接決める(1個だけの攻撃は全体が決まる)*/
   decide(r) { if (!this.result && this.noteState !== 'done') this.finishNote(r); }
 
-  damageFor(pl, r) {
+  damageFor(pl, r, party) {
     const g = this.g;
-    return Math.round(DefenseCalculator.penalty(r, this.plan.power, pl.chara) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1));
+    return DefenseCalculator.penalty(r, this.plan.power, pl.chara, party) * (g.cfg.battle?.bossAttackMul ?? 1) * (g.cfg.runtime?.damageTaken ?? 1);
   }
 
-  /** 全部のハートの合計ダメージ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul。1個の攻撃は今までと同じ)*/
+  /** 全部のハートの合計ダメージ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul。1個の攻撃は今までと同じ)× キャラごとのゆらぎ。丸めは最後に1回
+   *  DEF はパーティ4人の合計(全員共通)。ゆらぎを引くので、1回の攻撃につき1キャラ1回だけ呼ぶ(impact で damages に保存)*/
   totalDamageFor(pl) {
     const n = this.grades.length || 1, share = n > 1 ? (Config.defence.multi.damageMul ?? 1.5) / n : 1;
-    return Math.round(this.grades.reduce((a, r) => a + this.damageFor(pl, r) * share, 0));
+    const party = DefenseCalculator.partyDefence(this.g.turn.players.map((p) => p.chara));
+    return Math.round(this.grades.reduce((a, r) => a + this.damageFor(pl, r, party) * share, 0) * DefenseCalculator.spread());
   }
 
   impact() {
@@ -483,14 +485,16 @@ export class PlayerDefenseState {
     if (this.notes.length > 1) g.ui.showJudge(r === Judge.PERFECT ? 'ALL PERFECT!' : `${this.grades.filter((x) => x !== Judge.MISS).length} / ${this.grades.length} DEFENCE`, r === Judge.PERFECT ? 'perfect' : 'tier', JUDGE_COLOR[r], this.grades.join(' ・ '));
     // MULTI:全部のハートの判定が決まってから1回だけ送る(HP は判定した時点の値から引く)
     if (g.online) this.hpBefore = new Map(g.turn.players.map((pl) => [pl, pl.hp]));
-    if (g.online && !g.online.isDown()) { const damages = {}; for (const i of g.online.myUnitIndexes()) { const pl = g.turn.players[i]; if (pl?.hp > 0) damages[i] = this.totalDamageFor(pl); } g.online.sendCatch(0, r, damages); }
+    // 被ダメージはキャラごとに1回だけ計算する(ゆらぎを引くので、送る値と表示する値を同じにする)
+    const dmgOf = new Map(g.turn.players.map((pl) => [pl, this.totalDamageFor(pl)]));
+    if (g.online && !g.online.isDown()) { const damages = {}; for (const i of g.online.myUnitIndexes()) { const pl = g.turn.players[i]; if (pl?.hp > 0) damages[i] = dmgOf.get(pl); } g.online.sendCatch(0, r, damages); }
     const pos = g.ball.pos.clone();
-    // ボスの反撃は全員へ:SOLO は生存している全員 / MULTI は自分が担当するキャラだけ(ダメージは各自の DEF で個別)
+    // ボスの反撃は全員へ:SOLO は生存している全員 / MULTI は自分が担当するキャラだけ(DEF はパーティ共通・ゆらぎはキャラごと)
     const targets = (g.online ? g.online.myUnitIndexes().map((i) => g.turn.players[i]) : g.turn.players).filter((pl) => pl && (g.online ? this.hpBefore?.get(pl) ?? pl.hp : pl.hp) > 0);
     const s0 = g.player.toScreen(pos);
     const downs = [];
     targets.forEach((pl, k) => {
-      const dmg = this.totalDamageFor(pl);
+      const dmg = dmgOf.get(pl);
       if (dmg <= 0) return;
       if (g.online) { pl.hp = Math.max(0, (this.hpBefore?.get(pl) ?? pl.hp) - dmg); g.bus.emit('playerHp', pl); } else g.turn.damage(pl, dmg, g.tutorial ? 1 : 0);   // チュートリアルは負けない(HP 1 で止まる)
       const i = g.turn.players.indexOf(pl);
@@ -498,7 +502,7 @@ export class PlayerDefenseState {
       g.ui.damageNumber(s0.x + (k - (targets.length - 1) / 2) * 46, s0.y + 40 + (k % 2) * 26, `-${dmg}`, { color: '#ff5a6e', label: pl.id });
       if (pl.hp <= 0) downs.push(pl);
     });
-    if (targets.some((pl) => this.totalDamageFor(pl) > 0)) { g.hitstop(0.1); g.cam.shake(0.6); }
+    if (targets.some((pl) => dmgOf.get(pl) > 0)) { g.hitstop(0.1); g.cam.shake(0.6); }
     g.ui.setPlayers(g.turn.players, g.turn.index);
 
     if (downs.length) setTimeout(() => g.audio.allyDown?.(), 450);   // HP 0 を知らせる音(ダメージ音のあと)
