@@ -185,7 +185,7 @@ function lateDurFor() { return catchWin('goodTime') + 0.02; }
  * PLAYER_DEFENSE:ボスの攻撃を捌く。1回の攻撃 = 1個以上のハート(notes)。ハートごとに操作と判定
  *   NORMAL … 到達でタップ(位置 + タイミング。既存の CatchJudge)
  *   HOLD   … 到達で押し始め(位置 + タイミング)→ hold 秒押し続けて離す(離すタイミングも判定)。悪い方
- *   FLICK  … スライド:開始地点で押す(位置 + タイミング)→ 指を離さず軌道に沿って終点まで運ぶ → 終点で離す(離すタイミングも判定)
+ *   FLICK  … osu! のスライダー:開始のサークルで押す(位置 + タイミング)→ トラックを進むハート(ボール)に指でついていく → 終点で離す(離すタイミングも判定)
  *            軌道から大きく外れる / 終点まで運ばずに離す / タップだけ は MISS。軌道は NotePath(直線。将来カーブも)
  *   MULTI  … 1個ずつ順に飛んでくる(1個の判定が終わったら次が発射)
  * ダメージは全部のハートの判定が終わってから1回だけ(各ハート:判定のペナルティ × 1/個数 × multi.damageMul)。PERFECT は 0
@@ -277,8 +277,6 @@ export class PlayerDefenseState {
     sl.consumed = Math.max(sl.consumed, nr.t);
     sl.reached = sl.reached || Math.hypot(p.x - end.x, p.y - end.y) <= (F.endRadius ?? 0.075) * short;
     if (sl.reached) sl.consumed = 1;
-    // ハートは指について動く(キャッチ地点と同じ奥行き)
-    g.ball.pinAt?.(g.player.screenToWorld(p.x, p.y, Config.ball.catchDepth));
   }
 
   failSlide(why) {
@@ -395,7 +393,9 @@ export class PlayerDefenseState {
       const n = this.note, sl = this.slide;
       sl.guide = Math.max(0, Math.min(1, (now - (this.slideEnd - (n.slideSec ?? Config.defence.flick.slideSec))) / (n.slideSec ?? Config.defence.flick.slideSec)));
       g.catchTarget.setSlide?.(sl);
-      if (!sl.finger) g.ball.pinAt?.(n.markerWorld ?? n.world);
+      // ハート = osu! のスライダーボール:指ではなく、理想の速さ(slideSec)でトラックを進む。指はそれについていく
+      const b = g.catchTarget.pointOnPath?.(sl.guide, n);
+      g.ball.pinAt?.(b ? g.player.screenToWorld(b.x, b.y, Config.ball.catchDepth) : n.markerWorld ?? n.world);
       const late = (Config.defence.flick.endWindowMul ?? 3) * catchWin('goodTime');
       if (now > this.slideEnd + late) { if (sl.reached) { this.fxKeep = true; this.finishNote(Judge.MISS, '離すのが遅い'); } else this.failSlide('終点まで運んでいない'); }
       return;

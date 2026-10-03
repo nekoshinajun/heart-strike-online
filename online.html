@@ -242,34 +242,36 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #catchMarker.early #cmHold { background: conic-gradient(#ffd23e var(--k, 0deg), #ff3d5a 0); animation: cmShake .3s ease-in-out 2; }
 #catchMarker.early #cmPad { animation: none; filter: grayscale(.6) brightness(.8); }
 @keyframes cmShake { 0%, 100% { translate: 0 0; } 25% { translate: -5px 0; } 75% { translate: 5px 0; } }
-/* FLICK:開始地点(マーカー)→ 軌道(終点へ流れる)→ 終点ターゲット。押したまま運ぶ */
-#catchMarker[data-note="FLICK"] #cmOuter { --pc: #5ad8ff; border-width: 7px; }
-#catchMarker[data-note="FLICK"] #cmInner { border-color: #dff8ff; background: rgba(90,216,255,.28); }
+/* FLICK:osu! のスライダー。開始のヒットサークル(アプローチサークルが縮む)+ 縁取りの太いトラック + 終点のサークル。押すとボール(ハート)が進み、フォローサークルの中に指を保つ */
+#catchMarker[data-note="FLICK"] #cmZone { display: none; }
+#catchMarker[data-note="FLICK"] #cmOuter { --pc: #5ad8ff; border-width: 4px; box-shadow: 0 0 10px var(--pc); }
+#catchMarker[data-note="FLICK"] #cmInner { border: 5px solid #fff; background: radial-gradient(circle, rgba(140,230,255,.12) 0 45%, rgba(40,170,230,.4) 80%, rgba(20,120,190,.6)); box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 0 14px rgba(90,216,255,.8); }
+#catchMarker[data-note="FLICK"] #cmInner::after { display: none; }
+#catchMarker[data-note="FLICK"].near #cmInner { border-color: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 0 24px #fff, 0 0 30px #5ad8ff; }
 #catchMarker.sliding #cmOuter, #catchMarker.sliding #cmZone, #catchMarker.sliding #cmInner { opacity: 0; transition: opacity .12s; }
 #noteFx { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-#noteFx .nf-tube { fill: none; stroke: rgba(90,216,255,.30); stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 1.5px #003a52) drop-shadow(0 0 8px rgba(90,216,255,.55)); }
-#noteFx .nf-flow { fill: none; stroke: #ffffff; stroke-width: 8px; stroke-linecap: round; stroke-dasharray: 0.1 22; animation: nfFlow .55s linear infinite; filter: drop-shadow(0 0 3px #5ad8ff); }
-@keyframes nfFlow { to { stroke-dashoffset: -22.1; } }
-#noteFx .nf-done { fill: none; stroke: rgba(255,255,255,.35); stroke-width: 3px; stroke-dasharray: 2 8; stroke-linecap: round; }
-#noteFx .nf-end-glow { fill: rgba(90,216,255,.22); animation: nfEnd .9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes nfEnd { 0%, 100% { scale: .85; opacity: .6; } 50% { scale: 1.15; opacity: 1; } }
-#noteFx .nf-end-ring { fill: rgba(10,30,50,.25); stroke: #ffffff; stroke-width: 4px; stroke-dasharray: 7 6; animation: nfSpin 2.4s linear infinite; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 4px #5ad8ff); }
-@keyframes nfSpin { to { rotate: 360deg; } }
-#noteFx .nf-end-dot { fill: #5ad8ff; stroke: #ffffff; stroke-width: 3px; }
-#noteFx .nf-end.reached .nf-end-ring { stroke: #ffd23e; fill: rgba(255,210,62,.35); stroke-dasharray: none; }
-#noteFx .nf-end.reached .nf-end-dot { fill: #ffd23e; }
-#noteFx .nf-end.reached .nf-end-glow { fill: rgba(255,210,62,.55); animation-duration: .3s; }
-#noteFx .nf-guide { fill: rgba(255,255,255,.18); stroke: #ffffff; stroke-width: 3px; stroke-dasharray: 4 4; }
-#noteFx .nf-finger { fill: rgba(90,216,255,.16); stroke: #5ad8ff; stroke-width: 4px; filter: drop-shadow(0 0 6px #5ad8ff); }
-#noteFx .nf-path.fail .nf-tube { stroke: rgba(255,61,90,.4); }
-#noteFx .nf-path.fail .nf-flow { stroke: #ff9cad; animation: none; }
-#noteFx .nf-path.fail .nf-end-ring { stroke: #ff3d5a; animation: none; }
+#noteFx .nf-edge, #noteFx .nf-body, #noteFx .nf-core { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+#noteFx .nf-edge { stroke: #ffffff; filter: drop-shadow(0 0 1.5px rgba(0,0,0,.8)) drop-shadow(0 0 8px rgba(90,216,255,.6)); }
+#noteFx .nf-body { stroke: rgb(18,70,110); stroke-opacity: .6; }
+#noteFx .nf-core { stroke: rgb(90,200,245); stroke-opacity: .35; filter: blur(6px); }
+#noteFx .nf-end { fill: none; stroke: rgba(255,255,255,.75); }
+#noteFx .nf-end.reached { fill: rgba(255,210,62,.35); stroke: #fff6cf; filter: drop-shadow(0 0 10px #ffd23e); }
+#noteFx .nf-ball, #noteFx .nf-follow { display: none; }
+#noteFx .nf-path.active .nf-ball, #noteFx .nf-path.active .nf-follow { display: inline; }
+#noteFx .nf-ball { fill: none; stroke: #ffffff; stroke-width: 4px; filter: drop-shadow(0 0 6px #5ad8ff); }
+#noteFx .nf-follow { fill: rgba(255,255,255,.06); stroke: #ffffff; stroke-width: 3px; stroke-opacity: .85; filter: drop-shadow(0 0 8px #5ad8ff); transform-box: fill-box; transform-origin: center; animation: nfFollowIn .18s ease-out; }
+@keyframes nfFollowIn { from { scale: .5; opacity: 0; } to { scale: 1; opacity: 1; } }
+#noteFx .nf-path.fail .nf-edge { stroke: #ff3d5a; }
+#noteFx .nf-path.fail .nf-body { stroke: rgb(90,20,35); }
+#noteFx .nf-path.fail .nf-core { stroke: rgb(255,61,90); }
+#noteFx .nf-path.fail .nf-end { stroke: #ff3d5a; }
 /* MULTI:次のハート(薄く) */
 #noteFx .nf-next { opacity: .55; }
 #noteFx .nf-next-ring { fill: none; stroke: #ffffff; stroke-width: 3px; stroke-dasharray: 5 5; }
 #noteFx .nf-next-pad { fill: rgba(255,210,62,.7); }
-#noteFx .nf-next-path { fill: none; stroke: rgba(90,216,255,.7); stroke-width: 10px; stroke-linecap: round; }
-#noteFx .nf-next-end { fill: none; stroke: #5ad8ff; stroke-width: 4px; }
+#noteFx .nf-next-edge { fill: none; stroke: rgba(255,255,255,.8); stroke-linecap: round; }
+#noteFx .nf-next-path { fill: none; stroke: rgb(18,70,110); stroke-linecap: round; }
+#noteFx .nf-next-end { fill: none; stroke: #ffffff; stroke-width: 3px; }
 .ripple { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 3px solid var(--rc); animation: ripple 480ms ease-out forwards; }
 @keyframes ripple { from { transform: scale(0.5); opacity: 1; } to { transform: scale(4); opacity: 0; } }
 

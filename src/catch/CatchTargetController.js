@@ -1,9 +1,11 @@
-import { catchWin } from '../core/Config.js';
+import { Config, catchWin } from '../core/Config.js';
 import { BallController } from '../controllers/BallController.js';
 import { sample, slice } from '../defence/NotePath.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const svg = (tag, attrs = {}) => { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+/** FLICK(スライダー)のサークル・トラックの太さ(ハートの見かけの大きさ比)*/
+const SLIDER_SCALE = 0.68;
 const polyD = (pts) => pts.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`).join(' ');
 
 /**
@@ -14,7 +16,8 @@ const polyD = (pts) => pts.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.
  * DEFENCE のハートの種類は文字を使わず「形と動き」で見せる
  *  - NORMAL … 細いリングだけ(重なった瞬間にタップ)
  *  - HOLD   … 塗りつぶした「押す面」+ 外周の空のゲージ(押し続けると一周 → 光ったら離す)
- *  - FLICK  … 開始地点 → 軌道(終点へ流れる矢印)→ 終点ターゲット(押したまま終点まで運んで離す)
+ *  - FLICK  … osu! のスライダーと同じ見た目:縁取りの太いトラック(本体)+ 開始のヒットサークル(外側のアプローチサークルが縮む)
+ *              + 終点のサークル。押すとスライダーボール(= ハート)がトラックを slideSec で進み、まわりのフォローサークルの中に指を保つ
  *  - MULTI  … 次のハートのマーカーを薄く先に見せる(setNext)
  */
 export class CatchTargetController {
@@ -41,20 +44,21 @@ export class CatchTargetController {
     if (!host) return;
     const s = svg('svg', { id: 'noteFx', 'aria-hidden': 'true' });
     this.fxNext = svg('g', { class: 'nf-next' });
+    this.fxNextEdge = svg('path', { class: 'nf-next-edge' });
     this.fxNextPath = svg('path', { class: 'nf-next-path' });
     this.fxNextEnd = svg('circle', { class: 'nf-next-end', r: 8 });
     this.fxNextRing = svg('circle', { class: 'nf-next-ring', r: 20 });
     this.fxNextPad = svg('circle', { class: 'nf-next-pad', r: 14 });
-    this.fxNext.append(this.fxNextPath, this.fxNextEnd, this.fxNextRing, this.fxNextPad);
+    this.fxNext.append(this.fxNextEdge, this.fxNextPath, this.fxNextEnd, this.fxNextRing, this.fxNextPad);
+    // osu! のスライダー:縁(白)→ 本体(色)→ 中心の明るい帯 の順に重ねた太い線 = トラック
     this.fxPath = svg('g', { class: 'nf-path' });
-    this.fxTube = svg('path', { class: 'nf-tube' });
-    this.fxDone = svg('path', { class: 'nf-done' });
-    this.fxFlow = svg('path', { class: 'nf-flow' });
-    this.fxEnd = svg('g', { class: 'nf-end' });
-    this.fxEnd.append(svg('circle', { class: 'nf-end-glow', r: 26 }), svg('circle', { class: 'nf-end-ring', r: 20 }), svg('circle', { class: 'nf-end-dot', r: 8 }));   // 終点 = 行き先(点線の輪 + 点。開始のリングとは違う形)
-    this.fxGuide = svg('circle', { class: 'nf-guide', r: 13 });
-    this.fxFinger = svg('circle', { class: 'nf-finger', r: 30 });
-    this.fxPath.append(this.fxTube, this.fxDone, this.fxFlow, this.fxEnd, this.fxGuide, this.fxFinger);
+    this.fxEdge = svg('path', { class: 'nf-edge' });
+    this.fxBody = svg('path', { class: 'nf-body' });
+    this.fxCore = svg('path', { class: 'nf-core' });
+    this.fxEnd = svg('circle', { class: 'nf-end' });            // 終点のサークル(ここまで運んで離す)
+    this.fxFollow = svg('circle', { class: 'nf-follow' });      // フォローサークル(この中に指を保つ = 判定の許容幅)
+    this.fxBall = svg('circle', { class: 'nf-ball' });          // スライダーボールの縁(中身は 3D のハート)
+    this.fxPath.append(this.fxEdge, this.fxBody, this.fxCore, this.fxEnd, this.fxFollow, this.fxBall);
     s.append(this.fxNext, this.fxPath);
     host.insertBefore(s, this.el);
     s.style.display = 'none';
@@ -102,6 +106,12 @@ export class CatchTargetController {
     return sample(note.path?.kind ?? 'line', P, note.path?.kind === 'line' ? 1 : 24);
   }
 
+  /** 軌道の上の t(0..1)の位置(px)。スライダーボール(ハート)の位置 */
+  pointOnPath(t, note = this.note) {
+    const poly = this.pathPoly(note);
+    return poly ? slice(poly, 0, Math.max(0.001, Math.min(1, t))).at(-1) : null;
+  }
+
   show(world, color) {
     this.world = world.clone();
     this.el.hidden = false;
@@ -127,11 +137,13 @@ export class CatchTargetController {
     const r = BallController.screenRadius(this.cam.camera, this.world, this.viewport.h);
     this.r = r;
     const k = Math.max(-0.35, Math.min(1, progress));
-    const outer = r * (1 + k * 2.6);
+    // FLICK はスライダーのトラックが見えるよう、サークル(開始・終点・トラックの太さ)を少し細く。判定の範囲は変えない
+    const ri = this.note?.type === 'FLICK' ? r * SLIDER_SCALE : r;
+    const outer = ri * (1 + k * 2.6);
     this.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
-    this.inner.style.width = this.inner.style.height = `${r * 2}px`;
+    this.inner.style.width = this.inner.style.height = `${ri * 2}px`;
     this.outer.style.width = this.outer.style.height = `${Math.max(0, outer) * 2}px`;
-    this.outer.style.opacity = progress > 1 ? 0.35 : 1;
+    this.outer.style.opacity = this.el.classList.contains('sliding') ? 0 : progress > 1 ? 0.35 : 1;   // 押した後(スライド中)はアプローチサークルを消す
     const zr = catchWin('goodRadius') * short;
     this.zone.style.width = this.zone.style.height = `${zr * 2}px`;
     if (this.holdRing) this.holdRing.style.width = this.holdRing.style.height = `${r * 2 + 30}px`;
@@ -147,23 +159,30 @@ export class CatchTargetController {
     const poly = n?.type === 'FLICK' ? this.pathPoly(n) : null;
     this.fxPath.style.display = poly ? '' : 'none';
     if (poly) {
-      const sl = this.slide, from = sl ? Math.max(0, Math.min(1, sl.consumed)) : 0;
-      // 進んだ所は消えていく(残りの軌道だけ太く見せる)。流れる矢印は終点へ向かって動く
-      const rest = slice(poly, from, 1), done = slice(poly, 0, from);
-      this.fxTube.setAttribute('d', polyD(rest)); this.fxTube.style.strokeWidth = `${Math.max(16, r * 0.8).toFixed(1)}px`;
-      this.fxFlow.setAttribute('d', polyD(rest));
-      this.fxDone.setAttribute('d', from > 0.001 ? polyD(done) : '');
+      const sl = this.slide, R = r * SLIDER_SCALE;
+      // トラックは最初から全体を見せる(どこからどこへ運ぶかを先に分かるように)
+      const d = polyD(poly);
+      const bw = Math.max(3, R * 0.13);
+      this.fxEdge.setAttribute('d', d); this.fxEdge.style.strokeWidth = `${(R * 2).toFixed(1)}px`;
+      this.fxBody.setAttribute('d', d); this.fxBody.style.strokeWidth = `${(R * 2 - bw * 2).toFixed(1)}px`;
+      this.fxCore.setAttribute('d', d); this.fxCore.style.strokeWidth = `${(R * 0.9).toFixed(1)}px`;
       const end = poly[poly.length - 1];
-      this.fxEnd.setAttribute('transform', `translate(${end.x.toFixed(1)} ${end.y.toFixed(1)}) scale(${Math.max(0.8, r / 34).toFixed(3)})`);
+      this.fxEnd.setAttribute('cx', end.x.toFixed(1)); this.fxEnd.setAttribute('cy', end.y.toFixed(1));
+      this.fxEnd.setAttribute('r', (R * 0.78).toFixed(1)); this.fxEnd.style.strokeWidth = `${(bw * 0.7).toFixed(1)}px`;   // 開始のサークルより控えめ(どっちが始まりか迷わない)
       this.fxEnd.classList.toggle('reached', !!sl?.reached);
       this.fxPath.classList.toggle('fail', !!sl?.fail);
-      const gt = sl && !sl.fail ? sl.guide : null;
-      this.fxGuide.style.display = gt != null && gt < 1 ? '' : 'none';
-      if (gt != null) { const g = slice(poly, 0, Math.max(0.001, Math.min(1, gt))).at(-1); this.fxGuide.setAttribute('cx', g.x.toFixed(1)); this.fxGuide.setAttribute('cy', g.y.toFixed(1)); this.fxGuide.setAttribute('r', (r * 0.55).toFixed(1)); }
-      this.fxFinger.style.display = sl?.finger && !sl.fail ? '' : 'none';
-      if (sl?.finger) { this.fxFinger.setAttribute('cx', sl.finger.x.toFixed(1)); this.fxFinger.setAttribute('cy', sl.finger.y.toFixed(1)); this.fxFinger.setAttribute('r', (r * 1.15).toFixed(1)); }
+      // スライダーボール + フォローサークル:押している間だけ。ボールは slideSec でトラックを進む(ハートも同じ位置)
+      const on = !!sl && !sl.fail;
+      this.fxPath.classList.toggle('active', on);
+      if (on) {
+        const b = slice(poly, 0, Math.max(0.001, Math.min(1, sl.guide ?? 0))).at(-1);
+        const fr = Math.max(R * 1.4, (Config.defence.flick.tol ?? 0.13) * Math.min(this.viewport.w, this.viewport.h));
+        for (const c of [this.fxBall, this.fxFollow]) { c.setAttribute('cx', b.x.toFixed(1)); c.setAttribute('cy', b.y.toFixed(1)); }
+        this.fxBall.setAttribute('r', (R * 0.92).toFixed(1));
+        this.fxFollow.setAttribute('r', fr.toFixed(1));
+      }
     }
-    // MULTI:次のハートを薄く(種類ごとの形:NORMAL = リング / HOLD = 塗りつぶし / FLICK = 軌道と終点)
+    // MULTI:次のハートを薄く(種類ごとの形:NORMAL = リング / HOLD = 塗りつぶし / FLICK = 小さなスライダー)
     const nx = this.next, nw = nx?.markerWorld;
     this.fxNext.style.display = nw ? '' : 'none';
     if (nw) {
@@ -172,9 +191,10 @@ export class CatchTargetController {
       this.fxNextRing.setAttribute('r', rr.toFixed(1)); this.fxNextPad.setAttribute('r', (rr * 0.72).toFixed(1));
       this.fxNextPad.style.display = nx.type === 'HOLD' ? '' : 'none';
       const np = nx.type === 'FLICK' ? this.pathPoly(nx) : null;
-      this.fxNextPath.setAttribute('d', np ? polyD(np) : '');
+      this.fxNextPath.setAttribute('d', np ? polyD(np) : ''); this.fxNextPath.style.strokeWidth = `${(rr * 1.6).toFixed(1)}px`;
+      this.fxNextEdge.setAttribute('d', np ? polyD(np) : ''); this.fxNextEdge.style.strokeWidth = `${(rr * 2).toFixed(1)}px`;
       this.fxNextEnd.style.display = np ? '' : 'none';
-      if (np) { const e = np[np.length - 1]; this.fxNextEnd.setAttribute('cx', e.x.toFixed(1)); this.fxNextEnd.setAttribute('cy', e.y.toFixed(1)); this.fxNextEnd.setAttribute('r', (rr * 0.6).toFixed(1)); }
+      if (np) { const e = np[np.length - 1]; this.fxNextEnd.setAttribute('cx', e.x.toFixed(1)); this.fxNextEnd.setAttribute('cy', e.y.toFixed(1)); this.fxNextEnd.setAttribute('r', (rr * 0.8).toFixed(1)); }
     }
   }
 
