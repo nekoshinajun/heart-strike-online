@@ -59,15 +59,16 @@ export class UIManager {
 
   /**
    * 味方のアイコンを長押し → その子のステータス(押している間だけ表示。離すと消える)
+   * 短くタップ → onCardTap(i)(SPECIAL READY の手番のキャラなら必殺技の予約 / 解除)
    *   押した操作は投球 / キャッチの入力へ流さない
    */
   bindStatusPeek(d, i) {
-    let timer = null;
+    let timer = null, peeked = false;
     const stop = (e) => e.stopPropagation();
     const end = () => { clearTimeout(timer); timer = null; this.hideStatus(); };
-    d.addEventListener('pointerdown', (e) => { stop(e); clearTimeout(timer); timer = setTimeout(() => { timer = null; this.showStatus(i); }, Config.home?.longPressMs ?? 450); });
+    d.addEventListener('pointerdown', (e) => { stop(e); clearTimeout(timer); peeked = false; timer = setTimeout(() => { timer = null; peeked = true; this.showStatus(i); }, Config.home?.longPressMs ?? 450); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) d.addEventListener(ev, (e) => { stop(e); end(); });
-    d.addEventListener('click', stop);
+    d.addEventListener('click', (e) => { stop(e); if (!peeked) this.onCardTap?.(i); peeked = false; });
     d.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   showStatus(i) {
@@ -387,7 +388,7 @@ export class UIManager {
 
   /**
    * 各キャラの SPECIAL ゲージ(アイコンを囲む細いリング。時計回りに溜まる)。100%(必殺技を使える)のキャラはリングとアイコンが光り「READY!」
-   *   list[i] = { ratio: 0〜1, ready }(EnergySystem.refreshUI から)
+   *   list[i] = { ratio: 0〜1, ready, armed(必殺技を予約中), bump(ゲージが増えた)}(EnergySystem.refreshUI から)
    */
   setSpecialGauges(list) {
     (this.cards ?? []).forEach((c, i) => {
@@ -395,20 +396,10 @@ export class UIManager {
       if (!s || !c.sp) return;
       c.sp.style.setProperty('--sp', s.ratio.toFixed(3));
       c.d.classList.toggle('spready', !!s.ready);
+      c.d.classList.toggle('sparmed', !!s.armed);
+      const badge = c.d.querySelector('.pready'); if (badge) badge.textContent = s.armed ? 'ON!' : 'READY!';
+      if (s.bump) { c.d.classList.remove('spbump'); void c.d.offsetWidth; c.d.classList.add('spbump'); }
     });
-  }
-
-  /** SPECIAL ゲージ(画面左下 = 今操作中のキャラのゲージ)*/
-  setEnergy(value, max, ready, armed, bump = false) {
-    const el = document.getElementById('energy');
-    if (!el) return;
-    el.querySelector('i').style.transform = `scaleX(${Math.min(1, value / max)})`;
-    // SPECIAL ゲージ:Diamond 1個 = +10%(10個で MAX)。MAX で「SPECIAL READY」(タップで必殺技)
-    el.querySelector('b').textContent = `${Math.round(Math.min(1, value / max) * 100)}%`;
-    el.querySelector('em').textContent = armed ? '♡ SPECIAL ON!' : ready ? '♡ SPECIAL READY' : '♡ SPECIAL';
-    el.classList.toggle('ready', ready);
-    el.classList.toggle('armed', armed);
-    if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
   }
 
   setDebugState(D) {

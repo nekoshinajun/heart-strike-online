@@ -86,9 +86,8 @@ export class GameManager {
     this.space = new SpaceSystem(this);
     this.affection = new AffectionSystem(this);
     this.cfg = Config;
-    const eg = document.getElementById('energy');
-    eg.addEventListener('pointerdown', (e) => e.stopPropagation());
-    eg.addEventListener('click', () => this.energy.toggleArm());
+    // 必殺技:SPECIAL READY の手番のキャラのアイコン(リングが光っている)をタップで予約 / 解除(画面左下のゲージは無し)
+    this.ui.onCardTap = (i) => { if (i === this.turn.index) this.energy.toggleArm(); };
 
     // 時間
     this.clock = 0;          // ゲーム時間(秒)
@@ -122,7 +121,7 @@ export class GameManager {
     this.bus.on('keyrelease', (e) => this.sm.dispatch('onKeyRelease', e));
     // ラリー(内部:ボスの返球の強さ)はハート玉の光り方だけに使う。画面の数字は COMBO(FeverSystem)
     this.bus.on('rally', () => this.ball.setStyle(this.turn.current.color, this.turn.tierLevel));
-    // SPECIAL ゲージはキャラごと:手番が変わったら左下の SPECIAL 表示をそのキャラのゲージへ
+    // SPECIAL ゲージはキャラごと:手番が変わったら予約を解除してリングの表示を更新
     this.bus.on('turn', () => this.energy?.onTurn());
 
     // デバッグ切替(キー / 画面右上ボタン)

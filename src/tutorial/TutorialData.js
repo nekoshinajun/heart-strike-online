@@ -98,12 +98,12 @@ export const TUTORIAL_LESSONS = [
       { wait: (e) => e === 'attack' },   // 次の子の番になってから(SPECIAL ON は投げる子の番だけ)
       {
         do: (t) => t.fillSpecial(),
-        card: { title: 'SPECIAL READY!', text: '練習なので、全員の SPECIAL ゲージを MAX にしたよ。', points: ['左下の SPECIAL をタップすると「SPECIAL ON」', 'その状態で投げると必殺技!(もう一度タップで OFF)'], focus: '#energy' },
+        card: { title: 'SPECIAL READY!', text: '練習なので、全員の SPECIAL ゲージを MAX にしたよ。', points: ['リングが光って READY! の、今投げる子のアイコンをタップすると「ON!」', 'その状態で投げると必殺技!(もう一度タップで OFF)'], focus: '#players .pcard.active' },
       },
       {
-        coach: '左下の SPECIAL をタップして ON にしてから投げよう',
+        coach: '光っているアイコンをタップして ON! にしてから投げよう',
         wait: (e, d) => e === 'throw' && d.special, tries: 3,
-        tip: (e) => (e === 'throw' ? 'SPECIAL が OFF のまま投げたよ。左下をタップして ON にしてね' : null),
+        tip: (e) => (e === 'throw' ? 'SPECIAL が OFF のまま投げたよ。光っているアイコンをタップして ON! にしてね' : null),
       },
       {
         wait: (e, d) => ANY_THROW_END(e) && d.special, tries: 1,   // SPECIAL で投げなかった時(tries で先へ進めた時)は出さない

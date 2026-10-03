@@ -352,20 +352,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #curveRing .cr-label { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); padding: 1px 8px; border-radius: 9px; background: rgba(7,7,10,.6); color: currentColor; font: 800 10px var(--round); letter-spacing: .06em; white-space: nowrap; }
 #curveRing.reset .cr-label { animation: crreset .5s ease-out; }
 @keyframes crreset { 0% { transform: translate(-50%, -2px) scale(1.25); background: rgba(255,255,255,.85); color: #5b2b45; } 100% { transform: translate(-50%, -2px) scale(1); } }
-#energy { position: absolute; left: calc(8px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 136px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; gap: 3px 6px; align-items: center; padding: 8px 9px; border-radius: 13px; border: 1px solid rgba(255,255,255,.1); background: rgba(7,7,10,.78); box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--ink); pointer-events: auto; cursor: default; font: inherit; text-align: left; }
-#energy .egbar { grid-column: 1 / -1; }
-#energy em { font-style: normal; font-family: var(--display); font-size: 9px; color: #ff9ccc; letter-spacing: .06em; white-space: nowrap; }
-#energy b { white-space: nowrap; font-size: 9px; font-weight: 800; color: var(--dim); font-variant-numeric: tabular-nums; }
-.egbar { height: 8px; background: #18181d; border-radius: 4px; overflow: hidden; }
-.egbar i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #8b174d, #ff4f9a); transition: transform 200ms; }
-#energy.bump .egbar { animation: ebump 300ms; }
-@keyframes ebump { 0% { box-shadow: 0 0 0 2px #3ee8ff, 0 0 14px #3ee8ff; } 100% { box-shadow: none; } }
-#energy.ready { cursor: pointer; border-color: var(--gold); box-shadow: 0 0 14px rgba(255,210,62,.6); animation: breathe 700ms ease-in-out infinite alternate; }
-#energy.ready em { color: var(--gold); }
-#energy.ready .egbar i { background: linear-gradient(90deg, #ffd23e, #fff2b0, #ffd23e); }
-#energy.armed { background: rgba(80,50,0,.8); }
-#energy:focus-visible { outline: 2px solid #fff; }
-#game[data-state="TITLE"] #energy { display: none; }
 /* ---- プレイヤー ---- */
 /* 右下:パーティ4人のキャラクターアイコン(縦・コンパクト)。現在キャラだけ拡大+発光+Pulse+NOW */
 #players { position: absolute; right: calc(8px + env(safe-area-inset-right, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: flex-end; gap: 5px; width: 50px; pointer-events: none; }
@@ -382,11 +368,17 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pcard.active::before { content: "NOW ▶"; position: absolute; right: calc(100% + 5px); top: 13px; font-family: var(--display); font-size: 9px; color: #fff; background: #0b0b0f; padding: 3px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 18px #0007; text-shadow: 0 1px 0 #000; letter-spacing: .04em; white-space: nowrap; }
 @property --sp { syntax: '<number>'; inherits: false; initial-value: 0; }
 /* SPECIAL ゲージ(キャラごと):アイコンを囲む細いリング(--sp = 0〜1 が時計回りに溜まる)。100% = 必殺技を使える → リングが光って READY! */
-.psp { --sp: 0; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; background: conic-gradient(#ff5fa8 calc(var(--sp) * 1turn), rgba(255,255,255,.16) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); transition: --sp 300ms; }
+.psp { --sp: 0; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; background: conic-gradient(#ff5fa8 calc(var(--sp) * 1turn), #000 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); transition: --sp 300ms; }
 .pready { display: none; position: absolute; left: 50%; top: -11px; transform: translateX(-50%); padding: 0 3px; border-radius: 4px; background: #ff4fa8; color: #fff; font: 400 7px/10px var(--display); font-style: normal; letter-spacing: .03em; white-space: nowrap; box-shadow: 0 0 0 1px #000, 0 0 8px rgba(255,95,168,.9); z-index: 2; }
 .pcard.spready .psp { background: #ff6fb3; filter: drop-shadow(0 0 4px #ff4fa8); animation: spglow 900ms ease-in-out infinite alternate; }
 .pcard.spready .picon { box-shadow: 0 0 0 1px #000, 0 0 12px 3px rgba(255,95,168,.75); }
 .pcard.spready .pready { display: block; animation: spready 900ms ease-in-out infinite alternate; }
+/* 手番のキャラが READY:アイコンをタップで必殺技(押せることが分かるように)/ 予約中は ON! と金の輪 */
+.pcard.active.spready { cursor: pointer; }
+.pcard.sparmed .psp { background: conic-gradient(#ffd23e, #fff2b0, #ffd23e, #ff6fb3, #ffd23e); filter: drop-shadow(0 0 5px #ffd23e); animation: none; }
+.pcard.sparmed .pready { background: #ffb21e; color: #2a1600; box-shadow: 0 0 0 1px #000, 0 0 10px rgba(255,210,62,.95); }
+.pcard.spbump .psp { animation: spbump 360ms ease-out; }
+@keyframes spbump { 0% { filter: drop-shadow(0 0 0 #fff) brightness(1); } 40% { filter: drop-shadow(0 0 6px #fff) brightness(1.6); } 100% { filter: none; } }
 .pcard.spready { opacity: 1; filter: none; }
 .pcard.spready.down { filter: grayscale(1) brightness(.45); }
 .pcard.mine.spready::after { top: auto; bottom: 14px; }
@@ -450,7 +442,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pst-ab span { padding: 0 5px; border-radius: 7px; background: #fff; box-shadow: inset 0 0 0 1px var(--hs-line-soft); font: 800 8px/16px var(--round); white-space: nowrap; }
 .pst-ab span.ult { background: linear-gradient(120deg, #fff4fb, #efe7ff); }
 .pst-ab span.none { color: var(--hs-ink-soft); }
-#game.menuopen #players, #game.menuopen .bossbar, #game.menuopen #energy, #game[data-state="TITLE"] #players, #game[data-state="TITLE"] .bossbar { visibility: hidden; }
+#game.menuopen #players, #game.menuopen .bossbar, #game[data-state="TITLE"] #players, #game[data-state="TITLE"] .bossbar { visibility: hidden; }
 
 /* プレイ中の上部 HUD:背景は透明にして推しを隠さない(名前 → LOVE → 左に RALLY / 右に FEVER)。左下 SPECIAL は文字が切れない幅 */
 #game:not(.menuopen) .bossbar { top: calc(0px + env(safe-area-inset-top, 0px)); width: min(88%, 360px); padding: 0 2px 2px; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
@@ -459,8 +451,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #game:not(.menuopen) .heartrow .track { height: 7px; background: rgba(5,5,8,.38); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 1px 6px #0008; }
 #game:not(.menuopen) #combo { position: absolute; left: 4px; top: 38px; z-index: 2; width: 74px; margin: 0; line-height: 1; justify-content: flex-start; white-space: nowrap; }
 #game:not(.menuopen) #feverBar { position: absolute; left: 82px; right: 2px; top: 39px; z-index: 1; width: auto; margin: 0; }
-#game:not(.menuopen) #energy { left: calc(8px + env(safe-area-inset-left, 0px)); right: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; width: 172px; max-width: calc(100% - 78px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); padding: 5px 7px; overflow: hidden; grid-template-columns: minmax(0, 1fr) auto; }
-#game:not(.menuopen) #energy em { overflow: visible; text-overflow: clip; white-space: nowrap; }
 
 /* ---- 3. インゲーム演出 ---- */
 /* ---- SPECIAL カットイン ---- */
@@ -2287,7 +2277,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       <button id="dbgTune" type="button">調整</button>
     </div>
     <div id="throwType" hidden>STRAIGHT</div>
-    <button id="energy" type="button"><em>♡ SPECIAL</em><b>0 / 100</b><div class="egbar"><i></i></div></button>
     <div id="players"></div>
     <div id="flash"></div>
 
