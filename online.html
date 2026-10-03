@@ -1821,16 +1821,19 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .fcgem { text-align: center; font-weight: 800; font-size: 13px; color: var(--hs-ink); margin: -2px 0 8px; }
 .fcgem b { color: var(--hs-pink-deep); }
 .exprows { display: grid; gap: 6px; }
-.exprow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 5px; border-radius: 15px; border: 1px solid var(--hs-line-soft); background: var(--hs-panel); box-shadow: var(--hs-shadow); }
+.exprow { display: grid; grid-template-columns: 62px 1fr; gap: 8px; align-items: center; padding: 4px 5px; border-radius: 15px; border: 1px solid var(--hs-line-soft); background: var(--hs-panel); box-shadow: var(--hs-shadow); }
 .exprow.leveled { border-color: var(--hs-pink); box-shadow: 0 0 14px rgba(255,95,162,.3); }
-.expinfo { min-width: 0; display: grid; gap: 3px; }
+.exprow .ccard.mini { padding: 3px 2px 6px; }
+.exprow .ccard.mini .avatar { margin-top: 5px; }
+.exprow .ccard.mini .cname { margin-top: 2px; font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.expinfo { min-width: 0; display: grid; gap: 2px; }
 .expname { font-weight: 800; font-size: 13px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .expname .lv { font-size: 11px; color: var(--hs-pink-deep); }
 .lvup { font-style: normal; font: 800 13px var(--round); color: var(--hs-pink); text-shadow: 0 0 8px rgba(255,95,162,.5); animation: popin 600ms ease-out; }
 .expbar { height: 9px; border-radius: 5px; overflow: hidden; background: var(--hs-pink-pale); box-shadow: inset 0 0 0 1px var(--hs-line-soft); }
 .expbar i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #ff9cc8, #ff5fa2 60%, #c08bff); }
 .expnum { display: flex; justify-content: space-between; font-size: 10px; font-weight: 800; color: var(--hs-ink-soft); font-variant-numeric: tabular-nums; }
-.growth { font-size: 11px; font-weight: 800; color: var(--hs-mint); }
+.growth { font-size: 10px; font-weight: 800; color: var(--hs-mint); }
 .rstats { margin: 10px auto 0; display: grid; gap: 3px; max-width: 280px; font-size: 11px; }
 .rstats div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--hs-line-soft); padding-bottom: 2px; }
 .rstats b { font-weight: 800; font-variant-numeric: tabular-nums; }
