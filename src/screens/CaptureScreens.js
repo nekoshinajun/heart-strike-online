@@ -5,7 +5,7 @@ import { reducedMotion } from '../app/Platform.js';
 import { CityMap } from './CityMap.js';
 
 /**
- * 攻略の入口:① お店を選ぶ(夜の街マップ)→ ② お店の中(キャスト一覧)→ ③ キャストの攻略(MenuFlow.showStageSelect)
+ * 攻略の入口:① お店を選ぶ(コンカフェ街マップ)→ ② お店の中(キャスト一覧)→ ③ キャストの攻略(MenuFlow.showStageSelect)
  *   画面は MenuFlow の #menu に描く(ルート:stage = ① / shop = ② / cast = ③。下部ナビは3画面とも「攻略」)
  */
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -33,7 +33,7 @@ export function showShopMap(m, { shopId } = {}) {
       <div class="sm-city"></div>
       <div class="sm-shade" aria-hidden="true"></div>
       ${capTop(false)}
-      <header class="sm-head"><h1>お店を選ぶ<em class="script">Shop Select</em></h1><p>今夜は、どのお店に行こう？<i>♡</i></p></header>
+      <header class="sm-head"><h1>お店を選ぶ<em class="script">Shop Select</em></h1><p>今日は、どのお店に行こう？<i>♡</i></p></header>
       <section class="sm-card" aria-live="polite"></section>
     </div>`;
   if (!m.city) {
@@ -66,6 +66,7 @@ function renderShopCard(m) {
     <span class="sm-thumb" style="background-image:url('${thumb}')">${open ? '' : '<i class="cm-lock" aria-hidden="true"></i>'}</span>
     <span class="sm-info">
       <span class="sm-name"><b class="script">${esc(s.name)}</b><small>${esc(s.ja)}</small></span>
+      ${s.concept ? `<span class="sm-concept">${esc(s.concept)}</span>` : ''}
       <p>${phrase(s.intro ?? s.tagline)}</p>
       <span class="sm-prog">${open
         ? `<i>キャスト ${pr.total}人</i><i>攻略 ${pr.cleared} / ${pr.total}</i><i class="mk">♥ ${pr.marks} / ${pr.maxMarks}</i>`
@@ -91,19 +92,22 @@ export function showShop(m, { shopId } = {}) {
   m.frame('shop', s.name, s.ja);
   const I = s.theme.interior;
   m.body.innerHTML = `
-    <div class="shp" style="--ac:${s.theme.accent};--gl:${s.theme.glow};--w1:${I.wall};--w2:${I.wall2};--cu:${I.curtain};--li:${I.light};--sg:${I.sign}">
+    <div class="shp" data-style="${esc(s.map?.style ?? '')}" style="--ac:${s.theme.accent};--gl:${s.theme.glow};--w1:${I.wall};--w2:${I.wall2};--cu:${I.curtain};--li:${I.light};--sg:${I.sign}">
       <div class="shp-hero">
         <div class="shp-room" aria-hidden="true">
-          <i class="shp-arch a1"></i><i class="shp-arch a2"></i><i class="shp-arch a3"></i>
-          <i class="shp-curtain l"></i><i class="shp-curtain r"></i>
-          ${chandelier()}
-          <span class="shp-neon">${esc(s.name)}</span>
+          ${motifWall(s.map?.style)}
+          <i class="shp-win w1"><i class="shp-lace l"></i><i class="shp-lace r"></i></i>
+          <i class="shp-win w2"><i class="shp-lace l"></i><i class="shp-lace r"></i></i>
+          ${garland()}
+          <span class="shp-sign"><b class="script">${esc(s.name)}</b></span>
+          <i class="shp-wains"></i>
           <i class="shp-floor"></i>
-          <i class="shp-table t1"></i><i class="shp-table t2"></i><i class="shp-table t3"></i>
+          ${cafeTable('t1')}${cafeTable('t2')}
           <i class="shp-bokeh"></i>
         </div>
         ${capTop(true)}
         <div class="shp-title">
+          ${s.concept ? `<span class="shp-concept">${esc(s.concept)}</span>` : ''}
           <h1><b class="script">${esc(s.name)}</b><span>${esc(s.ja)}</span></h1>
           <p>${phrase(s.tagline)}</p>
           <button type="button" class="shp-detail" data-act="detail">お店の詳細<i>›</i></button>
@@ -137,19 +141,22 @@ function renderCasts(m, s) {
   for (const b of list.querySelectorAll('[data-stage]')) b.addEventListener('click', () => m.router.go('cast', { stageId: b.dataset.stage }));
 }
 
+/** キャスト = このお店で働く攻略相手。アニメゲームのキャラクター選択のカード(立ち絵 + 名前 + 難易度の進み)*/
 function castCard({ heroine, stage, st }, k) {
+  const cleared = st.filter((x) => x.clear).length;
   return `<button type="button" class="cc" data-cast="${esc(heroine.id)}" data-stage="${esc(stage.id)}" style="--i:${k}">
-    <span class="cc-art face-crop">${faceCrop(stage)}<i class="cc-heart" aria-hidden="true">♥</i></span>
+    <span class="cc-art face-crop">${faceCrop(stage)}<i class="cc-no">No.${esc(stage.no ?? k + 1)}</i><i class="cc-heart" aria-hidden="true">♥</i></span>
     <span class="cc-body">
       <span class="cc-name"><b>${esc(stage.boss.name)}</b>${heroine.roman ? `<em class="script">${esc(heroine.roman)}</em>` : ''}</span>
       <p>${phrase(`「${castLine(heroine, stage)}」`)}</p>
       <span class="cc-diffs">${st.map((x) => `<i class="${x.clear ? 'clear' : x.open ? 'open' : 'lock'}" style="--dc:${x.D.color}">${x.D.label}${x.clear ? ' ✓' : x.open ? '' : ' 🔒'}</i>`).join('')}</span>
+      <span class="cc-hearts" aria-label="攻略 ${cleared} / ${st.length}">${st.map((x) => `<i class="${x.clear ? 'on' : ''}">♥</i>`).join('')}</span>
     </span>
     <i class="cc-go" aria-hidden="true">›</i></button>`;
 }
 function soonCard(k) {
   return `<div class="cc soon" style="--i:${k}" aria-label="近日登場">
-    <span class="cc-art"></span>
+    <span class="cc-art"><i class="cc-soon">COMING<br>SOON</i></span>
     <span class="cc-body"><span class="cc-name"><b>？？？</b></span><p>「…………」</p><span class="cc-diffs"><i>???</i><i>???</i><i>???</i></span></span>
     <i class="cc-go" aria-hidden="true">🔒</i></div>`;
 }
@@ -169,12 +176,26 @@ function openShopDetail(m, s) {
   m.body.appendChild(el);
 }
 
-/** シャンデリア(SVG)。色は CSS 変数 --li */
-function chandelier() {
-  const arms = [-3, -2, -1, 1, 2, 3].map((k) => {
-    const x = 100 + k * 27, y = 66 + Math.abs(k) * 3;
-    return `<path d="M100 58 Q${100 + k * 12} ${84} ${x} ${y}" /><rect x="${x - 2}" y="${y - 10}" width="4" height="10" rx="1"/><circle class="fl" cx="${x}" cy="${y - 13}" r="3.2"/>${[0, 1, 2].map((j) => `<path class="cr" d="M${x - 3 + j * 3} ${y + 4 + j * 2} l2 4 l-2 4 l-2 -4z"/>`).join('')}`;
-  }).join('');
-  const drops = Array.from({ length: 9 }, (_, i) => { const x = 64 + i * 9, y = 86 + Math.sin((i / 8) * Math.PI) * 10; return `<path class="cr" d="M${x} ${y} l2.5 5 l-2.5 5 l-2.5 -5z"/>`; }).join('');
-  return `<svg class="shp-chand" viewBox="0 0 200 120" aria-hidden="true"><line x1="100" y1="0" x2="100" y2="40"/><ellipse cx="100" cy="44" rx="14" ry="5"/><path d="M86 46 Q100 70 114 46"/>${arms}${drops}<ellipse class="glow" cx="100" cy="70" rx="80" ry="34"/></svg>`;
+/** 天井のガーランド(三角の小旗)+ ペンダントライト。色は CSS 変数 --ac / --li */
+function garland() {
+  const flags = Array.from({ length: 11 }, (_, i) => { const x = 8 + i * 18.4, y = 14 + Math.sin((i / 10) * Math.PI) * 12; return `<path class="${i % 2 ? 'f2' : 'f1'}" d="M${x - 7} ${y - 2} L${x + 7} ${y - 1} L${x} ${y + 11}z"/>`; }).join('');
+  const lamps = [44, 100, 156].map((x, i) => `<line x1="${x}" y1="0" x2="${x}" y2="${i === 1 ? 40 : 30}"/><path class="sh" d="M${x - 11} ${(i === 1 ? 52 : 42)} Q${x} ${(i === 1 ? 34 : 24)} ${x + 11} ${(i === 1 ? 52 : 42)}z"/><circle class="bulb" cx="${x}" cy="${(i === 1 ? 53 : 43)}" r="3.6"/>`).join('');
+  return `<svg class="shp-garland" viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true"><path class="rope" d="M0 12 Q100 40 200 12"/>${flags}${lamps}</svg>`;
+}
+/** 壁紙のモチーフ(お店のコンセプトごと:リボン / 肉球 / 星 / バラ / 桜 / ケーキ)*/
+const MOTIF = {
+  maid: '<path d="M12 12 q-7 -6 -8 1 q1 5 8 -1 q7 6 8 -1 q-1 -7 -8 1z"/><circle cx="12" cy="12" r="1.8"/>',
+  cat: '<ellipse cx="12" cy="14" rx="4" ry="3.4"/><circle cx="6.5" cy="9" r="1.8"/><circle cx="10" cy="6.5" r="1.8"/><circle cx="14" cy="6.5" r="1.8"/><circle cx="17.5" cy="9" r="1.8"/>',
+  star: '<path d="M12 3 l2.4 6 6.4 .4 -5 4 1.7 6.3 -5.5 -3.6 -5.5 3.6 1.7 -6.3 -5 -4 6.4 -.4z"/>',
+  gothic: '<circle cx="12" cy="10" r="4.4"/><path d="M12 14 q-1 5 -5 6 M12 14 q1 5 5 6" fill="none" stroke-width="1.4"/>',
+  wa: '<g transform="translate(12 12)">' + [0, 72, 144, 216, 288].map((a) => `<ellipse rx="2.6" ry="4.4" transform="rotate(${a}) translate(0 -4.4)"/>`).join('') + '</g>',
+  sweets: '<path d="M5 14 h14 l-2 6 h-10z"/><path d="M5 14 q0 -7 7 -7 q7 0 7 7z"/><circle cx="12" cy="5.6" r="1.8"/>',
+};
+function motifWall(style) {
+  const m = MOTIF[style] ?? MOTIF.maid;
+  return `<svg class="shp-motif" aria-hidden="true"><defs><pattern id="shpMotif" width="46" height="46" patternUnits="userSpaceOnUse" patternTransform="rotate(-8)"><g transform="translate(11 11)">${m}</g></pattern></defs><rect width="100%" height="100%" fill="url(#shpMotif)"/></svg>`;
+}
+/** カフェのテーブル(白いクロス + ティーカップ + ケーキ)*/
+function cafeTable(cls) {
+  return `<svg class="shp-table ${cls}" viewBox="0 0 100 56" aria-hidden="true"><ellipse class="sd" cx="50" cy="52" rx="40" ry="4"/><path class="leg" d="M48 30 h4 v20 h-4z"/><ellipse class="top" cx="50" cy="26" rx="44" ry="10"/><path class="cloth" d="M8 26 q42 18 84 0 v5 q-6 6 -10 2 q-6 6 -12 1 q-8 6 -16 1 q-8 6 -16 0 q-6 6 -12 0 q-6 5 -10 -1 q-5 4 -8 -1z"/><path class="cup" d="M30 14 h12 v5 q0 5 -6 5 q-6 0 -6 -5z"/><path class="cupr" d="M42 15.5 q4 0 3 3 q-1 2 -3 1.6" fill="none"/><ellipse class="sau" cx="36" cy="24" rx="9" ry="2"/><path class="cake" d="M56 11 l14 4 v8 h-14z"/><path class="cream" d="M56 11 l14 4 v2 l-14 -4z"/><circle class="berry" cx="62" cy="10.5" r="2.4"/></svg>`;
 }

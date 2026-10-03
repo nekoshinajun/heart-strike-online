@@ -83,7 +83,7 @@ export class App {
     const R = this.router, M = g.menu;
     this.router.registerLayer('menu', M.el);
     const same = (id, c) => c.restore && M.screen === id && !M.el.hidden;
-    // 攻略:① お店を選ぶ(夜の街マップ)→ ② お店の中(キャスト一覧)→ ③ キャストの攻略(SOLO/MULTI・難易度・挑戦する)
+    // 攻略:① お店を選ぶ(コンカフェ街マップ)→ ② お店の中(キャスト一覧)→ ③ キャストの攻略(SOLO/MULTI・難易度・挑戦する)
     R.register('stage', { kind: KIND.TAB_ROOT, layer: 'menu', opaque: true, show: (p, c) => { if (!same('shopmap', c)) M.showShopMap(p); else M.city?.start(); }, hide: () => M.city?.stop(), leave: () => M.city?.stop() });
     R.register('shop', { kind: KIND.SUB, layer: 'menu', opaque: true, show: (p, c) => { if (!same('shop', c)) M.showShop(p); } });
     R.register('cast', { kind: KIND.SUB, layer: 'menu', opaque: true, show: (p, c) => { if (!same('cast', c)) M.showStageSelect(p); } });

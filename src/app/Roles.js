@@ -4,7 +4,7 @@ import { difficultyData } from '../core/Config.js';
 /**
  * 「仲間」と「攻略対象」を画面のどこでも同じ見た目で見分けるための小さな部品。
  *   仲間(味方の女の子)… ピンク「♡ 仲間」:育成・親密度・デートメンバー(戦闘)で使う側。ASMR は無い
- *   攻略対象            … ラベンダー「🎧 攻略対象」:コンカフェで口説く側。仲間にはならない。クリアでボイス解放(HELL は ASMR)
+ *   攻略対象            … ラベンダー「🎧 攻略対象」:コンカフェで攻略する相手。仲間にはならない。クリアでボイス解放(HELL は ASMR)
  */
 export const roleTag = (role, cls = '') => role === 'heroine'
   ? `<span class="role heroine ${cls}">🎧 攻略対象</span>`

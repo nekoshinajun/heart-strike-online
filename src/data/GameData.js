@@ -200,12 +200,12 @@ export const STAGES = [
       energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.2 },
   },
   {
-    id: 'stage03', no: '03', name: '甘い夜のおねだり',
+    id: 'stage03', no: '03', name: 'ひだまりのおねだり',
     // 専用イラスト(assets/boss_milk.webp)・専用の当たり判定(colliderLayouts.milk)・専用の表情位置(BossAffection.milk)
     boss: { name: 'みるく', attribute: 'FIRE', type: 'CURVE', image: 'milk', fallbackImage: 'demon', layout: 'milk', profile: 'lilith', affection: 'milk', maxHeart: 4800,
       art: { face: { u: 0.43, v: 0.43, w: 0.3 }, stage: { x: -0.24, h: 0.74 } } },
     recommended: 'WATER', difficulty: 'NORMAL', exp: 200,
-    concept: '甘え上手な猫系の女の子。きらめくプレミアムコンカフェを舞台に、ハートを届けて口説き落とす。',
+    concept: '甘え上手な猫系の女の子。ひだまりの猫メイドカフェ「Lumière」の看板キャスト。ハートを届けて、とびきりの笑顔を引き出そう。',
     line: '甘えていいよ…？ だって、好きでしょ…？',   // 攻略画面のセリフ(未設定のステージは共通の一言)
     space: { patterns: ['STRAIGHT_LINE', 'LEFT_CURVE', 'RIGHT_CURVE', 'S_CURVE', 'GATE_CHAIN', 'BANK_STARS'],
       energyDensity: 1.0, gateCount: 3, obstacleCount: 2, obstacleSpeed: 1.0 },
