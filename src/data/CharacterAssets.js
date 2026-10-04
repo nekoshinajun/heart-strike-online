@@ -48,7 +48,7 @@ export const CHARACTER_ASSETS = {
       parameters: {
         hit: { id: 'hit', value: 1, attackSec: 0, holdSec: HIT_REACTION_HOLD_SEC, releaseSec: HIT_REACTION_RELEASE_SEC },
       },
-      view: { u0: -0.01, v0: -0.07, u1: 0.97, v1: 1.04, heightPx: 1024 },
+      view: { u0: -0.01, v0: -0.07, u1: 0.97, v1: 1.04, heightPx: 768 },   // 画面上では約 520px(1.5倍解像度)なので 768 で十分。1024 だと描画・転送が重い(発熱対策)
       display: { height: 9, y: 6.95, x: -1 },
     },
   },

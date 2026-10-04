@@ -13,7 +13,8 @@ const BG = {
   front: 'assets/bg/bg_front.webp',     // ⑤ 前景の花・花びら(画面の上に重ねる DOM)
 };
 const loader = new THREE.TextureLoader();
-const load = (url) => { const t = loader.load(url); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+// 異方性フィルタは斜めに見える床だけ(正面を向いた板は見た目が変わらず、描画が重くなるだけ。発熱対策)
+const load = (url, anisotropy = 1) => { const t = loader.load(url); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = anisotropy; return t; };
 
 /**
  * 戦闘の背景(2.5D):奥行きの違う位置に「2D の絵の板」を重ねる。ゲームの計算(軌道・判定)は 3D のまま。
@@ -101,7 +102,7 @@ export class Arena {
 
     // ③ 床:手前(z 12)から奥の階段(z -32)まで
     const z0 = 12, z1 = -32, len = z0 - z1, W = 9;
-    const tiles = load(BG.floor);
+    const tiles = load(BG.floor, 4);
     tiles.wrapS = THREE.ClampToEdgeWrapping;
     tiles.wrapT = THREE.MirroredRepeatWrapping;   // 縦は鏡写しでつなぐ(継ぎ目が目立たない)
     tiles.repeat.set(1, len / (W * 340 / 512));
