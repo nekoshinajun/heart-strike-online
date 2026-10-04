@@ -88,7 +88,11 @@ export class Live2DBossView {
 
     // 画面に出ていない間(メニュー・HOME 等)は Live2D を動かさない・描かない(別の WebGL で毎フレーム描くので重い)
     if (!this.model || this.offscreen) return;
-    this.model.update(dt);
+    // Live2D は 30fps で十分(描くたびに大きな絵を 3D 側へ転送するので、半分にすると発熱がかなり減る)
+    this.l2dAcc = (this.l2dAcc ?? 0) + dt;
+    if (this.l2dAcc < 1 / 30 - 0.004 && this.mesh?.visible) return;
+    this.model.update(this.l2dAcc);
+    this.l2dAcc = 0;
     if (!this.model.draw()) return;
     this.mesh.visible = true;
     this.texture.needsUpdate = true;
