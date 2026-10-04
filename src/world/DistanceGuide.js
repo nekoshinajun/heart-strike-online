@@ -10,85 +10,72 @@ import { GameState } from '../core/StateMachine.js';
  */
 const G = () => Config.distanceGuide ?? {};
 const FLOOR_Y = 0.04;
-const _d = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Vector3(), _p = new THREE.Vector3(), _col = new THREE.Color();
+const _d = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Vector3(), _p = new THREE.Vector3();
 const cache = {};
+const canvas = (n) => { const c = document.createElement('canvas'); c.width = c.height = n; return [c, c.getContext('2d')]; };
+const once = (key, draw) => cache[key] ?? (cache[key] = draw());
+const texOf = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
-/** 点線の楕円リング(白。色は material.color で付ける)*/
-function dottedRing() {
-  if (cache.ring) return cache.ring;
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const x = c.getContext('2d');
-  x.translate(128, 128);
-  const n = 34;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    x.save();
-    x.rotate(a);
-    x.shadowColor = 'rgba(255,255,255,0.9)';
-    x.shadowBlur = 10;
-    x.fillStyle = '#ffffff';
+/** 点線のリング:白い粒 + 色の縁取り(明るい背景でも暗い背景でも見える)*/
+function dottedRing(color) {
+  return once(`ring${color}`, () => {
+    const [c, x] = canvas(256);
+    x.translate(128, 128);
+    const n = 30;
+    for (let i = 0; i < n; i++) {
+      x.save();
+      x.rotate((i / n) * Math.PI * 2);
+      x.shadowColor = color; x.shadowBlur = 8;
+      x.fillStyle = '#ffffff'; x.strokeStyle = color; x.lineWidth = 3.5;
+      x.beginPath(); x.ellipse(106, 0, 5, 9.5, 0, 0, Math.PI * 2); x.fill(); x.stroke();
+      x.restore();
+    }
+    return texOf(c);
+  });
+}
+
+/** 太い矢印(先端ほど白く、色の太い縁取り)*/
+function arrowTex(color) {
+  return once(`arrow${color}`, () => {
+    const [c, x] = canvas(128);
+    const grd = x.createLinearGradient(0, 120, 0, 8);
+    grd.addColorStop(0, 'rgba(255,255,255,0.35)');
+    grd.addColorStop(1, '#ffffff');
     x.beginPath();
-    x.ellipse(108, 0, 3.6, 7.5, 0, 0, Math.PI * 2);
-    x.fill();
-    x.restore();
-  }
-  // 内側のうっすら光
-  const grd = x.createRadialGradient(0, 0, 40, 0, 0, 112);
-  grd.addColorStop(0, 'rgba(255,255,255,0)');
-  grd.addColorStop(0.8, 'rgba(255,255,255,0.10)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = grd;
-  x.beginPath(); x.arc(0, 0, 112, 0, Math.PI * 2); x.fill();
-  cache.ring = new THREE.CanvasTexture(c);
-  return cache.ring;
+    x.moveTo(64, 12); x.lineTo(110, 60); x.lineTo(83, 60); x.lineTo(83, 116);
+    x.lineTo(45, 116); x.lineTo(45, 60); x.lineTo(18, 60); x.closePath();
+    x.lineJoin = 'round';
+    x.shadowColor = color; x.shadowBlur = 10;
+    x.strokeStyle = color; x.lineWidth = 7; x.stroke();
+    x.shadowBlur = 0;
+    x.fillStyle = grd; x.fill();
+    return texOf(c);
+  });
 }
 
-/** 太い上向き矢印(白 → 先端ほど明るい)*/
-function arrowTex() {
-  if (cache.arrow) return cache.arrow;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const x = c.getContext('2d');
-  const grd = x.createLinearGradient(0, 120, 0, 8);
-  grd.addColorStop(0, 'rgba(255,255,255,0.15)');
-  grd.addColorStop(1, 'rgba(255,255,255,1)');
-  x.shadowColor = 'rgba(255,255,255,0.9)';
-  x.shadowBlur = 12;
-  x.fillStyle = grd;
-  x.beginPath();
-  x.moveTo(64, 10); x.lineTo(112, 62); x.lineTo(84, 62); x.lineTo(84, 120);
-  x.lineTo(44, 120); x.lineTo(44, 62); x.lineTo(16, 62); x.closePath();
-  x.fill();
-  cache.arrow = new THREE.CanvasTexture(c);
-  return cache.arrow;
+/** 足元の光る円(色の太い輪 + 内側の白い輪 + うっすら塗り)*/
+function padTex(color) {
+  return once(`pad${color}`, () => {
+    const [c, x] = canvas(256);
+    const grd = x.createRadialGradient(128, 128, 0, 128, 128, 120);
+    grd.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grd.addColorStop(0.3, color);
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    x.globalAlpha = 0.45; x.fillStyle = grd; x.fillRect(0, 0, 256, 256);
+    x.globalAlpha = 1;
+    x.shadowColor = color; x.shadowBlur = 14;
+    x.strokeStyle = color; x.lineWidth = 12;
+    x.beginPath(); x.arc(128, 128, 106, 0, Math.PI * 2); x.stroke();
+    x.strokeStyle = '#ffffff'; x.lineWidth = 4;
+    x.beginPath(); x.arc(128, 128, 106, 0, Math.PI * 2); x.stroke();
+    x.setLineDash([10, 10]); x.lineWidth = 3;
+    x.beginPath(); x.arc(128, 128, 70, 0, Math.PI * 2); x.stroke();
+    return texOf(c);
+  });
 }
 
-/** 足元の光る円(中心が明るい + 外周のリング)*/
-function padTex() {
-  if (cache.pad) return cache.pad;
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const x = c.getContext('2d');
-  const grd = x.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grd.addColorStop(0, 'rgba(255,255,255,0.85)');
-  grd.addColorStop(0.25, 'rgba(255,255,255,0.35)');
-  grd.addColorStop(0.55, 'rgba(255,255,255,0.12)');
-  grd.addColorStop(0.72, 'rgba(255,255,255,0.75)');
-  grd.addColorStop(0.8, 'rgba(255,255,255,0.2)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = grd;
-  x.fillRect(0, 0, 256, 256);
-  x.strokeStyle = 'rgba(255,255,255,0.8)';
-  x.lineWidth = 3;
-  x.beginPath(); x.arc(128, 128, 62, 0, Math.PI * 2); x.stroke();
-  cache.pad = new THREE.CanvasTexture(c);
-  return cache.pad;
-}
-
-const mat = (map, additive = false) => new THREE.MeshBasicMaterial({
-  map, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
-  blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+const mat = () => new THREE.MeshBasicMaterial({
+  transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
   polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,   // 床のすぐ上(床・グリッドに埋もれない)
 });
 const flat = (m) => { m.rotation.order = 'YXZ'; return m; };
@@ -110,13 +97,13 @@ export class DistanceGuide {
       const n = G().rings ?? 6;
       const L = { rings: [], arrows: [], pad: null };
       for (let k = 0; k < n; k++) {
-        const r = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(dottedRing())));
-        const a = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(arrowTex())));
+        const r = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat()));
+        const a = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat()));
         r.renderOrder = a.renderOrder = 1;
         this.root.add(r, a);
         L.rings.push(r); L.arrows.push(a);
       }
-      L.pad = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(padTex(), true)));
+      L.pad = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat()));
       L.pad.renderOrder = 1;
       this.root.add(L.pad);
       this.lanes.push(L);
@@ -130,7 +117,7 @@ export class DistanceGuide {
     const w = g.wave;
     if (w?.active) {
       for (const u of w.units) {
-        if (u.alive) out.push({ x: u.x, z: w.z, pad: u.def.size * 0.3, color: u.def.id === 'angel' ? '#5fe6ff' : '#ff5fa2' });
+        if (u.alive) out.push({ x: u.x, z: w.z, pad: u.def.size * 0.3, color: u.def.id === 'angel' ? '#1fb6e8' : '#ff3d8f' });
       }
       return out;
     }
@@ -138,7 +125,7 @@ export class DistanceGuide {
     const b = g.boss.hitPlane.bounds();
     if (!Number.isFinite(b.minY)) return out;
     const p = g.boss.root.position;
-    out.push({ x: p.x, z: p.z, pad: (b.maxY - b.minY) * Config.boss.scale * 0.13, color: '#ff5fa2' });
+    out.push({ x: p.x, z: p.z, pad: (b.maxY - b.minY) * Config.boss.scale * 0.13, color: '#ff3d8f' });
     return out;
   }
 
@@ -172,7 +159,12 @@ export class DistanceGuide {
       const L = this.lane(i), T = list[i];
       for (const m of [...L.rings, ...L.arrows, L.pad]) m.visible = !!T;
       if (!T) continue;
-      _col.set(T.color);
+      if (L.color !== T.color) {   // 色ごとのテクスチャ(縁取りの色)
+        L.color = T.color;
+        for (const r of L.rings) { r.material.map = dottedRing(T.color); r.material.needsUpdate = true; }
+        for (const a of L.arrows) { a.material.map = arrowTex(T.color); a.material.needsUpdate = true; }
+        L.pad.material.map = padTex(T.color); L.pad.material.needsUpdate = true;
+      }
       _e.set(T.x, FLOOR_Y, T.z);
       // 道は足元の光る円の手前まで
       const far = _p.copy(_e).sub(S);
@@ -188,19 +180,17 @@ export class DistanceGuide {
         ring.rotation.set(-Math.PI / 2, yaw, 0);
         ring.scale.set(R * 2, R * 2, 1);
         ring.material.opacity = this.alpha * (0.55 + 0.45 * wave);
-        ring.material.color.copy(_col);
         arrow.position.copy(ring.position);
         arrow.rotation.set(-Math.PI / 2, yaw, 0);
         arrow.scale.set(A, A, 1);
         arrow.material.opacity = this.alpha * (0.35 + 0.65 * wave);
-        arrow.material.color.set('#ffffff').lerp(_col, 0.35);
       }
       // 足元の光る円(ゆっくり脈打つ)
       const r = T.pad * (C.padScale ?? 1) * (1 + Math.sin(this.t * 3 + i) * 0.05);
       L.pad.position.copy(_e);
       L.pad.rotation.set(-Math.PI / 2, 0, 0);
       L.pad.scale.set(r * 2, r * 2, 1);
-      L.pad.material.color.copy(_col).multiplyScalar(this.alpha * 0.9);
+      L.pad.material.opacity = this.alpha * 0.95;
     }
   }
 }
