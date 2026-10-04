@@ -40,6 +40,8 @@ import { SpecialThrowFx } from './effects/SpecialThrowEffects.js';
 import { SpaceSystem } from './space/SpaceSystem.js';
 import { AffectionSystem } from './affection/AffectionSystem.js';
 import { FeverIntroState, FeverOutroState } from './states/FeverStates.js';
+import { MinionWave } from './minion/MinionWave.js';
+import { WaveAdvanceState } from './states/WaveStates.js';
 import { TutorialDirector } from './tutorial/TutorialDirector.js';
 import { lessonById } from './tutorial/TutorialData.js';
 
@@ -108,6 +110,7 @@ export class GameManager {
     this.sm.register(S.BOSS_RETURN, new BossReturnState(this));
     this.sm.register(S.PLAYER_DEFENSE, new PlayerDefenseState(this));
     this.sm.register(S.PLAYER_CATCH, new PlayerCatchState(this));
+    this.sm.register(S.WAVE_ADVANCE, new WaveAdvanceState(this));
     this.sm.register(S.FEVER_INTRO, new FeverIntroState(this));
     this.sm.register(S.FEVER_OUTRO, new FeverOutroState(this));
     this.sm.register(S.GAME_CLEAR, new GameClearState(this));
@@ -249,6 +252,7 @@ export class GameManager {
   // ---- ステージ / パーティ ----
   /** ステージのボス(画像・当たり判定・返球プロファイル・Heart Capacity)を用意する */
   prepareStage(stage) {
+    this.endWave();
     this.stage = stage;
     const b = stage.boss;
     Config.boss.name = b.name;
@@ -287,7 +291,39 @@ export class GameManager {
     this.refreshColliderView();
     if (!this.boss.view.imageMesh) this.affection?.attach(this.boss);
     this.ui.setHeart(0, this.boss.maxHeart);
+    this.syncWaveTarget();
   }
+
+  // ---- 雑魚戦(ボスの前の WAVE。データ:StageData.waves + data/MinionData.js)----
+  /** バトル開始時:ステージに waves があれば雑魚を出す(チュートリアルは出さない)*/
+  beginWave(stage) {
+    this.endWave();
+    if (this.tutorial || !stage?.waves?.length) return;
+    this.wave = new MinionWave(this, stage.waves);
+    if (!this.wave.units.length) { this.endWave(); return; }
+    this.syncWaveTarget();
+  }
+  /** 雑魚戦を片付ける(全員倒した後 / ステージを離れる時)*/
+  endWave() {
+    if (!this.wave) return;
+    this.wave.dispose();
+    this.wave = null;
+    this.syncWaveTarget();
+  }
+  /**
+   * 雑魚がいる間:ボスは隠す / 返球は雑魚から / 上の HP バーは WAVE 表示。いなくなったら(WaveAdvanceState が endWave)ボスに戻す
+   *   全員倒した直後(奥へ進む演出の前)はまだボスを出さない(this.wave が残っている間は隠したまま)
+   */
+  syncWaveTarget() {
+    const w = this.wave;
+    this.boss.root.visible = !w;
+    this.boss.spawnFrom = w?.active ? (out) => w.spawnPoint(out) : null;
+    this.container.classList.toggle('wave', !!w);
+    const name = document.getElementById('bossName');
+    if (name && this.stage) name.textContent = w ? w.label : this.stage.boss.name;
+  }
+  /** 投球の攻撃面:雑魚がいれば雑魚 / いなければボス */
+  targetPlane() { return this.wave?.active ? this.wave.hitPlane : this.boss.hitPlane; }
 
   /**
    * 1投が終わった後の進行(ターン構造の中心)
@@ -324,9 +360,9 @@ export class GameManager {
     return v;
   }
 
-  /** 手番キャラの性能を投球へ反映(タイプ補正)。攻撃・防御の数値は各ステートが turn.current.chara から読む */
+  /** 手番キャラの性能を投球へ反映。攻撃・防御の数値は各ステートが turn.current.chara から読む */
   applyCharacter(p) {
-    this.player.thrower.mods = throwModifiers(p.chara);   // タイプの球速 + CURVE / CONTROL ステータス + アビリティ
+    this.player.thrower.mods = throwModifiers(p.chara);   // CURVE / CONTROL ステータス + アビリティ
     this.ball.setStyle(p.color, this.turn.tierLevel);
   }
 
@@ -360,6 +396,7 @@ export class GameManager {
     this.turn.reset(party);
     this.ui.buildPlayers(this.turn.players);
     this.newGame();
+    this.beginWave(stage);   // 雑魚戦(StageData.waves があれば):雑魚を全員倒すと奥へ進んでボス登場
     this.menu.hide();
     this.applyCharacter(this.turn.current);
     this.ball.hold(this.player.holdAnchor);
@@ -499,6 +536,7 @@ export class GameManager {
     this.sm.update(dt);
     this.online?.update?.();
     this.boss.update(dt);
+    this.wave?.update(dt);
     this.ball.update(dt);
     if (this.energy.collecting && (this.ball.mode === 'flying' || this.ball.mode === 'flown')) this.energy.check(this.ball.prev, this.ball.pos);
     if (this.space.collecting && (this.ball.mode === 'flying' || this.ball.mode === 'flown')) this.space.check(this.ball.prev, this.ball.pos);

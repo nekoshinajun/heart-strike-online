@@ -40,7 +40,7 @@ const abilityItem = {
   key: `growth:${ABILITY_RESET_ITEM.id}`, id: ABILITY_RESET_ITEM.id, category: 'growth', order: 0,
   name: ABILITY_RESET_ITEM.name, icon: ABILITY_RESET_ITEM.icon, image: null, rank: null,
   desc: 'もう一度つながり直すためのハート。選んだアビリティを付け替えられます。',
-  usage: '育成 → キャラクター詳細 →「アビリティ」で、選択済みの枠を別のアビリティに変更する時に 1つ使う(まだ選んでいない枠は無料)',
+  usage: '現在アビリティの付け替えは無料のため、使う場面はありません',
   source: null,
   count: (p) => p.abilityResetItems,
 };

@@ -18,3 +18,5 @@ CHARA = ['minamo', 'hinoka', 'raimu', 'shizuku', 'akane', 'yoruna', 'sera']
 names = {k: f'chara_{k}.webp' for k in CHARA}
 names.update({f'{k}_cut': f'cut_{k}.webp' for k in CHARA if (root / 'assets' / f'cut_{k}.webp').exists()})
 emit('charaImages.js', 'CHARA_IMAGES', names, ' キー = CharacterData.art の値')
+# 雑魚(Minion)の画像:キー = data/MinionData.js の image の値(assets/minion_<key>.webp・アルファ付き)。追加はここに1行足す
+emit('minionImages.js', 'MINION_IMAGES', {'devil': 'minion_devil.webp', 'angel': 'minion_angel.webp'}, ' キー = MinionData の image の値')

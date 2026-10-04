@@ -1,4 +1,4 @@
-import { CHARACTERS, ATTRIBUTES, RANKS, TYPES } from '../data/GameData.js';
+import { CHARACTERS, ATTRIBUTES, RANKS } from '../data/GameData.js';
 import { artUrl, isPlaceholderArt } from '../data/CharacterArt.js';
 import { storage } from '../app/Platform.js';
 import { roleTag } from '../app/Roles.js';
@@ -118,7 +118,7 @@ export class CharacterDetail {
 
   render(dir) {
     const ch = this.current;   // CharacterData + PlayerProgress(レベル・EXP 反映済み)
-    const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank], t = TYPES[ch.type];
+    const a = ATTRIBUTES[ch.attribute], r = RANKS[ch.rank];
     const el = this.el;
     el.dataset.attr = ch.attribute;
     el.dataset.chara = ch.id;
@@ -126,7 +126,7 @@ export class CharacterDetail {
     el.style.setProperty('--rc', r.color);
     const rk = el.querySelector('.cd-rank'); rk.textContent = r.id; rk.classList.add('rar-badge'); applyRarity(rk, ch.rank);
     el.querySelector('.cd-name').textContent = ch.name;
-    el.querySelector('.cd-meta').innerHTML = `${roleTag('ally', 'sm')} <span class="cd-attr">${a.icon} ${a.label}</span> / <span>${t.label}</span>`;
+    el.querySelector('.cd-meta').innerHTML = `${roleTag('ally', 'sm')} <span class="cd-attr">${a.icon} ${a.label}</span>`;
     el.querySelector('.cd-ph').hidden = !isPlaceholderArt(ch, 'fullBody');
     // 全身イラスト(FullBodySprite)。DetailPosition / DetailScale / DetailRotation で配置(画像は加工しない)
     const d = ch.detail ?? { x: 0.5, y: 0.52, scale: 1, rot: 0 };

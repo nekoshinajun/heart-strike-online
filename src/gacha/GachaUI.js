@@ -1,5 +1,5 @@
 import { Config } from '../core/Config.js';
-import { characterById, ATTRIBUTES, TYPES, RANKS, CHARACTERS } from '../data/GameData.js';
+import { characterById, ATTRIBUTES, RANKS, CHARACTERS } from '../data/GameData.js';
 import { artUrl, portraitStyle, isPlaceholderArt } from '../data/CharacterArt.js';
 import { GachaService } from './GachaService.js';
 import { GachaDirector } from './GachaDirector.js';
@@ -231,7 +231,7 @@ export class GachaUI {
       { act: 'toHome', label: 'ホームへ' },
     ];
     const btn = (b, cls) => `<button type="button" class="${cls}" data-act="${b.act}" ${b.disabled ? 'disabled' : ''}>${esc(b.label)}</button>`;
-    const info = `<div class="gz-info">${rarityBadge(ch.rank, 'gz-rank')}<b>${esc(ch.name)}</b><span>${ATTRIBUTES[ch.attribute].label} / ${TYPES[ch.type].label}</span>${it.isNew ? '<em class="gz-new">NEW!</em>' : ''}</div>`;
+    const info = `<div class="gz-info">${rarityBadge(ch.rank, 'gz-rank')}<b>${esc(ch.name)}</b><span>${ATTRIBUTES[ch.attribute].icon} ${ATTRIBUTES[ch.attribute].label}</span>${it.isNew ? '<em class="gz-new">NEW!</em>' : ''}</div>`;
     // プレゼント(キャラと同じ1回分)。10連は全10個のまとめも出す
     const presents = tx.items.map((x) => x.present).filter(Boolean);
     const sum = new Map(); for (const p of presents) sum.set(p.giftId, (sum.get(p.giftId) ?? 0) + 1);
