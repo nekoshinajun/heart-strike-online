@@ -44,11 +44,20 @@ export class PlayerAttackState {
     g.space.keepForTurn = null;
     if (!kept) g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
     g.tutorial?.onAttack();   // チュートリアル:レッスンに合わせて配置を減らす / 説明
+    this.autoAt = g.clock + (Config.auto.throwDelay ?? 0.8);
   }
 
   update() {
     const g = this.g;
     if (g.tutorial?.redirect()) return;   // チュートリアル:投げずにボスの攻撃 / FEVER へ
+    if (g.autoPlay?.active) {
+      // AUTO:手番が来て少し待ってから自動で投げる(MULTI は自分の手番だけ)。SPECIAL を予約していればそのまま SPECIAL で投げる
+      g.ui.showPrompt(null);
+      if (g.clock < this.autoAt || g.specialSequencePlaying || (g.online && !g.online.isMyTurn()) || !g.thrower.canGrab()) return;
+      g.audio.grab();
+      this.fire(g.autoPlay.buildThrow(), { speed: 0, dx: 0, dy: 0 });
+      return;
+    }
     if (!g.thrower.grabbing) {
       const s = g.player.heldBallScreen();
       g.ui.placeHint(s.x, s.y);
@@ -75,6 +84,12 @@ export class PlayerAttackState {
     if (th === undefined) return; // 掴んでいなかった
     g.ui.setThrowInfo(flick, th);
     if (!th) { g.ui.showPrompt('flick', g.turn.current.color); return; }
+    this.fire(th, flick);
+  }
+
+  /** 投球を確定して飛ばす(指で投げた / AUTO 共通)*/
+  fire(th, flick) {
+    const g = this.g;
     // 前の人が投げ終えた瞬間に NEXT 予告を消す。
     if (g.online) g.ui.hideCatchNotice?.();
     const special = g.energy.consumeSpecial();

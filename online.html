@@ -539,6 +539,14 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
 /* ---- 4. 開発用(Debug UI は ShowDebugUI = #game.debug の時だけ)---- */
 /* ---- デバッグ ---- */
+/* AUTO ボタン(インゲーム右上):OFF = グレー / ON = 色つき。SPECIAL 以外の操作は自動になる */
+#autoBtn { position: absolute; top: calc(58px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); z-index: 6; pointer-events: auto; cursor: pointer;
+  font: 400 12px/1 var(--display); letter-spacing: .08em; color: rgba(255,255,255,.55); padding: 7px 11px 6px; border-radius: 999px;
+  background: rgba(40,40,48,.62); border: 1.5px solid rgba(255,255,255,.22); box-shadow: 0 2px 8px #0006; -webkit-tap-highlight-color: transparent; }
+#autoBtn[aria-pressed="true"] { color: #fff; background: linear-gradient(180deg, #ff7ab8, #e8327f); border-color: #fff; box-shadow: 0 0 0 1.5px #b0185a, 0 0 14px rgba(255,79,154,.75); text-shadow: 0 1px 0 #8a0f45; animation: autoGlow 1.6s ease-in-out infinite; }
+@keyframes autoGlow { 50% { box-shadow: 0 0 0 1.5px #b0185a, 0 0 22px rgba(255,79,154,.95); } }
+#autoBtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+#autoBtn[hidden], #game.menuopen #autoBtn, #game[data-state="TITLE"] #autoBtn, #game[data-state="OPENING"] #autoBtn { display: none; }
 #debug { position: absolute; top: 80px; right: 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
 #debug button { pointer-events: auto; font: 800 10px/1 var(--body); color: var(--dim); background: var(--panel); border: 1px solid #3a2d66; border-radius: 4px; padding: 5px 7px; cursor: pointer; }
 #debug button[aria-pressed="true"] { color: #000; background: #7dffb0; border-color: #000; }

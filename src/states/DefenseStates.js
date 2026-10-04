@@ -155,7 +155,7 @@ export class BossReturnState {
     g.catchTarget.show(plan.markerWorld, g.turn.current.color);
     g.catchTarget.setNote?.(plan.notes?.[0]);
     g.catchTarget.setNext?.(plan.notes?.[1]);
-    g.ui.showPrompt(g.online?.isDown() ? null : promptFor(plan.notes?.[0]), g.turn.current.color);   // 観戦中は操作の説明を出さない
+    g.ui.showPrompt(g.online?.isDown() || g.autoPlay?.active ? null : promptFor(plan.notes?.[0]), g.turn.current.color);   // 観戦中 / AUTO は操作の説明を出さない
     g.boss.view.playCharge();
     g.ball.hide();
     // 攻撃の予備動作(tell):色の違う溜め + ボスが何度か溜め直す + 短い表示(FEINT など。必ず見切れるサイン)
@@ -267,6 +267,7 @@ export class PlayerDefenseState {
     this.arrival = arrival;
     this.noteState = 'wait';
     this.ghost = false;
+    this.auto = false;
     this.noteGrade = null;
     this.slide = null;
     this.fxKeep = false;
@@ -277,7 +278,7 @@ export class PlayerDefenseState {
       g.catchJudge.begin(arrival, n.markerLead ?? Math.min(0.9, n.duration * 0.9));
       g.catchTarget.show(n.markerWorld, g.turn.current.color);
       g.catchTarget.setNote?.(n);
-      g.ui.showPrompt(this.spectating ? null : promptFor(n), g.turn.current.color);
+      g.ui.showPrompt(this.spectating || g.autoPlay?.active ? null : promptFor(n), g.turn.current.color);
       g.ball.returnTo(g.boss.spawnPoint(), n.world, n.lateEnd, n.duration, lateDurFor(n), null, n.motion);
       g.ball.setNoteLook?.(n.type);
       g.effects.burst(g.boss.spawnPoint(), '#ff3d7f', 10, 8, 0.6);
@@ -313,6 +314,32 @@ export class PlayerDefenseState {
       return;
     }
     this.finishNote(r, g.catchJudge.describe());
+  }
+
+  /**
+   * AUTO:ハートが届いた瞬間に自動で判定(Config.auto.defence の重み)。HOLD はメーター / FLICK はスライダーボールを最後まで動かしてから同じ判定で確定
+   *   手動の入力と同じく判定・ダメージ・MULTI の送信を行う
+   */
+  autoCatch() {
+    const g = this.g, n = this.note, r = g.autoPlay.rollDefence(), t = g.catchTarget.screen();
+    g.catchJudge.result = r;   // この後の入力(と CatchJudge の判定)は受け付けない
+    if (t) g.ui.tapRipple(t.x, t.y, JUDGE_COLOR[r]);
+    if (r !== Judge.MISS && (n.type === 'HOLD' || n.type === 'FLICK')) {
+      this.auto = true;
+      this.startGrade = r;
+      if (n.type === 'HOLD') {
+        this.noteState = 'holding';
+        this.holdEnd = this.arrival + (n.hold ?? Config.defence.hold.sec);
+        g.catchTarget.setHold?.(0, 'holding');
+      } else {
+        this.noteState = 'sliding';
+        this.slideEnd = this.arrival + (n.slideSec ?? Config.defence.flick.slideSec);
+        this.slide = { consumed: 0, guide: 0, finger: t, reached: false, fail: false };
+        g.catchTarget.setSlide?.(this.slide);
+      }
+      return;
+    }
+    this.finishNote(r, 'AUTO');
   }
 
   /** FLICK(スライド)中:指の位置 → 軌道の進み。軌道から大きく外れたら MISS */
@@ -442,6 +469,7 @@ export class PlayerDefenseState {
       g.ball.pinAt?.(n.markerWorld ?? n.world);   // ハートはマーカーの中央に固定
       g.ball.setPressed?.(Math.max(0.2, Math.min(1, k)));
       if (this.ghost) { if (k >= 1) this.ghostFinish(); return; }
+      if (this.auto) { if (k >= 1) this.finishNote(this.startGrade, 'AUTO'); return; }
       const late = (Config.defence.hold.releaseWindowMul ?? 2) * catchWin('goodTime');
       if (now > this.holdEnd + late) this.finishNote(Judge.MISS, '離さなかった');
       return;
@@ -454,12 +482,14 @@ export class PlayerDefenseState {
       const b = g.catchTarget.pointOnPath?.(sl.guide, n);
       g.ball.pinAt?.(b ? g.player.screenToWorld(b.x, b.y, Config.ball.catchDepth) : n.markerWorld ?? n.world);
       if (this.ghost) { sl.consumed = sl.guide; sl.reached = sl.guide >= 1; if (sl.guide >= 1) this.ghostFinish(); return; }
+      if (this.auto) { sl.consumed = sl.guide; sl.reached = sl.guide >= 1; sl.finger = b; if (sl.guide >= 1) { this.fxKeep = true; this.finishNote(this.startGrade, 'AUTO'); } return; }
       const late = (Config.defence.flick.endWindowMul ?? 3) * catchWin('goodTime');
       if (now > this.slideEnd + late) { if (sl.reached) { this.fxKeep = true; this.finishNote(Judge.MISS, '離すのが遅い'); } else this.failSlide('終点まで運んでいない'); }
       return;
     }
     if (this.noteState === 'done') { if (this.noteImpacted !== this.idx && now >= this.arrival) this.noteImpact(); return; }
     if (this.spectating && now >= this.arrival) { this.ghostStart(); return; }
+    if (g.autoPlay?.active && now >= this.arrival) { this.autoCatch(); return; }
     if (now > judge.lateLimit) { if (g.online && g.online.isDown()) return; this.finishNote(Judge.MISS, 'タップなし'); }
   }
 
