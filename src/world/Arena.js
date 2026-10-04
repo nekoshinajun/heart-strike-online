@@ -1,16 +1,28 @@
 import * as THREE from '../lib/three.js';
 import { Config } from '../core/Config.js';
 import { heartTexture } from './Textures.js';
-import { farCastles, archBridge, cloudSea, pathTiles, pathEdge, ribbonPillar, roseBush, floatIsland, petal } from './Painted.js';
+import { cloudSea, petal } from './Painted.js';
+
+// 背景のレイヤー絵(ねこしなさんの素材シートから切り出し・透過したもの)
+const BG = {
+  far: 'assets/bg/bg_far.webp',         // ① 最奥:空・窓
+  mid: 'assets/bg/bg_mid.webp',         // ② 奥の建築(アーチ + 階段)
+  floor: 'assets/bg/bg_floor.webp',     // ③ 床(真上から見た形に直したタイル。縦は鏡写しでつなぐ)
+  pillarL: 'assets/bg/bg_pillar_l.webp', // ④ 左右の柱・装飾
+  pillarR: 'assets/bg/bg_pillar_r.webp',
+  front: 'assets/bg/bg_front.webp',     // ⑤ 前景の花・花びら(画面の上に重ねる DOM)
+};
+const loader = new THREE.TextureLoader();
+const load = (url) => { const t = loader.load(url); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 
 /**
  * 戦闘の背景(2.5D):奥行きの違う位置に「2D の絵の板」を重ねる。ゲームの計算(軌道・判定)は 3D のまま。
- *   空(グラデーション)→ 遠景のお城と浮島 → 中景のアーチ橋 → 雲の海 + 石畳の道 → 道の脇のリボンの柱・バラ → 舞う花びら
+ *   空(グラデーション)→ ① 窓の壁 → ② アーチと階段 → 雲の海 + ③ 大理石の床 → ④ 左右の柱 → 舞う花びら → ⑤ 前景の花(画面の縁)
  * カメラが動くと板ごとにずれて見える(視差)ので、平らな絵でも奥行きが出る。開幕の全体図(OpeningState)でいちばん効く。
- * 絵は今は Painted.js の仮の絵。本番イラストに差し替える時は Painted.js の各関数だけを替える。
+ * 絵は assets/bg/ の画像(BG)。差し替える時は同じファイル名で置き換える。
  * 読みやすさ:ゲートやノーツの後ろになる空は中くらいの明るさのラベンダーに抑え、明るい色は地平線と足元だけ。
  */
-const SKY = { zenith: '#6f5fc8', mid: '#b48fe0', horizon: '#ffd9ec' };
+const SKY = { zenith: '#7f86d8', mid: '#d6a8e4', horizon: '#ffe0ec' };
 const FOG = '#f1d2ef';
 const HEART_TINTS = ['#ffb3d6', '#d9c2ff', '#ffd9a8', '#ffc9e4'];
 
@@ -71,20 +83,11 @@ export class Arena {
     return m;
   }
 
-  // ---------------- 遠景・中景 ----------------
+  // ---------------- ① 窓の壁 / ② アーチと階段 ----------------
   buildBackdrops() {
-    // 遠景:お城と浮島(地平線の少し下から立ち上がる)
-    this.board(farCastles(), 260, 104, 0, -18, -120, -15);
-    // 浮島(空の左右に浮かぶ。ゆっくり上下する)
-    this.islands = [
-      [-46, 30, -85, 22], [50, 34, -90, 26], [-30, 44, -100, 14], [34, 20, -70, 12],
-    ].map(([x, y, z, s], i) => {
-      const m = this.board(floatIsland(), s, s, x, y, z, -14);
-      m.userData = { y0: m.position.y, ph: i * 1.7 };
-      return m;
-    });
-    // 中景:アーチ橋(ボスの奥)
-    this.board(archBridge(), 200, 50, 0, -10, -62, -12);
+    // ① はボスの後ろになるので少しだけ暗くして、ピンクのゲートや白いリングを見やすくする
+    this.board(load(BG.far), 78, 70, 0, -6, -70, -15, { color: '#e2d2e2' });
+    this.board(load(BG.mid), 34, 35, 0, -0.6, -32, -12);
   }
 
   // ---------------- 足元:雲の海 + 石畳の道 ----------------
@@ -96,26 +99,16 @@ export class Arena {
     cloud.position.y = -0.6;
     this.scene.add(cloud);
 
-    // 道:手前(z 12)からボスの奥(z -58)まで
-    const z0 = 12, z1 = -58, len = z0 - z1, W = 8;
-    const tiles = pathTiles().clone();
-    tiles.needsUpdate = true;
-    tiles.wrapS = tiles.wrapT = THREE.RepeatWrapping;
-    tiles.repeat.set(2, len / 4);
+    // ③ 床:手前(z 12)から奥の階段(z -32)まで
+    const z0 = 12, z1 = -32, len = z0 - z1, W = 9;
+    const tiles = load(BG.floor);
+    tiles.wrapS = THREE.ClampToEdgeWrapping;
+    tiles.wrapT = THREE.MirroredRepeatWrapping;   // 縦は鏡写しでつなぐ(継ぎ目が目立たない)
+    tiles.repeat.set(1, len / (W * 340 / 512));
     const path = new THREE.Mesh(new THREE.PlaneGeometry(W, len), new THREE.MeshBasicMaterial({ map: tiles }));
     path.rotation.x = -Math.PI / 2;
     path.position.set(0, 0, z0 - len / 2);
     this.scene.add(path);
-    const edgeTex = pathEdge().clone();
-    edgeTex.needsUpdate = true;
-    edgeTex.wrapS = edgeTex.wrapT = THREE.RepeatWrapping;
-    edgeTex.repeat.set(1, len / 3);
-    for (const x of [-W / 2, W / 2]) {
-      const e = new THREE.Mesh(new THREE.PlaneGeometry(0.45, len), new THREE.MeshBasicMaterial({ map: edgeTex }));
-      e.rotation.x = -Math.PI / 2;
-      e.position.set(x, 0.01, z0 - len / 2);
-      this.scene.add(e);
-    }
 
     // ボスの足元:ふんわり光るハートの魔法陣
     const bz = Config.boss.z;
@@ -129,24 +122,26 @@ export class Arena {
     this.scene.add(this.pit);
   }
 
-  // ---------------- 道の脇:リボンの柱とバラ(いつもカメラの方を向く板)----------------
+  // ---------------- ④ 左右の柱(手前と奥の2組で奥行きを出す)----------------
   buildProps() {
-    const pillar = new THREE.SpriteMaterial({ map: ribbonPillar(), transparent: true, depthWrite: false });
-    const rose = new THREE.SpriteMaterial({ map: roseBush(), transparent: true, depthWrite: false });
-    for (let i = 0; i < 6; i++) {
-      const z = 4 - i * 9;
-      for (const x of [-7.4, 7.4]) {
-        const p = new THREE.Sprite(pillar);
-        p.center.set(0.5, 0);
-        p.scale.set(3.2, 8, 1);
-        p.position.set(x, 0, z);
-        this.scene.add(p);
-        const r = new THREE.Sprite(rose);
-        r.center.set(0.5, 0.1);
-        r.scale.set(4.4, 2.75, 1);
-        r.position.set(x + Math.sign(x) * 1.6, -0.2, z + 2.5);
-        this.scene.add(r);
-      }
+    const L = load(BG.pillarL), R = load(BG.pillarR);
+    const H = 18, Wd = H * 319 / 906;
+    for (const [x, z, k] of [[7.6, -2, 1], [9.5, -16, 1.15]]) {
+      this.board(L, Wd * k, H * k, -x, -0.5, z, -5, { fog: true });
+      this.board(R, Wd * k, H * k, x, -0.5, z, -5, { fog: true });
+    }
+    // ⑤ 前景の花:画面の縁に重ねる(ゲームの画面の上・UI の下。触っても反応しない)
+    const game = document.getElementById('game'), view = document.getElementById('view');
+    if (game && view && !document.getElementById('fgFlowers')) {
+      const fg = document.createElement('div');
+      fg.id = 'fgFlowers';
+      // 上の HUD(LOVE / FEVER)にかからないよう上の方は消す。主役(ゲート・ボス)を隠さないよう薄め
+      const mask = 'linear-gradient(to bottom, transparent 0, transparent 13%, #000 24%)';
+      fg.style.cssText = `position:absolute;inset:0;pointer-events:none;background:url(${BG.front}) center/100% 100% no-repeat;opacity:.7;-webkit-mask-image:${mask};mask-image:${mask}`;
+      view.after(fg);
+      const st = document.createElement('style');
+      st.textContent = '#game[data-state="TITLE"] #fgFlowers { display: none; }';
+      document.head.appendChild(st);
     }
   }
 
@@ -217,7 +212,6 @@ export class Arena {
   update(dt, t) {
     this.pit.material.opacity = 0.45 + Math.sin(t * 3) * 0.2;
     this.petalMat.uniforms.uTime.value = t;
-    for (const m of this.islands) m.position.y = m.userData.y0 + Math.sin(t * 0.4 + m.userData.ph) * 0.8;
     for (const h of this.hearts) {
       const u = h.userData;
       h.position.y += u.speed * dt;
