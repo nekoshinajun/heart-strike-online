@@ -63,6 +63,8 @@ function padTex(color) {
     grd.addColorStop(1, 'rgba(255,255,255,0)');
     x.globalAlpha = 0.45; x.fillStyle = grd; x.fillRect(0, 0, 256, 256);
     x.globalAlpha = 1;
+    x.strokeStyle = 'rgba(40,8,30,0.55)'; x.lineWidth = 22;   // 暗い縁(明るい床の上でも輪郭が出る)
+    x.beginPath(); x.arc(128, 128, 106, 0, Math.PI * 2); x.stroke();
     x.shadowColor = color; x.shadowBlur = 14;
     x.strokeStyle = color; x.lineWidth = 12;
     x.beginPath(); x.arc(128, 128, 106, 0, Math.PI * 2); x.stroke();
@@ -71,6 +73,20 @@ function padTex(color) {
     x.setLineDash([10, 10]); x.lineWidth = 3;
     x.beginPath(); x.arc(128, 128, 70, 0, Math.PI * 2); x.stroke();
     return texOf(c);
+  });
+}
+
+/** 敵の体の下 → 床の円へ下ろす縦の点線(「この真下にいる」)*/
+function dropTex(color) {
+  return once(`drop${color}`, () => {
+    const [c, x] = canvas(64);
+    const grd = x.createLinearGradient(0, 0, 64, 0);
+    grd.addColorStop(0, 'rgba(255,255,255,0)'); grd.addColorStop(0.5, color); grd.addColorStop(1, 'rgba(255,255,255,0)');
+    x.globalAlpha = 0.55; x.fillStyle = grd; x.fillRect(0, 0, 64, 64);
+    x.globalAlpha = 1; x.fillStyle = '#ffffff'; x.shadowColor = color; x.shadowBlur = 6;
+    x.beginPath(); x.ellipse(32, 20, 7, 13, 0, 0, Math.PI * 2); x.fill();
+    const t = texOf(c); t.wrapT = THREE.RepeatWrapping;
+    return t;
   });
 }
 
@@ -95,7 +111,7 @@ export class DistanceGuide {
   lane(i) {
     while (this.lanes.length <= i) {
       const n = G().rings ?? 6;
-      const L = { rings: [], arrows: [], pad: null };
+      const L = { rings: [], arrows: [], pad: null, drop: null };
       for (let k = 0; k < n; k++) {
         const r = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat()));
         const a = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat()));
@@ -105,7 +121,10 @@ export class DistanceGuide {
       }
       L.pad = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat()));
       L.pad.renderOrder = 1;
-      this.root.add(L.pad);
+      L.drop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat());
+      L.drop.material.map = null;
+      L.drop.renderOrder = 1;
+      this.root.add(L.pad, L.drop);
       this.lanes.push(L);
     }
     return this.lanes[i];
@@ -117,7 +136,7 @@ export class DistanceGuide {
     const w = g.wave;
     if (w?.active) {
       for (const u of w.units) {
-        if (u.alive) out.push({ x: u.x, z: w.z, pad: u.def.size * 0.3, color: u.def.id === 'angel' ? '#1fb6e8' : '#ff3d8f' });
+        if (u.alive) out.push({ x: u.x, z: w.z, bottom: u.y - u.h * 0.42, pad: u.def.size * 0.32, color: u.def.id === 'angel' ? '#1fb6e8' : '#ff3d8f' });
       }
       return out;
     }
@@ -125,14 +144,20 @@ export class DistanceGuide {
     const b = g.boss.hitPlane.bounds();
     if (!Number.isFinite(b.minY)) return out;
     const p = g.boss.root.position;
-    out.push({ x: p.x, z: p.z, pad: (b.maxY - b.minY) * Config.boss.scale * 0.13, color: '#ff3d8f' });
+    out.push({ x: p.x, z: p.z, bottom: 0, pad: (b.maxY - b.minY) * Config.boss.scale * 0.16, color: '#ff3d8f' });
     return out;
   }
 
-  /** 投げる前(ハートを構えている / 掴んでいる)だけ出す */
+  /** 真下の位置表示(床の円 + 縦の点線):バトル中はいつも出す(敵がどこに立っているか = 距離の基準)*/
+  get padWanted() {
+    const g = this.g;
+    if (G().enabled === false || g.tutorial || !g.stage) return false;
+    return !g.sm?.is(GameState.OPENING) && !g.sm?.is(GameState.WAVE_ADVANCE);
+  }
+  /** 床の道(リング + 矢印):投げる前(ハートを構えている / 掴んでいる)だけ出す */
   get wanted() {
     const g = this.g;
-    if (G().enabled === false || g.tutorial) return false;
+    if (!this.padWanted) return false;
     if (!g.sm?.is(GameState.PLAYER_ATTACK)) return false;
     return g.ball.mode === 'held' || g.ball.mode === 'grabbed';
   }
@@ -148,22 +173,26 @@ export class DistanceGuide {
   update(dt) {
     const C = G();
     this.t += dt;
-    const want = this.wanted;
+    const want = this.wanted, padWant = this.padWanted;
     this.alpha += ((want ? 1 : 0) - this.alpha) * Math.min(1, dt * (want ? 6 : 12));
-    this.root.visible = this.alpha > 0.01;
+    this.padAlpha = (this.padAlpha ?? 0) + ((padWant ? 1 : 0) - (this.padAlpha ?? 0)) * Math.min(1, dt * 6);
+    this.root.visible = this.padAlpha > 0.01;
     if (!this.root.visible) return;
+    const cam = this.g.cam.camera;
     const list = this.targets();
     const S = this.floorAt(C.startNdc ?? -0.95, _s);
     const n = C.rings ?? 6, R = C.ringRadius ?? 1.5, A = C.arrowSize ?? 2.0, end = C.end ?? 0.9;
     for (let i = 0; i < Math.max(list.length, this.lanes.length); i++) {
       const L = this.lane(i), T = list[i];
-      for (const m of [...L.rings, ...L.arrows, L.pad]) m.visible = !!T;
+      for (const m of [...L.rings, ...L.arrows, L.pad, L.drop]) m.visible = !!T;
       if (!T) continue;
+      for (const m of [...L.rings, ...L.arrows]) m.visible = this.alpha > 0.01;
       if (L.color !== T.color) {   // 色ごとのテクスチャ(縁取りの色)
         L.color = T.color;
         for (const r of L.rings) { r.material.map = dottedRing(T.color); r.material.needsUpdate = true; }
         for (const a of L.arrows) { a.material.map = arrowTex(T.color); a.material.needsUpdate = true; }
         L.pad.material.map = padTex(T.color); L.pad.material.needsUpdate = true;
+        L.drop.material.map = dropTex(T.color); L.drop.material.needsUpdate = true;
       }
       _e.set(T.x, FLOOR_Y, T.z);
       // 道は足元の光る円の手前まで
@@ -190,7 +219,19 @@ export class DistanceGuide {
       L.pad.position.copy(_e);
       L.pad.rotation.set(-Math.PI / 2, 0, 0);
       L.pad.scale.set(r * 2, r * 2, 1);
-      L.pad.material.opacity = this.alpha * 0.95;
+      L.pad.material.opacity = this.padAlpha * 0.95;
+      // 体の下 → 床の円へ縦の点線(浮いている雑魚でも「この真下」がわかる)。床に立つボスは出さない
+      const hgt = (T.bottom ?? 0) - FLOOR_Y;
+      L.drop.visible = hgt > 0.8;
+      if (L.drop.visible) {
+        L.drop.position.set(T.x, FLOOR_Y + hgt / 2, T.z);
+        L.drop.rotation.set(0, Math.atan2(cam.position.x - T.x, cam.position.z - T.z), 0);   // 縦のまま、カメラへ向ける
+        const w = C.dropWidth ?? 1.1;
+        L.drop.scale.set(w, hgt, 1);
+        L.drop.material.map.repeat.set(1, hgt / (w * 1.4));
+        L.drop.material.map.offset.y = -this.t * 0.6;   // 点が下へ流れる
+        L.drop.material.opacity = this.padAlpha * 0.9;
+      }
     }
   }
 }

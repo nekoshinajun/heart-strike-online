@@ -169,6 +169,8 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #promptMain { font-family: var(--display); font-size: 34px; color: var(--pc); -webkit-text-stroke: 1.5px #000; text-shadow: 0 3px 0 #000; animation: breathe 700ms ease-in-out infinite alternate; }
 #promptSub { font-size: 12px; font-weight: 800; color: var(--ink); opacity: 0.85; text-shadow: 0 1px 2px #000; }
 #prompt[data-type^="catch"] { top: auto; bottom: 96px; }
+/* 投げる前の FLICK / 掴んでいる間の説明:ハート(画面の下 87%)のさらに下に置き、敵の真下の位置表示(床の円)を隠さない */
+#prompt[data-type="flick"], #prompt[data-type="grab"] { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 2px); }
 #prompt[data-type="grab"] #promptMain { animation: none; }
 @keyframes breathe { from { transform: scale(1); } to { transform: scale(1.1); } }
 
