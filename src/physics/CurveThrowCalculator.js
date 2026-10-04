@@ -11,6 +11,12 @@ import { abilityMul } from '../data/Growth.js';
  *   発射位置 start = 離した瞬間にハートが画面上にあった場所(呼び出し側で渡す)
  * 自動エイムなし。CONTROL(キャラ性能)の小さなずれだけ乱数(MULTI は投球データごと全員へ送る)。
  */
+/** 弾道の基準の構え位置(Config.throwInput.refStart。無ければ実際の構え位置)。左右(x)は実際の位置 */
+function refStart(start) {
+  const R = Config.throwInput.refStart;
+  return R ? new THREE.Vector3(start.x, R.y, R.z) : start;
+}
+
 export class CurveThrowCalculator {
   constructor(cameraCtrl, viewport) {
     this.cam = cameraCtrl;
@@ -50,12 +56,17 @@ export class CurveThrowCalculator {
   buildThrow(start, target, power, spin) {
     void power;
     const g = Config.throw.gravity, G = Config.throwInput;
-    const Hv = new THREE.Vector3(target.x - start.x, 0, target.z - start.z);
-    const d = Math.max(0.01, Hv.length()); Hv.normalize();
-    const dy = target.y - start.y, k = Math.tan(THREE.MathUtils.degToRad(G.launchDeg));
+    // 届く速さ・飛ぶ時間は「基準の構え位置(refStart)」から解く → 実際の構え位置から、同じ時間で同じ点へ届く弾道にする
+    const S0 = refStart(start);
+    const Hv = new THREE.Vector3(target.x - S0.x, 0, target.z - S0.z);
+    const d = Math.max(0.01, Hv.length());
+    const dy = target.y - S0.y, k = Math.tan(THREE.MathUtils.degToRad(G.launchDeg));
     const den = d * k - dy;
     const vh0 = den > 0.05 ? Math.sqrt((g * d * d) / (2 * den)) : G.maxVelocity * 1.3;
-    const { velocity, T } = this.ballistic(Hv, d, dy, vh0);
+    const T0 = d / Math.max(0.5, vh0);
+    const Hn = new THREE.Vector3(target.x - start.x, 0, target.z - start.z);
+    const dn = Math.max(0.01, Hn.length()); Hn.normalize();
+    const { velocity, T } = this.ballistic(Hn, dn, target.y - start.y, dn / T0);
     const cv = this.curveFor(spin, T);
     if (cv) velocity.add(cv.dv);
     return { velocity, curveAccel: cv?.accel ?? null, drive: null, speed3d: velocity.length(), launchDeg: G.launchDeg, reachable: den > 0.05, flightTime: T };
@@ -89,8 +100,15 @@ export class CurveThrowCalculator {
     const { fwd, right } = this.basis();
     const H = fwd.clone().multiplyScalar(Math.cos(yaw)).addScaledVector(right, Math.sin(yaw));
     // ボスの面までの水平距離 → 基準の弾道(発射角一定)での到達の高さ
-    const depth = Math.max(1, (start.z - (Config.boss.z + 0.5)) / Math.max(0.2, -H.z));
-    const { velocity, T } = this.ballistic(H, depth, this.baseRise(depth, vh0), vh0);
+    //   到達点と飛ぶ時間は基準の構え位置(refStart = 見上げカメラの頃のハートの位置)から計算 → カメラの構図を変えても
+    //   同じフリックなら同じ所へ同じ時間で届く。実際の構え位置からはその点へ向かう弾道で飛ばす
+    const S0 = refStart(start);
+    const depth = Math.max(1, (S0.z - (Config.boss.z + 0.5)) / Math.max(0.2, -H.z));
+    const T0 = depth / Math.max(0.5, vh0);
+    const arrive = new THREE.Vector3(start.x + H.x * depth, S0.y + this.baseRise(depth, vh0), S0.z + H.z * depth);
+    const Hn = new THREE.Vector3(arrive.x - start.x, 0, arrive.z - start.z);
+    const dn = Math.max(0.01, Hn.length()); Hn.normalize();
+    const { velocity, T } = this.ballistic(Hn, dn, arrive.y - start.y, dn / T0);
     // カーブ:入力の回転 × キャラクターの CURVE(mods.curveMul は curveFor の中)× アビリティ
     const ab = this.mods.abilities ?? [];
     const actx = { pull: p, throwSpin: gest.spin, effects: [] };
