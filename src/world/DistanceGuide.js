@@ -4,12 +4,13 @@ import { GameState } from '../core/StateMachine.js';
 
 /**
  * 敵までの距離ガイド(投げる前だけ出す見た目。判定・物理には関わらない)
- *   ハート → 敵(雑魚なら1体ずつ / いなければボス)へ、点線の楕円リングと矢印を等間隔に並べる。
- *   同じ大きさのリングが奥ほど小さく見える = 敵がどれだけ遠いかが直感でわかる。
- *   敵の足元には光る円(足場)。リングは近い方から奥へ光が流れる(「あっちへ投げる」)。
- *   リング・矢印・足場はカメラへ向けた板(2.5D)。設定は Config.distanceGuide
+ *   床に「ハート → 敵の足元」の道を引く:点線のリングと矢印を等間隔に並べ、敵の足元には光る円。
+ *   同じ大きさのリングが奥ほど小さく見える = 敵がどれだけ遠いかが直感でわかる(床を見下ろすカメラ:Config.camera)。
+ *   雑魚がいれば1体ずつ道を引く / いなければボスへ1本。光は手前 → 奥へ流れる(「あっちへ投げる」)。設定は Config.distanceGuide
  */
 const G = () => Config.distanceGuide ?? {};
+const FLOOR_Y = 0.04;
+const _d = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Vector3(), _p = new THREE.Vector3(), _col = new THREE.Color();
 const cache = {};
 
 /** 点線の楕円リング(白。色は material.color で付ける)*/
@@ -85,175 +86,121 @@ function padTex() {
   return cache.pad;
 }
 
-const mat = (map, additive = false) => new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, depthTest: false, fog: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+const mat = (map, additive = false) => new THREE.MeshBasicMaterial({
+  map, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
+  blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,   // 床のすぐ上(床・グリッドに埋もれない)
+});
+const flat = (m) => { m.rotation.order = 'YXZ'; return m; };
 
 export class DistanceGuide {
   constructor(g) {
     this.g = g;
     this.root = new THREE.Group();
+    this.root.visible = false;
     g.scene.add(this.root);
     this.lanes = [];
     this.alpha = 0;
     this.t = 0;
   }
 
-  /** レーンを i 本目まで用意(リング・矢印・足場の板)*/
+  /** 道を i 本目まで用意(リング・矢印・足元の光る円)*/
   lane(i) {
     while (this.lanes.length <= i) {
-      const n = G().rings ?? 5;
-      const L = { rings: [], arrows: [], pad: null, padGlow: null };
+      const n = G().rings ?? 6;
+      const L = { rings: [], arrows: [], pad: null };
       for (let k = 0; k < n; k++) {
-        const r = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(dottedRing()));
-        const a = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(arrowTex()));
-        r.renderOrder = a.renderOrder = 5;   // 敵の絵(ボス 2 / 雑魚 3)の上
+        const r = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(dottedRing())));
+        const a = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(arrowTex())));
+        r.renderOrder = a.renderOrder = 1;
         this.root.add(r, a);
         L.rings.push(r); L.arrows.push(a);
       }
-      L.pad = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(padTex(), true));
-      L.pad.renderOrder = 1;   // 足場は敵の絵の後ろ(足元に敷く)
+      L.pad = flat(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat(padTex(), true)));
+      L.pad.renderOrder = 1;
       this.root.add(L.pad);
       this.lanes.push(L);
     }
     return this.lanes[i];
   }
 
-  /** いま狙う相手:{ aim(狙う所), foot(足元), color, size }。雑魚がいれば生きている雑魚 / いなければボス */
+  /** いま狙う相手の足元:{ x, z, pad(光る円の半径), color }。雑魚がいれば生きている雑魚 / いなければボス */
   targets() {
     const g = this.g, out = [];
     const w = g.wave;
     if (w?.active) {
       for (const u of w.units) {
-        if (!u.alive) continue;
-        out.push({ aim: new THREE.Vector3(u.x, u.y, w.z), foot: new THREE.Vector3(u.x, u.y - u.h * 0.42, w.z), color: u.def.guideColor ?? (u.def.id === 'angel' ? '#5fe6ff' : '#ff5fa2'), size: u.def.size * 0.55, pad: u.def.size * 0.3 });
+        if (u.alive) out.push({ x: u.x, z: w.z, pad: u.def.size * 0.3, color: u.def.id === 'angel' ? '#5fe6ff' : '#ff5fa2' });
       }
       return out;
     }
     if (!g.boss?.root?.visible || g.boss.full) return out;
     const b = g.boss.hitPlane.bounds();
     if (!Number.isFinite(b.minY)) return out;
-    const m = g.boss.hitRoot.matrixWorld;
-    const aim = new THREE.Vector3(0, (b.minY + b.maxY) / 2, 0).applyMatrix4(m);
-    const foot = new THREE.Vector3(0, b.minY + (b.maxY - b.minY) * 0.08, 0).applyMatrix4(m);
-    out.push({ aim, foot, color: '#ff5fa2', size: (b.maxY - b.minY) * Config.boss.scale * 0.32, pad: (b.maxY - b.minY) * Config.boss.scale * 0.13 });
+    const p = g.boss.root.position;
+    out.push({ x: p.x, z: p.z, pad: (b.maxY - b.minY) * Config.boss.scale * 0.13, color: '#ff5fa2' });
     return out;
   }
 
   /** 投げる前(ハートを構えている / 掴んでいる)だけ出す */
   get wanted() {
     const g = this.g;
-    if (G().enabled === false) return false;
+    if (G().enabled === false || g.tutorial) return false;
     if (!g.sm?.is(GameState.PLAYER_ATTACK)) return false;
-    if (g.tutorial) return false;
     return g.ball.mode === 'held' || g.ball.mode === 'grabbed';
+  }
+
+  /** 画面のこの高さ(NDC の y)に見える床の点 */
+  floorAt(ndcY, out) {
+    const cam = this.g.cam.camera;
+    _d.set(0, ndcY, 0.5).unproject(cam).sub(cam.position).normalize();
+    const k = _d.y < -1e-3 ? Math.min(60, (FLOOR_Y - cam.position.y) / _d.y) : 30;
+    return out.copy(cam.position).addScaledVector(_d, k).setY(FLOOR_Y);
   }
 
   update(dt) {
     const C = G();
     this.t += dt;
-    this.alpha += ((this.wanted ? 1 : 0) - this.alpha) * Math.min(1, dt * (this.wanted ? 6 : 12));
-    const on = this.alpha > 0.01;
-    this.root.visible = on;
-    if (!on) return;
-    const cam = this.g.cam.camera;
-    const q = cam.quaternion;
-    const start = this.g.player.holdAnchor();
-    start.y += C.startDrop ?? -0.15;
+    const want = this.wanted;
+    this.alpha += ((want ? 1 : 0) - this.alpha) * Math.min(1, dt * (want ? 6 : 12));
+    this.root.visible = this.alpha > 0.01;
+    if (!this.root.visible) return;
     const list = this.targets();
-    if (C.mode === 'floor') return this.updateFloor(list, start, C);
-    for (let i = 0; i < Math.max(list.length, this.lanes.length); i++) {
-      const L = this.lane(i), T = list[i];
-      const show = !!T;
-      for (const m of [...L.rings, ...L.arrows, L.pad]) m.visible = show;
-      if (!show) continue;
-      const col = new THREE.Color(T.color);
-      const n = L.rings.length;
-      const from = C.from ?? 0.3, to = C.to ?? 0.86;
-      const flatten = C.flatten ?? 0.42;
-      const R = C.ringRadius ?? 1.05;
-      // 画面上の進む向き(矢印の回転)
-      _a.copy(start).project(cam); _b.copy(T.aim).project(cam);
-      const ang = Math.atan2((_b.y - _a.y), (_b.x - _a.x) * cam.aspect) - Math.PI / 2;
-      // 画面上で近すぎるリングは間引く(敵が画面でハートの近くにいる時に重なって白飛びしない)
-      const minGap = (C.minGapPx ?? 54) / (this.g.viewport?.h ?? innerHeight) * 2;
-      let lastX = Infinity, lastY = Infinity;
-      for (let k = 0; k < n; k++) {
-        const f = n === 1 ? from : from + (to - from) * (k / (n - 1));
-        _p.copy(start).lerp(T.aim, f);
-        _s.copy(_p).project(cam);
-        const ring = L.rings[k], arrow = L.arrows[k];
-        const gap = Math.hypot((_s.x - lastX) * cam.aspect, _s.y - lastY);
-        if (gap < minGap) { ring.visible = arrow.visible = false; continue; }
-        lastX = _s.x; lastY = _s.y;
-        // 近い方から奥へ光が流れる
-        const wave = 0.5 + 0.5 * Math.cos((f * 3.2 - this.t * (C.flowSpeed ?? 1.4)) * Math.PI * 2);
-        const fade = 1 - 0.35 * (k / Math.max(1, n - 1));
-        // 楕円は進む向きに対して横に寝かせる(床に置いたリングの見え方)。矢印は進む向き
-        ring.position.copy(_p);
-        ring.quaternion.copy(q);
-        ring.rotateZ(ang);
-        ring.scale.set(R * 2, R * 2 * flatten, 1);
-        ring.material.opacity = this.alpha * fade * (0.6 + 0.4 * wave);
-        ring.material.color.set(T.color);
-        arrow.position.copy(_p);
-        arrow.quaternion.copy(q);
-        arrow.rotateZ(ang);
-        arrow.scale.set(R * 1.1, R * 1.1, 1);
-        arrow.material.opacity = this.alpha * fade * (0.45 + 0.55 * wave);
-        arrow.material.color.set('#ffffff').lerp(col, 0.35);
-      }
-      // 足元の光る円(ゆっくり脈打つ)
-      const pulse = 1 + Math.sin(this.t * 3 + i) * 0.05;
-      L.pad.position.copy(T.foot);
-      L.pad.quaternion.copy(q);
-      L.pad.scale.set(T.size * 2 * pulse, T.size * 2 * flatten * 0.7 * pulse, 1);
-      L.pad.material.color.copy(col).multiplyScalar(this.alpha * 0.9);   // 足場は加算(光)
-    }
-  }
-
-  /** 画面の下の方(NDC の y)に見える床の点(リングの並びの手前の端)*/
-  floorAtScreen(ndcY, y, x) {
-    const cam = this.g.cam.camera;
-    const d = new THREE.Vector3(0, ndcY, 0.5).unproject(cam).sub(cam.position).normalize();
-    const k = d.y < -1e-3 ? (y - cam.position.y) / d.y : 20;
-    const P = cam.position.clone().addScaledVector(d, Math.min(k, 40));
-    P.x = x; P.y = y;
-    return P;
-  }
-
-  /** 床モード(カメラが床を見下ろす構図用):リング・矢印・足場を床(y = floorY)に寝かせて並べる */
-  updateFloor(list, start, C) {
-    const y = C.floorY ?? 0.03;
-    const n0 = C.rings ?? 5;
+    const S = this.floorAt(C.startNdc ?? -0.95, _s);
+    const n = C.rings ?? 6, R = C.ringRadius ?? 1.5, A = C.arrowSize ?? 2.0, end = C.end ?? 0.9;
     for (let i = 0; i < Math.max(list.length, this.lanes.length); i++) {
       const L = this.lane(i), T = list[i];
       for (const m of [...L.rings, ...L.arrows, L.pad]) m.visible = !!T;
       if (!T) continue;
-      const col = new THREE.Color(T.color);
-      const S = this.floorAtScreen(C.floorStartNdc ?? -0.75, y, start.x);
-      const E = new THREE.Vector3(T.aim.x, y, T.aim.z);
-      const ang = Math.atan2(E.x - S.x, -(E.z - S.z));
-      const R = C.floorRingRadius ?? 1.6;
-      for (let k = 0; k < n0; k++) {
-        const f = (k + 0.5) / n0 * 0.92;
-        const wave = 0.5 + 0.5 * Math.cos((f * 3.2 - this.t * (C.flowSpeed ?? 1.4)) * Math.PI * 2);
+      _col.set(T.color);
+      _e.set(T.x, FLOOR_Y, T.z);
+      // 道は足元の光る円の手前まで
+      const far = _p.copy(_e).sub(S);
+      const len = far.length();
+      const stop = Math.max(0.1, Math.min(end, 1 - (T.pad * 0.9) / Math.max(1, len)));
+      const yaw = Math.atan2(-(_e.x - S.x), -(_e.z - S.z));   // 矢印の向き(奥 = -Z が 0)
+      for (let k = 0; k < L.rings.length; k++) {
+        const f = ((k + 0.5) / n) * stop;
+        // 近い方から奥へ光が流れる
+        const wave = 0.5 + 0.5 * Math.cos((f * 2.4 - this.t * (C.flowSpeed ?? 1.2)) * Math.PI * 2);
         const ring = L.rings[k], arrow = L.arrows[k];
-        ring.position.copy(S).lerp(E, f);
-        ring.rotation.set(-Math.PI / 2, 0, -ang);
+        ring.position.copy(S).lerp(_e, f);
+        ring.rotation.set(-Math.PI / 2, yaw, 0);
         ring.scale.set(R * 2, R * 2, 1);
-        ring.material.opacity = this.alpha * (0.6 + 0.4 * wave);
-        ring.material.color.set(T.color);
-        arrow.position.copy(ring.position); arrow.position.y += 0.01;
-        arrow.rotation.set(-Math.PI / 2, 0, -ang);
-        arrow.scale.set(R * 1.3, R * 1.3, 1);
-        arrow.material.opacity = this.alpha * (0.45 + 0.55 * wave);
-        arrow.material.color.set('#ffffff').lerp(col, 0.35);
+        ring.material.opacity = this.alpha * (0.55 + 0.45 * wave);
+        ring.material.color.copy(_col);
+        arrow.position.copy(ring.position);
+        arrow.rotation.set(-Math.PI / 2, yaw, 0);
+        arrow.scale.set(A, A, 1);
+        arrow.material.opacity = this.alpha * (0.35 + 0.65 * wave);
+        arrow.material.color.set('#ffffff').lerp(_col, 0.35);
       }
-      const pulse = 1 + Math.sin(this.t * 3 + i) * 0.05;
-      L.pad.position.set(T.aim.x, y + 0.02, T.aim.z);
+      // 足元の光る円(ゆっくり脈打つ)
+      const r = T.pad * (C.padScale ?? 1) * (1 + Math.sin(this.t * 3 + i) * 0.05);
+      L.pad.position.copy(_e);
       L.pad.rotation.set(-Math.PI / 2, 0, 0);
-      L.pad.scale.set(T.pad * 2 * pulse, T.pad * 2 * pulse, 1);
-      L.pad.material.color.copy(col).multiplyScalar(this.alpha * 0.9);
+      L.pad.scale.set(r * 2, r * 2, 1);
+      L.pad.material.color.copy(_col).multiplyScalar(this.alpha * 0.9);
     }
   }
 }
