@@ -67,7 +67,9 @@ export class Arena {
       side: THREE.BackSide, depthWrite: false, fog: false,
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 16), mat);
-    sky.renderOrder = -20;
+    // 不透明な地面(雲の海・床)の後に描く:地面に隠れた所は深度テストで空を塗らずに済む(見た目は同じ。発熱対策)
+    // 奥の絵の板(①②)は半透明なので、その後に重なる
+    sky.renderOrder = 5;
     sky.frustumCulled = false;
     this.scene.add(sky);
   }

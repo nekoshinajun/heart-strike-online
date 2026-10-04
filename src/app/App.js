@@ -84,6 +84,7 @@ export class App {
   /** 既存のインゲーム(STAGE SELECT → … → RESULT)をつなぐ */
   attachGame(g) {
     this.game = g;
+    g.setPowerSave?.(!!this.progress.data.settings.powerSave);   // 省電力モード(設定)
     const R = this.router, M = g.menu;
     this.router.registerLayer('menu', M.el);
     const same = (id, c) => c.restore && M.screen === id && !M.el.hidden;
@@ -178,6 +179,7 @@ export class App {
       this.audio.setVolume?.('se', a.seVolume ?? 1);
       this.audio.setVolume?.('voice', a.voiceVolume ?? 1);
     });
+    safe('GAME', () => this.game?.setPowerSave?.(!!s.powerSave));
   }
 
   bossThumb(stage) { const a = bossAsset(stage); return BOSS_IMAGES[a?.thumbnail] ?? BOSS_IMAGES[a?.image?.fallback] ?? ''; }

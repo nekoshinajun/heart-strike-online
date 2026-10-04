@@ -62,8 +62,9 @@ export class GameManager {
     loadTuning(); // 調整パネルで保存した値を反映(部位HP等はボス生成前に)
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    // 描画の解像度:2 → 1.5(塗る画素が約 44% 減る。スマホの発熱対策。見た目の差はほぼ無い)
+    // 描画の解像度:2 → 1.5(塗る画素が約 44% 減る。スマホの発熱対策。見た目の差はほぼ無い)。省電力モードは 1(setPowerSave)
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.minFrameMs = 10;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.scene = new THREE.Scene();
 
@@ -517,6 +518,13 @@ export class GameManager {
     this.retryStage();
   }
 
+  /** 省電力モード(設定画面):バトルを約 30fps・解像度 1 倍で描く */
+  setPowerSave(on) {
+    this.minFrameMs = on ? 1000 / 30 - 4 : 10;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, on ? 1 : 1.5));
+    this.resize();
+  }
+
   resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     this.viewport.w = w; this.viewport.h = h;
@@ -537,7 +545,8 @@ export class GameManager {
   loop(now) {
     requestAnimationFrame(this.loop);
     // 120Hz の端末でも約 60fps まで(間隔 10ms 未満のフレームは休む。60 / 90Hz の端末はそのまま。発熱対策)
-    if (now - this.lastFrame < 10) return;
+    // 省電力モードは約 30fps(60Hz なら 1 フレームおき)
+    if (now - this.lastFrame < this.minFrameMs) return;
     const realDt = Math.min(0.05, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
