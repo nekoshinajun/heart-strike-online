@@ -685,15 +685,31 @@ export const Config = {
     greatRadius: 0.12,     // ★ GreatPositionRadius
     goodRadius: 0.19,      // ★ GoodPositionRadius
   },
-  judgeDamageRate: { PERFECT: 0, GREAT: 0.25, GOOD: 0.5, MISS: 1.0 },
+  judgeDamageRate: { PERFECT: 0, GREAT: 0.15, GOOD: 0.5, MISS: 1.0 },   // ★ 被ダメージの割合(GREAT は 85% 軽減 / GOOD は 50% 軽減)
 
   // ---- AUTO(インゲーム右上の AUTO ボタン。ON の間は投球・DEFENCE を自動で行う。プレイヤーは SPECIAL(アイコンのタップ)だけ操作できる)----
   //   値は出やすさの重み(合計 100 でなくてもよい)。チュートリアルでは使えない
   auto: {
     defence: { PERFECT: 1, GREAT: 20, GOOD: 50, HIT: 28, MISS: 1 },   // ★ DEFENCE の判定。DEFENCE に HIT の段階は無いので HIT は defenceAs の判定になる
     defenceAs: { HIT: 'GOOD' },
-    landing: { PERFECT: 1, GREAT: 20, GOOD: 50, HIT: 28, MISS: 1 },   // ★ 投球の着弾(敵の中央縦ラインからの距離)。ハートゲート・Diamond は狙わない
-    throwDelay: 0.8,   // ★ 手番が来てから投げるまで(秒)
+    landing: { PERFECT: 1, GREAT: 12, GOOD: 45, HIT: 32, MISS: 10 },   // ★ 投球の着弾(敵の中央縦ラインからの距離)。ハートゲート・Diamond は狙わない
+    throwDelay: [0.6, 1.4],   // ★ 手番が来てから投げるまで(秒。この範囲で毎回変わる)
+    startJitter: 0.7,         // ★ 投げる位置の左右のばらつき(units)
+    curveChance: 0.45,        // ★ カーブをかける割合
+    maxSpin: 0.55,            // ★ AUTO のカーブの強さの上限(手動の最大 = 1)
+  },
+  // ---- ボーナスアイテム(3ターン目以降、3の倍数のターンにだけ出る。ターン = PLAYER ATTACK PHASE)----
+  //   カーブ(|spin| ≥ minSpin)の投球でしか取れない。置き場所はお手本のカーブの軌道の、まっすぐの線から一番膨らんだ所
+  //   heal … 取った投球で生存している味方全員の HP を最大 HP × ratio 回復 / big … 大きな Diamond(Diamond diamonds 個分の SPECIAL)
+  //   1ターンにそれぞれ1回まで(取るまではそのターンの投球ごとに出る)。AUTO の投球では取りに行かない
+  bonusItems: {
+    everyTurns: 3,       // ★ このターン数ごと(3, 6, 9 …)
+    fromTurn: 3,         // ★ このターンから
+    radius: 0.75,        // 取得判定の半径(ボール半径と合算)
+    spin: 0.9,           // お手本のカーブの強さ(手動の最大 = 1)
+    minSpin: 0.35,       // ★ 取れるカーブの強さ(これより弱い・まっすぐの球は通り抜ける)
+    heal: { ratio: 0.2, color: '#5dffa8' },
+    big: { diamonds: 5, color: '#ffe36b', glow: '#fff1a8' },   // 金色の大きな Diamond(ふつうの Diamond は水色 / ピンク)
   },
 
   // ---- UI ----

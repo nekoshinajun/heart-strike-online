@@ -73,33 +73,41 @@ export class AutoPlay {
   buildThrow() {
     const g = this.g;
     const want = rollWeighted(Config.auto.landing);
-    const start = g.player.holdAnchor();
+    const A = Config.auto;
+    const anchor = g.player.holdAnchor();
     const calc = g.player.thrower;
     const plane = g.targetPlane();
     const obstacles = g.space.obstacles.length ? g.space : null;
     const bands = { PERFECT: [0, 0.7], GREAT: [0.7, 1.7], GOOD: [1.7, 3.1], HIT: [3.1, 6], MISS: [8, 11] };
     for (const t of Config.landing.grades) if (t.id !== 'HIT') bands[t.id] = [bands[t.id][0], t.within];
+    // ばらつき:投げる位置(左右)・カーブの有無と強さ・狙う高さを毎回変える(同じ投球が続かない)
     const tryAim = (grade, k) => {
       const aim = this.aimBase(k);
       const [a, b] = bands[grade];
       const dx = (a + Math.random() * (b - a)) * (Math.random() < 0.5 ? -1 : 1);
+      const start = anchor.clone();
+      start.x += (Math.random() * 2 - 1) * (A.startJitter ?? 0);
+      const spin = Math.random() < (A.curveChance ?? 0) ? (Math.random() * 2 - 1) * (A.maxSpin ?? 0) : 0;
       const target = new THREE.Vector3(aim.cx + dx, aim.y, aim.z);
-      const th = calc.buildThrow(start, target, 0, 0);
+      const th = calc.buildThrow(start, target, 0, spin);
       const sim = simulate(start, th.velocity, th.curveAccel, plane, 0.03, obstacles, null);
       const res = sim.result;
       const hit = res?.type === 'hit';
       const cx = hit && res.minion != null ? g.wave?.unit(res.minion)?.x ?? aim.cx : g.boss.root.position.x;
       const got = hit ? landingGrade(res.point.x - cx).grade : 'MISS';
-      return { th, got, hit };
+      // 回復アイテム / 大きな Diamond(カーブでないと取れない配置)は AUTO では取りに行かない:軌道が近くを通る投球は使わない
+      const near = g.energy.nearBonus?.(sim.points, 0.8);
+      return { th, got, hit, start, spin, near };
     };
     let any = null;
-    for (let k = 0; k < 24; k++) {
+    for (let k = 0; k < 32; k++) {
       const r = tryAim(want, k);
-      if (r.got === want) return this.finish(r.th, start);
+      if (r.near) continue;
+      if (r.got === want) return this.finish(r);
       if (r.hit && !any) any = r;
     }
-    if (!any) for (let k = 0; k < 12 && !any; k++) { const r = tryAim('PERFECT', k); if (r.hit) any = r; }
-    return this.finish((any ?? tryAim('PERFECT', 0)).th, start);
+    if (!any) for (let k = 0; k < 12 && !any; k++) { const r = tryAim('PERFECT', k); if (r.hit && !r.near) any = r; }
+    return this.finish(any ?? tryAim('PERFECT', 0));
   }
 
   /** 狙いの基準:敵の中央縦ラインの X と、高さ(部位 / 雑魚の体のどこか)*/
@@ -114,13 +122,20 @@ export class AutoPlay {
     return { cx: g.boss.root.position.x, y: p.y, z };
   }
 
-  /** ThrowController.release と同じ形の投球データ(カーブなし・普通の強さ)*/
-  finish(b, start) {
+  /** ThrowController.release と同じ形の投球データ(普通の強さ)*/
+  finish({ th: b, start, spin }) {
     const m = Config.power.minThrowPower, p = 0.5;
     return {
       ...b, start: start.clone(), power: m + (1 - m) * p, strength: p, pull: p,
-      spin: 0, throwSpin: 0, turnDeg: 0, effects: [], route: null, strong: false,
-      curveDir: 'straight', curveStrength: 0, direction: b.velocity.clone().normalize(), auto: true,
+      spin, throwSpin: spin, turnDeg: 0, effects: [], route: null, strong: false,
+      curveDir: spin > 0 ? 'right' : spin < 0 ? 'left' : 'straight', curveStrength: Math.abs(spin) * Config.curve.shift,
+      direction: b.velocity.clone().normalize(), auto: true,
     };
+  }
+
+  /** 手番が来てから投げるまでの待ち(毎回少し変える)*/
+  throwDelay() {
+    const d = Config.auto.throwDelay ?? 0.8;
+    return Array.isArray(d) ? d[0] + Math.random() * (d[1] - d[0]) : d;
   }
 }
