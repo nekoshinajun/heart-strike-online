@@ -180,20 +180,21 @@ export class EnergySystem {
     b.fly = 0.001;
     this.bonusTaken.add(b.kind);
     if (b.kind === 'big') { this.collect({ pos: b.pos, color: B.big.glow, big: true }, B.big.diamonds ?? 5); return; }
-    // 回復:生存している味方全員(最大 HP × ratio)。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる(サーバーの HEAL で演出)
+    // 回復:取ったキャラ(この1投を投げたキャラ)だけ、最大 HP × ratio。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる(サーバーの HEAL で演出)
+    const i = this.throwerIndex ?? g.turn.index;
     g.effects.burst(b.pos, B.heal.color, 24, 6, 0.5);
     g.ball.pulseBoost(1);
     g.audio.rallyUp();
     const s = g.player.toScreen(b.pos);
-    g.ui.damageNumber(s.x, s.y, 'HEAL!', { color: B.heal.color, label: '✚ 回復アイテム' });
-    if (g.online) { if (g.lastThrowMine) g.online.sendItemHeal?.(B.heal.ratio); return; }
+    g.ui.damageNumber(s.x, s.y, 'HEAL!', { color: B.heal.color, label: `✚ ${g.turn.players[i]?.id ?? ''} 回復` });
+    if (g.online) { if (g.lastThrowMine) g.online.sendItemHeal?.(B.heal.ratio, i); return; }
     const healed = [];
-    g.turn.players.forEach((p, i) => {
-      if (!p || !(p.hp > 0)) return;
+    const p = g.turn.players[i];
+    if (p && p.hp > 0) {
       const before = p.hp, after = Math.min(p.maxHp ?? before, before + Math.round((p.maxHp ?? 100) * B.heal.ratio));
       p.hp = after;
       healed.push({ i, before, after, gained: after - before });
-    });
+    }
     g.stats.healed = (g.stats.healed ?? 0) + healed.reduce((a, h) => a + h.gained, 0);
     g.ui.playItemHeal?.(healed, s);
   }

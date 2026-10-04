@@ -121,7 +121,7 @@ let changed=false
 e.gauges.entries.forEach((x,i)=>{if(this.room.units?.[i]?.ownerId===this.playerId||!(x.key in sg))return
 if(x.value!==sg[x.key]){e.gauges.set(i,sg[x.key]);changed=true}})
 if(changed)e.refreshUI()}
- sendItemHeal(ratio){return this.action('ITEM_HEAL',{ratio})}  // 回復アイテム(投げた人だけ。1投に1回)。サーバーが全員の HP を確定して HEAL(kind:'item')を配る
+ sendItemHeal(ratio,index){return this.action('ITEM_HEAL',{ratio,index})}  // 回復アイテム(投げた人だけ。1投に1回。回復するのは投げたキャラ index だけ)。サーバーが HP を確定して HEAL(kind:'item')を配る
  sendHeal(amount){return this.action('HEAL',{amount})}  // SPECIAL の回復(投げた人だけ)。サーバーが全員の HP を確定して HEAL を配る
  sendCatch(deltaMs,grade,damages={}){return this.action('CATCH',{deltaMs,grade,damages})} sendDown(){return this.action('PLAYER_DOWN')} beginAllCatch(){this.catchRoundDone=false;const mine=this.myUnitIndexes();const i=mine.find(k=>this.g.turn.players[k]?.hp>0)??mine[0]??-1;if(i>=0&&this.g.turn.players[i]){this.g.turn.index=i;this.g.applyCharacter(this.g.turn.current);this.g.ui.setPlayers(this.g.turn.players,i);this.g.energy?.onTurn()}} finishCatchRound(m){const i=Number.isInteger(m.nextIndex)&&this.g.turn.players[m.nextIndex]?m.nextIndex:-1;const st=this.g.sm.currentName;
   // 全員のキャッチが終わった → 次の PLAYER ATTACK PHASE(先頭の投球者はサーバーが決める)。メロメロ(DOWN)で観戦中の人も止まらずに進む
