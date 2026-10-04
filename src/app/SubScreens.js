@@ -610,6 +610,7 @@ export class AppScreens {
           <div class="snd-ctl"><input type="range" min="0" max="100" step="1" value="${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}" data-vol="bgm" aria-label="BGM 音量"${st.audio?.bgmMuted ? ' disabled' : ''}><output>${st.audio?.bgmMuted ? 'ミュート' : `${Math.round((st.audio?.bgmVolume ?? 0.5) * 100)}%`}</output></div></div>
           <button type="button" class="r-tgl${st.audio?.bgmMuted ? '' : ' on'}" data-mute="bgm" aria-pressed="${!st.audio?.bgmMuted}">${st.audio?.bgmMuted ? 'OFF' : 'ON'}</button></li>
         ${row('haptic', '振動(対応端末のみ)', st.haptic)}
+        <li class="as-row"><div class="r-main"><b>省電力モード</b><span>バトルを 30fps・少し粗い解像度で描いて、スマホの発熱と電池の減りをおさえる</span></div><button type="button" class="r-tgl${st.powerSave ? ' on' : ''}" data-tgl="powerSave" aria-pressed="${!!st.powerSave}">${st.powerSave ? 'ON' : 'OFF'}</button></li>
         <li class="as-row"><div class="r-main"><b>ガチャ演出</b><span>FULL:すべて / FAST:短く(山場は残す)/ SKIP:初めての SSR だけ</span></div><button type="button" class="r-btn ghost" data-act="speed">${st.gachaPlaybackMode}</button></li>
       </ul>
       <div class="as-ver">${Config.app.title} ${Config.app.version}</div>`;
