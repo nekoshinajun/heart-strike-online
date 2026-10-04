@@ -700,7 +700,7 @@ export const Config = {
   },
   // ---- ボーナスアイテム(3ターン目以降、3の倍数のターンにだけ出る。ターン = PLAYER ATTACK PHASE)----
   //   カーブ(|spin| ≥ minSpin)の投球でしか取れない。置き場所はお手本のカーブの軌道の、まっすぐの線から一番膨らんだ所
-  //   heal … 取った投球で生存している味方全員の HP を最大 HP × ratio 回復 / big … 大きな Diamond(Diamond diamonds 個分の SPECIAL)
+  //   heal … 取ったキャラ(投げたキャラ)だけ HP を最大 HP × ratio 回復 / big … 大きな Diamond(Diamond diamonds 個分の SPECIAL)
   //   1ターンにそれぞれ1回まで(取るまではそのターンの投球ごとに出る)。AUTO の投球では取りに行かない
   bonusItems: {
     everyTurns: 3,       // ★ このターン数ごと(3, 6, 9 …)

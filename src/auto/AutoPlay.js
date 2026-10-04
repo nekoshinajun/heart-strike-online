@@ -107,6 +107,7 @@ export class AutoPlay {
       if (r.hit && !any) any = r;
     }
     if (!any) for (let k = 0; k < 12 && !any; k++) { const r = tryAim('PERFECT', k); if (r.hit && !r.near) any = r; }
+    for (let k = 0; k < 40 && !any; k++) { const r = tryAim(k % 2 ? 'GOOD' : 'HIT', k); if (r.hit && !r.near) any = r; }   // ボーナスアイテムを避けられる投球を探し直す
     return this.finish(any ?? tryAim('PERFECT', 0));
   }
 
