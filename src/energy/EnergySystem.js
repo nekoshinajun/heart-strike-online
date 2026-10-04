@@ -54,6 +54,148 @@ export class EnergySystem {
       g.scene.add(shadow);
       this.pool.push({ group, core, halo, shadow });
     }
+    this.bonus = [];
+    this.bonusTaken = new Set();   // このターンに取ったボーナスアイテム(同じターンの次の投球では出さない)
+    this.bonusTurn = 0;
+    this.bonusMeshes = { heal: this.makeBonusMesh('heal', tex), big: this.makeBonusMesh('big', tex) };
+  }
+
+  /** ボーナスアイテムの見た目:heal = 緑に光る玉 + 白い十字 / big = 大きな Diamond(金の光)*/
+  makeBonusMesh(kind, tex) {
+    const B = Config.bonusItems, g = this.g, group = new THREE.Group();
+    const add = (m) => { m.renderOrder = 10; group.add(m); return m; };
+    let core;
+    if (kind === 'heal') {
+      core = add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), new THREE.MeshBasicMaterial({ color: B.heal.color })));
+      const white = new THREE.MeshBasicMaterial({ color: '#ffffff', depthTest: false });
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.06), white)).position.z = 0.43;
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.5, 0.06), white)).position.z = 0.43;
+    } else {
+      core = add(new THREE.Mesh(new THREE.OctahedronGeometry(0.9), new THREE.MeshBasicMaterial({ color: B.big.color })));
+      core.scale.set(1, 1.25, 1);
+    }
+    const halo = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: kind === 'heal' ? B.heal.color : B.big.glow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+    halo.scale.setScalar(kind === 'heal' ? 2.4 : 3.8);
+    group.visible = false;
+    g.scene.add(group);
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, color: kind === 'heal' ? B.heal.color : B.big.glow, transparent: true, depthWrite: false, opacity: 0.6, blending: THREE.AdditiveBlending }));
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.scale.setScalar(2.2);
+    shadow.visible = false;
+    g.scene.add(shadow);
+    return { group, core, halo, shadow };
+  }
+
+  /** 今のターン(PLAYER ATTACK PHASE)の番号。1ターン目 = ボスの攻撃の前(MULTI はサーバーの回数なので全員同じ)*/
+  get turnNo() { return (this.g.bossAttacks ?? 0) + 1; }
+
+  /** このターンはボーナスアイテムが出るか(3ターン目以降、3の倍数のターン)*/
+  bonusTurnNow() {
+    const B = Config.bonusItems, t = this.turnNo;
+    return !!B && t >= (B.fromTurn ?? 3) && t % (B.everyTurns ?? 3) === 0;
+  }
+
+  /**
+   * ボーナスアイテムを置く(SpaceSystem.spawnForThrow から。MULTI は seed の乱数の中で呼ぶ → 全員同じ配置)
+   *   カーブをかけた投球でしか取れない(まっすぐの投球が通っても取れない)。置く場所は「お手本のカーブの1投」の軌道の上:
+   *   右カーブ / 左カーブそれぞれで敵に当たる投球を物理で作り、まっすぐの線から一番大きく膨らんだ所(画面に見える範囲)に置く
+   *   左右どちらに回復 / Diamond を置くかはランダム。AUTO の投球はこの近くを通らない(AutoPlay)
+   */
+  spawnBonus() {
+    const g = this.g, B = Config.bonusItems;
+    if (this.bonusTurn !== this.turnNo) { this.bonusTurn = this.turnNo; this.bonusTaken = new Set(); }
+    this.clearBonus();
+    if (!this.bonusTurnNow() || g.tutorial) return;
+    const kinds = ['heal', 'big'].filter((k) => !this.bonusTaken.has(k));
+    if (!kinds.length) return;
+    g.cam.settle();
+    const start = g.player.holdAnchor(), calc = g.player.thrower, plane = g.targetPlane();
+    const wave = g.wave?.active;
+    const z = (wave ? g.wave.z : Config.boss.z) + 0.5;
+    const aim = wave ? g.wave.focusPoint() : g.boss.restPartCenter('chest', new THREE.Vector3());
+    // 画面の端で見切れない所(縦長スマホの基準の画角で判定 → MULTI で端末の画面サイズが違っても同じ配置)
+    const refCam = g.cam.base.clone();
+    refCam.aspect = 390 / 844;
+    refCam.fov = Config.camera.fov + (0.5 - refCam.aspect) * 30;
+    refCam.updateProjectionMatrix(); refCam.updateMatrixWorld(true);
+    const gateNdc = (g.space.gates ?? []).map((gt) => {
+      const c = gt.pos.clone().project(refCam), e = gt.pos.clone().add(new THREE.Vector3(Config.space.gate.radius ?? 1.45, 0, 0)).project(refCam);
+      return { x: c.x, y: c.y, r: Math.abs(e.x - c.x) * refCam.aspect };
+    });
+    const spin = B.spin ?? 0.9;
+    const order = Math.random() < 0.5 ? kinds : [...kinds].reverse();
+    const sides = order.length === 1 ? [Math.random() < 0.5 ? -1 : 1] : [-1, 1];
+    order.forEach((kind, k) => {
+      const side = sides[k];   // -1 = 左に膨らむ(右カーブ) / 1 = 右に膨らむ(左カーブ)
+      // 左右のアイテムは敵の左側 / 右側を狙う軌道に(1投で両方は取れない)。高さも変えて、ゲートと重ならない軌道を探す
+      const tries = [];
+      for (const dy of [0, 3, -3, 6]) for (const ox of [3, 4.5, 1.5, 6]) tries.push([side * ox, dy]);
+      for (const [ox, dy] of tries) {
+        const target = new THREE.Vector3(aim.x + ox, aim.y + dy + (Math.random() - 0.5), z);
+        const th = calc.buildThrow(start, target, 0, -side * spin);
+        const sim = simulate(start, th.velocity, th.curveAccel, plane, 0.02);
+        if (sim.result?.type !== 'hit') continue;
+        const end = sim.points[sim.points.length - 1];
+        let best = null;
+        for (const p of sim.points) {
+          const f = (start.z - p.z) / Math.max(1e-3, start.z - end.z);
+          if (f < 0.18 || f > 0.7) continue;   // 手前寄り(大きく見える)
+          const n = p.clone().project(refCam);
+          if (Math.abs(n.x) > 0.8 || n.y > 0.7 || n.y < -0.3) continue;
+          // Heart Gate の輪と画面上で重ならない所(輪の大きさは奥行きで変わるので、画面上の輪の半径で比べる)
+          if (gateNdc.some((q) => Math.hypot((q.x - n.x) * refCam.aspect, q.y - n.y) < q.r + 0.06)) continue;
+          const bulge = side * (p.x - (start.x + (end.x - start.x) * f));   // まっすぐの線(発射位置 → 着弾点)からの膨らみ
+          if (!best || bulge > best.bulge) best = { p, bulge };
+        }
+        if (best) { this.bonus.push({ kind, pos: best.p.clone(), taken: false, fly: 0, mesh: this.bonusMeshes[kind], hinted: false }); break; }
+      }
+    });
+    for (const b of this.bonus) { b.mesh.group.visible = true; b.mesh.group.scale.setScalar(1); b.mesh.group.position.copy(b.pos); }
+  }
+
+  clearBonus() {
+    for (const m of Object.values(this.bonusMeshes)) { m.group.visible = false; m.shadow.visible = false; }
+    this.bonus = [];
+  }
+
+  /** 軌道(点の列)がまだ取られていないボーナスアイテムの近くを通るか(AUTO が取りに行かないように)*/
+  nearBonus(points, extra = 0) {
+    const live = this.bonus.filter((b) => !b.taken);
+    if (!live.length || !points?.length) return false;
+    const rr = Config.bonusItems.radius + Config.ball.radius + extra;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], seg = tmp.subVectors(points[i], a), len2 = seg.lengthSq();
+      for (const b of live) {
+        const t = len2 > 0 ? Math.max(0, Math.min(1, b.pos.clone().sub(a).dot(seg) / len2)) : 0;
+        if (a.clone().addScaledVector(seg, t).distanceTo(b.pos) <= rr) return true;
+      }
+    }
+    return false;
+  }
+
+  /** ボーナスアイテムを取った */
+  collectBonus(b) {
+    const g = this.g, B = Config.bonusItems;
+    b.taken = true;
+    b.fly = 0.001;
+    this.bonusTaken.add(b.kind);
+    if (b.kind === 'big') { this.collect({ pos: b.pos, color: B.big.glow, big: true }, B.big.diamonds ?? 5); return; }
+    // 回復:生存している味方全員(最大 HP × ratio)。MULTI は投げた人がサーバーへ送り、全員が同じ HP になる(サーバーの HEAL で演出)
+    g.effects.burst(b.pos, B.heal.color, 24, 6, 0.5);
+    g.ball.pulseBoost(1);
+    g.audio.rallyUp();
+    const s = g.player.toScreen(b.pos);
+    g.ui.damageNumber(s.x, s.y, 'HEAL!', { color: B.heal.color, label: '✚ 回復アイテム' });
+    if (g.online) { if (g.lastThrowMine) g.online.sendItemHeal?.(B.heal.ratio); return; }
+    const healed = [];
+    g.turn.players.forEach((p, i) => {
+      if (!p || !(p.hp > 0)) return;
+      const before = p.hp, after = Math.min(p.maxHp ?? before, before + Math.round((p.maxHp ?? 100) * B.heal.ratio));
+      p.hp = after;
+      healed.push({ i, before, after, gained: after - before });
+    });
+    g.stats.healed = (g.stats.healed ?? 0) + healed.reduce((a, h) => a + h.gained, 0);
+    g.ui.playItemHeal?.(healed, s);
   }
 
   /** 今操作中のキャラの SPECIAL(値 / 最大 / 使えるか)*/
@@ -68,6 +210,7 @@ export class EnergySystem {
     this.armed = false;
     this.throwerIndex = null;
     this.arrangementIndex = Math.floor(Math.random() * 5);
+    this.bonusTurn = 0; this.bonusTaken = new Set();
     this.clear();
     this.refreshUI();
   }
@@ -188,12 +331,13 @@ export class EnergySystem {
 
   clear() {
     for (const s of this.pool) { s.group.visible = false; s.shadow.visible = false; }
+    this.clearBonus();
     this.orbs = [];
     this.collecting = false;
   }
 
   /** 投球開始:ここから Orb を取得できる */
-  beginThrow() { this.collecting = true; this.combo = 0; this.throwerIndex = this.g.turn.index; }
+  beginThrow(spin = 0) { this.collecting = true; this.combo = 0; this.throwerIndex = this.g.turn.index; this.throwSpin = Number(spin) || 0; for (const b of this.bonus) b.hinted = false; }
   /** この1投で取った Energy 数 */
   get throwCount() { return this.combo; }
   endThrow() { this.collecting = false; }
@@ -212,9 +356,20 @@ export class EnergySystem {
       const closest = prev.clone().addScaledVector(seg, t);
       if (closest.distanceTo(o.pos) <= rr) this.collect(o);
     }
+    // ボーナスアイテム:カーブ(|spin| ≥ minSpin)の投球だけが取れる。まっすぐの球が通った時は「CURVE で取れる」と1回だけ知らせる
+    const BI = Config.bonusItems, br = BI.radius + Config.ball.radius;
+    for (const b of this.bonus) {
+      if (b.taken) continue;
+      let t = len2 > 0 ? b.pos.clone().sub(prev).dot(seg) / len2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      if (prev.clone().addScaledVector(seg, t).distanceTo(b.pos) > br) continue;
+      if (Math.abs(this.throwSpin ?? 0) >= (BI.minSpin ?? 0.35)) { this.collectBonus(b); continue; }
+      if (!b.hinted) { b.hinted = true; const s = this.g.player.toScreen(b.pos); this.g.ui.damageNumber(s.x, s.y, 'CURVE!', { color: '#ffffff', label: 'カーブをかけると取れる' }); }
+    }
   }
 
-  collect(o) {
+  /** mul:Diamond 何個分か(大きな Diamond = Config.bonusItems.big.diamonds)*/
+  collect(o, mul = 1) {
     const g = this.g;
     o.taken = true;
     o.fly = 0.001;
@@ -222,7 +377,7 @@ export class EnergySystem {
     // Diamond 1個 = 投げたキャラ本人の SPECIAL +orbValue。本人が SPECIAL CHARGE を持っていれば ×1.2。MAX で止める(超えた分は切り捨て)
     const i = this.throwerIndex ?? g.turn.index;
     const chara = g.turn.players[i]?.chara;
-    const { gain, charged } = specialOrbGain(chara);
+    const one = specialOrbGain(chara), charged = one.charged, gain = one.gain * mul;
     const own = this.ownsGauge(i);
     const wasReady = this.gauges.ready(i);
     // MULTI で他のプレイヤーのキャラ:値は担当プレイヤー → サーバーから届く(ここでは演出だけ。二重加算しない)
@@ -233,13 +388,13 @@ export class EnergySystem {
     g.stats.orbs = (g.stats.orbs ?? 0) + 1;
     g.tutorial?.emit('orb');
     g.ball.pulseBoost(0.8);
-    g.effects.burst(o.pos, o.slot.halo.material.color.getStyle(), 10, 4, 0.35);
+    g.effects.burst(o.pos, o.color ?? o.slot.halo.material.color.getStyle(), o.big ? 30 : 10, o.big ? 7 : 4, 0.35);
     g.audio.orb(this.combo);
     // 「SPECIAL +○%」(ゲージ最大値に対する割合)→ Diamond が SPECIAL ゲージへ飛ぶ → 着いたらゲージが増える(MAX なら SPECIAL READY)
     const s = g.player.toScreen(o.pos);
     const add = Math.round((gain / this.gauges.max(i)) * 100);
     const reached = own && !wasReady && this.gauges.ready(i);
-    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: charged ? '#ffd27a' : '#ffb3e0', label: charged ? '◆ DIAMOND ・ SPECIAL CHARGE' : '◆ DIAMOND' });
+    g.ui.damageNumber(s.x, s.y, `SPECIAL +${add}%`, { color: charged ? '#ffd27a' : '#ffb3e0', label: `${o.big ? '◆ BIG DIAMOND' : '◆ DIAMOND'}${charged ? ' ・ SPECIAL CHARGE' : ''}` });
     const target = g.ui.cards?.[i]?.d;   // 投げたキャラのアイコン(リングのゲージ)へ
     g.ui.flyTo(s.x, s.y, target, '<i class="dia">◆</i>', 'diamond', 480).then(() => {
       this.refreshUI(i === g.turn.index);
@@ -274,6 +429,26 @@ export class EnergySystem {
 
   update(dt) {
     this.time += dt;
+    for (const b of this.bonus) {
+      const m = b.mesh, gr = m.group;
+      if (b.taken) {
+        // ハート玉へ吸い込まれて消える
+        b.fly += dt / 0.18;
+        const k = Math.min(1, b.fly);
+        gr.position.lerpVectors(b.pos, this.g.ball.pos, k);
+        gr.scale.setScalar(1 - k * 0.8);
+        m.shadow.visible = false;
+        if (k >= 1) gr.visible = false;
+        continue;
+      }
+      gr.position.set(b.pos.x, b.pos.y + Math.sin(this.time * 2.6) * 0.12, b.pos.z);
+      if (b.kind === 'big') m.core.rotation.y += dt * 1.8;
+      else gr.rotation.y = Math.sin(this.time * 1.5) * 0.35;
+      m.halo.material.opacity = 0.75 + Math.sin(this.time * 4) * 0.2;
+      gr.scale.setScalar(1 + Math.sin(this.time * 4) * 0.06);
+      m.shadow.visible = true;
+      m.shadow.position.set(b.pos.x, 0.03, b.pos.z);
+    }
     for (const o of this.orbs) {
       const gr = o.slot.group;
       // 床の影(取得済み・吸い込み中は消す)

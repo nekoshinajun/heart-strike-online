@@ -44,7 +44,7 @@ export class PlayerAttackState {
     g.space.keepForTurn = null;
     if (!kept) g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
     g.tutorial?.onAttack();   // チュートリアル:レッスンに合わせて配置を減らす / 説明
-    this.autoAt = g.clock + (Config.auto.throwDelay ?? 0.8);
+    this.autoAt = g.clock + (g.autoPlay?.throwDelay() ?? 0.8);
   }
 
   update() {
@@ -170,7 +170,7 @@ export class BallToBossState {
     }, th.start, g.space.obstacles.length ? g.space : null, th.drive ?? null);
     g.ball.flight.live = true;
     g.space.beginThrow();    // Heart Gate の判定もここから(SPECIAL はカットイン完了後)
-    g.energy.beginThrow();   // SPECIAL でも Energy を回収できる
+    g.energy.beginThrow(th.spin);   // SPECIAL でも Energy を回収できる(ボーナスアイテムはカーブの投球だけ)
     this.feverThrow = g.fever.consumeThrow(g.turn.index);   // FEVER 投球を1回消費(発射時に1度だけ)
     g.turn.markThrown();   // このフェーズの投球として数える
     g.ui.tutorialDone('flick');

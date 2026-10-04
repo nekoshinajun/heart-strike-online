@@ -95,10 +95,10 @@ export class SpaceSystem {
   spawnForThrow(forcedPattern = null, seed = null) {
     const g = this.g;
     this.clear();
-    if (g.fever?.active) { g.energy.spawnForThrow(); return; }
     const sp = this.stageSpace;
     const oldRandom = Math.random;
     if (seed != null && g.online) { let x=(Number(seed)||1)>>>0; Math.random=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296}; }
+    if (g.fever?.active) { Math.random = oldRandom; g.energy.spawnForThrow(); this.spawnBonus(seed); return; }
     const list = sp.patterns?.length ? sp.patterns : Object.keys(Config.space.routePatterns);
     const DR = Config.space.dualRoutes?.pairs ?? {};
     // 2ルート:ステージで使えるパターンだけのペアから選ぶ(MULTI は seed の乱数で全員同じペア)
@@ -107,6 +107,14 @@ export class SpaceSystem {
     else if (pairs.length) this.spawnDual(this.pickPattern(pairs, DR, !g.online));
     else this.spawnPattern(forcedPattern && Config.space.routePatterns[forcedPattern] ? forcedPattern : this.pickPattern(list));
     Math.random = oldRandom;
+    this.spawnBonus(seed);
+  }
+
+  /** ボーナスアイテム(3の倍数のターン):左右の配置の乱数は MULTI では seed から(全員同じ)*/
+  spawnBonus(seed) {
+    const g = this.g, oldRandom = Math.random;
+    if (seed != null && g.online) { let x=((Number(seed)||1)*2654435761)>>>0||1; Math.random=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296}; }
+    try { g.energy.spawnBonus(); } finally { Math.random = oldRandom; }
   }
 
   /** 難易度込みの重み付き抽選:tier:'hard' のルートは重み (1 + HighDifficultyRouteWeight)。

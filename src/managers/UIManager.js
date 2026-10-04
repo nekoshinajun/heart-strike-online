@@ -131,12 +131,22 @@ export class UIManager {
     el.hidden = false; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
     clearTimeout(this.angelT); this.angelT = setTimeout(() => { el.hidden = true; el.classList.remove('on'); }, 1350);
     // 金の羽根と光のハートが各味方へ → 着いたら HP ゲージが伸びる(+N)
-    const r = this.el.dmg.getBoundingClientRect(), cx = r.width / 2, cy = r.height * 0.42;
-    result.healed.forEach((h, k) => {
+    const r = this.el.dmg.getBoundingClientRect();
+    this.healToCards(result.healed, r.width / 2, r.height * 0.42, '<i class="feather"></i><i class="hh">♥</i>');
+  }
+
+  /** 回復アイテム:取った場所から緑のハートが各味方へ → HP ゲージが伸びる(+N)。from = 画面上の位置 */
+  playItemHeal(healed, from) {
+    const r = this.el.dmg.getBoundingClientRect();
+    this.healToCards(healed ?? [], from?.x ?? r.width / 2, from?.y ?? r.height * 0.42, '<i class="hh" style="color:#5dffa8">✚</i>');
+  }
+
+  healToCards(healed, cx, cy, html) {
+    healed.forEach((h, k) => {
       const card = this.cards[h.i]?.d;
       if (!card) return;
       setTimeout(() => {
-        this.flyTo(cx, cy, card, '<i class="feather"></i><i class="hh">♥</i>', 'heal', 480).then(() => {
+        this.flyTo(cx, cy, card, html, 'heal', 480).then(() => {
           this.setPlayers(this.players);
           const n = document.createElement('span');
           n.className = 'healnum'; n.textContent = `+${h.gained}`;
@@ -145,7 +155,7 @@ export class UIManager {
         });
       }, 240 + k * 70);
     });
-    if (!result.healed.length) this.setPlayers(this.players);
+    if (!healed.length) this.setPlayers(this.players);
   }
 
   hitPlayer(i) {
