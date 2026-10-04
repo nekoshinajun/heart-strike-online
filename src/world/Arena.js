@@ -136,8 +136,9 @@ export class Arena {
       const fg = document.createElement('div');
       fg.id = 'fgFlowers';
       // 上の HUD(LOVE / FEVER)にかからないよう上の方は消す。主役(ゲート・ボス)を隠さないよう薄め
-      const mask = 'linear-gradient(to bottom, transparent 0, transparent 13%, #000 24%)';
-      fg.style.cssText = `position:absolute;inset:0;pointer-events:none;background:url(${BG.front}) center/100% 100% no-repeat;opacity:.7;-webkit-mask-image:${mask};mask-image:${mask}`;
+      //   真ん中の縦の帯も消す(床の道 = 敵までの距離ガイドとハートを隠さない。花は左右の縁だけ)
+      const mask = 'linear-gradient(to bottom, transparent 0, transparent 13%, #000 24%), linear-gradient(to right, #000 0, #000 18%, transparent 34%, transparent 66%, #000 82%)';
+      fg.style.cssText = `position:absolute;inset:0;pointer-events:none;background:url(${BG.front}) center/100% 100% no-repeat;opacity:.7;-webkit-mask-image:${mask};mask-image:${mask};-webkit-mask-composite:source-in;mask-composite:intersect`;
       view.after(fg);
       const st = document.createElement('style');
       st.textContent = '#game[data-state="TITLE"] #fgFlowers { display: none; }';
