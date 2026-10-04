@@ -219,6 +219,17 @@ export const Config = {
   },
 
   // ---- 雑魚戦(ボスの前の WAVE。雑魚の性能・見た目は data/MinionData.js、どこに出すかは StageData.waves)----
+  // 敵までの距離ガイド(world/DistanceGuide.js):投げる前だけ、ハート → 敵へ点線リング + 矢印、敵の足元に光る円
+  distanceGuide: {
+    enabled: true,       // ★ false で出さない
+    rings: 5,            // 1本のレーンのリングの数(同じ大きさのリングが奥ほど小さく見える = 距離)
+    ringRadius: 1.05,    // リングの半径(ワールド)
+    flatten: 0.42,       // 楕円のつぶれ具合(床に置いたように見せる)
+    from: 0.3,           // ハート → 敵の何割の所から並べるか
+    to: 0.86,            // 何割の所まで並べるか(敵の絵に重ならない所まで)
+    flowSpeed: 1.4,      // 手前 → 奥へ流れる光の速さ
+  },
+
   minion: {
     zOffset: 0.5,        // 雑魚の面の Z(ボスの面からの手前へのずれ。ハートが届く距離はボスとほぼ同じ)
     // 全員倒した → 奥へ進む → ボス登場(WaveAdvanceState)。各時刻はその状態に入ってからの秒

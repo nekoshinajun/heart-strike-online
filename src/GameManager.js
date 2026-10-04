@@ -2,6 +2,7 @@ import * as THREE from './lib/three.js';
 import { Config, difficultyData } from './core/Config.js';
 import { EventBus } from './core/EventBus.js';
 import { StateMachine, GameState } from './core/StateMachine.js';
+import { DistanceGuide } from './world/DistanceGuide.js';
 import { Arena } from './world/Arena.js';
 import { Effects } from './world/Effects.js';
 import { BossController } from './controllers/BossController.js';
@@ -86,6 +87,7 @@ export class GameManager {
     this.energy = new EnergySystem(this);
     this.fever = new FeverSystem(this);
     this.space = new SpaceSystem(this);
+    this.distanceGuide = new DistanceGuide(this);   // 投げる前:敵までの距離が見えるリングと矢印
     this.affection = new AffectionSystem(this);
     this.cfg = Config;
     // 必殺技:SPECIAL READY の手番のキャラのアイコン(リングが光っている)をタップで予約 / 解除(画面左下のゲージは無し)
@@ -552,6 +554,7 @@ export class GameManager {
     this.effects.update(dt);
     this.hitMarker.update();
     this.arena.update(dt, this.clock);
+    this.distanceGuide.update(realDt);
     this.cam.update(realDt);
     this.ui.update(realDt);
     if (this.colliderLabelsOn) this.ui.updateColliderLabels(this.boss, this.player);
