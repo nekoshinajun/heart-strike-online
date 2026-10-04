@@ -687,6 +687,15 @@ export const Config = {
   },
   judgeDamageRate: { PERFECT: 0, GREAT: 0.25, GOOD: 0.5, MISS: 1.0 },
 
+  // ---- AUTO(インゲーム右上の AUTO ボタン。ON の間は投球・DEFENCE を自動で行う。プレイヤーは SPECIAL(アイコンのタップ)だけ操作できる)----
+  //   値は出やすさの重み(合計 100 でなくてもよい)。チュートリアルでは使えない
+  auto: {
+    defence: { PERFECT: 1, GREAT: 20, GOOD: 50, HIT: 28, MISS: 1 },   // ★ DEFENCE の判定。DEFENCE に HIT の段階は無いので HIT は defenceAs の判定になる
+    defenceAs: { HIT: 'GOOD' },
+    landing: { PERFECT: 1, GREAT: 20, GOOD: 50, HIT: 28, MISS: 1 },   // ★ 投球の着弾(敵の中央縦ラインからの距離)。ハートゲート・Diamond は狙わない
+    throwDelay: 0.8,   // ★ 手番が来てから投げるまで(秒)
+  },
+
   // ---- UI ----
   ui: {
     tutorialThrows: 2,     // 最初のこの回数だけ FLICK / CATCH の説明を出す

@@ -45,6 +45,7 @@ import { MinionWave } from './minion/MinionWave.js';
 import { WaveAdvanceState } from './states/WaveStates.js';
 import { TutorialDirector } from './tutorial/TutorialDirector.js';
 import { lessonById } from './tutorial/TutorialData.js';
+import { AutoPlay } from './auto/AutoPlay.js';
 
 /**
  * 全体の組み立て・メインループ・時間管理(タイムスケール/ヒットストップ)を担当。
@@ -119,11 +120,14 @@ export class GameManager {
     this.sm.register(S.GAME_OVER, new GameOverState(this));
 
     // 入力 → 現在のステートへ
-    this.bus.on('tap', (e) => this.sm.dispatch('onTap', e));
-    this.bus.on('dragstart', (e) => this.sm.dispatch('onDragstart', e));
-    this.bus.on('drag', (e) => this.sm.dispatch('onDrag', e));
-    this.bus.on('release', (e) => this.sm.dispatch('onRelease', e));
-    this.bus.on('keyrelease', (e) => this.sm.dispatch('onKeyRelease', e));
+    //   AUTO の間は投球 / キャッチの入力を流さない(SPECIAL のアイコンのタップは UIManager の別経路なので押せる)
+    this.autoPlay = new AutoPlay(this);
+    const blocked = () => this.autoPlay.active && (this.sm.currentName === S.PLAYER_ATTACK || this.sm.currentName === S.PLAYER_DEFENSE);
+    this.bus.on('tap', (e) => { if (!blocked()) this.sm.dispatch('onTap', e); });
+    this.bus.on('dragstart', (e) => { if (!blocked()) this.sm.dispatch('onDragstart', e); });
+    this.bus.on('drag', (e) => { if (!blocked()) this.sm.dispatch('onDrag', e); });
+    this.bus.on('release', (e) => { if (!blocked()) this.sm.dispatch('onRelease', e); });
+    this.bus.on('keyrelease', (e) => { if (!blocked()) this.sm.dispatch('onKeyRelease', e); });
     // ラリー(内部:ボスの返球の強さ)はハート玉の光り方だけに使う。画面の数字は COMBO(FeverSystem)
     this.bus.on('rally', () => this.ball.setStyle(this.turn.current.color, this.turn.tierLevel));
     // SPECIAL ゲージはキャラごと:手番が変わったら予約を解除してリングの表示を更新
@@ -400,6 +404,7 @@ export class GameManager {
     this.newGame();
     this.beginWave(stage);   // 雑魚戦(StageData.waves があれば):雑魚を全員倒すと奥へ進んでボス登場
     this.menu.hide();
+    this.autoPlay.refresh();   // チュートリアルでは AUTO ボタンを出さない
     this.applyCharacter(this.turn.current);
     this.ball.hold(this.player.holdAnchor);
     // バトル開始演出:バトル BGM(上で最初から再生)が流れる中でボス紹介 → BATTLE START → A の投球(OpeningState)
@@ -433,6 +438,7 @@ export class GameManager {
     this.tutorial.dispose();
     this.tutorial = null;
     if (this.tutorialPrompt) { this.ui.tutorial = this.tutorialPrompt; this.tutorialPrompt = null; }
+    this.autoPlay.refresh();
   }
 
   retryStage() {
