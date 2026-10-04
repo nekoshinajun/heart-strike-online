@@ -24,6 +24,10 @@ export class CameraController {
     this.fovHold = 0; this.fovHoldTarget = 0;
     this.trauma = 0;
     this.t = 0;
+    this.overview = 0;   // 開幕の全体図(0 = プレイ位置 / 1 = 全体図)。見た目のカメラだけ動かす(配置・判定の基準カメラは動かさない)
+    const ov = Config.opening?.overview;
+    this.ovPos = new THREE.Vector3(ov?.pos.x ?? 0, ov?.pos.y ?? 25, ov?.pos.z ?? 24);
+    this.ovLook = new THREE.Vector3(ov?.lookAt.x ?? 0, ov?.lookAt.y ?? 3, ov?.lookAt.z ?? -16);
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.update(0);
   }
@@ -52,6 +56,8 @@ export class CameraController {
     this.lookOffsetTarget.set((point.x - this.baseLook.x) * 0.45, (point.y - this.baseLook.y) * 0.45, 0);
     this.fovHoldTarget = -zoom;
   }
+  /** 開幕の全体図の度合い(0..1。OpeningState がイージングして渡す) */
+  setOverview(k) { this.overview = Math.max(0, Math.min(1, k)); }
   reset() { this.dollyTarget = 0; this.lookOffsetTarget.set(0, 0, 0); this.fovHoldTarget = 0; }
 
   /**
@@ -114,6 +120,7 @@ export class CameraController {
     const roll = Math.sin(t * 1.3 + 2.1) * 0.035 * s;
     this.trauma = Math.max(0, this.trauma - dt * 1.8);
 
+    if (this.overview > 0) { pos.lerp(this.ovPos, this.overview); look.lerp(this.ovLook, this.overview); }
     this.camera.position.copy(pos);
     this.camera.lookAt(look);
     this.camera.translateX(ox);
