@@ -39,7 +39,10 @@ export class PlayerAttackState {
     // MULTI は全員が毎返球をキャッチするため、旧「NEXT キャッチ担当」予告は表示しない。
     if (g.online) g.ui.hideCatchNotice?.();
     g.thrower.cancel();
-    g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
+    // 開幕の全体図で同じ手番のキャラ向けに置いたコースがあれば、それをそのまま使う(置き直すと見せた配置が変わる)
+    const kept = g.space.keepForTurn && g.space.keepForTurn === g.turn.current && g.space.gates.length;
+    g.space.keepForTurn = null;
+    if (!kept) g.space.spawnForThrow(g.online?.fieldPattern ?? g.tutorial?.fieldPattern, g.online?.fieldSeed);   // 3D ルート(Energy / Heart Gate / 障害物)。FEVER 中は FEVER 専用の Energy 配置
     g.tutorial?.onAttack();   // チュートリアル:レッスンに合わせて配置を減らす / 説明
   }
 
