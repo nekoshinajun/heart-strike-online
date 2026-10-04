@@ -60,7 +60,8 @@ export class GameManager {
     loadTuning(); // 調整パネルで保存した値を反映(部位HP等はボス生成前に)
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // 描画の解像度:2 → 1.5(塗る画素が約 44% 減る。スマホの発熱対策。見た目の差はほぼ無い)
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.scene = new THREE.Scene();
 
@@ -96,6 +97,7 @@ export class GameManager {
     this.timeScale = 1;
     this.hitstopLeft = 0;
     this.lastFrame = performance.now();
+    this.titleCover = true;   // 起動時のタイトル画面(不透明)が出ている間は 3D を描かない
 
     // ステートマシン
     this.sm = new StateMachine((name) => { this.container.dataset.state = name; });
@@ -526,6 +528,8 @@ export class GameManager {
 
   loop(now) {
     requestAnimationFrame(this.loop);
+    // 120Hz の端末でも約 60fps まで(間隔 10ms 未満のフレームは休む。60 / 90Hz の端末はそのまま。発熱対策)
+    if (now - this.lastFrame < 10) return;
     const realDt = Math.min(0.05, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
@@ -555,7 +559,10 @@ export class GameManager {
     this.cam.update(realDt);
     this.ui.update(realDt);
     if (this.colliderLabelsOn) this.ui.updateColliderLabels(this.boss, this.player);
-    // HOME / ガチャ / メニュー等の不透明な画面の間は 3D を描かない(スマホの負荷を下げる)
-    if (!this.container.classList.contains('app-opaque')) this.renderer.render(this.scene, this.cam.camera);
+    // HOME / ガチャ / メニュー / タイトル等の不透明な画面の間は 3D を描かない(スマホの負荷を下げる)
+    if (this.titleCover) this.titleCover = !!this.container.querySelector('.hs-title');
+    const visible = !this.titleCover && !this.container.classList.contains('app-opaque');
+    this.boss.view.offscreen = !visible;   // Live2D は見えない間は描かない
+    if (visible) this.renderer.render(this.scene, this.cam.camera);
   }
 }

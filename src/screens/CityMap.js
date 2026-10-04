@@ -791,7 +791,7 @@ export class CityMap {
 
   bindPointer() {
     let start = null, last = null, vel = { x: 0, y: 0 };
-    this.el.addEventListener('pointerdown', (e) => { start = { x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y, t: performance.now() }; last = { x: e.clientX, y: e.clientY, t: start.t }; this.dragged = false; this.target = null; vel = { x: 0, y: 0 }; this.inertia = null; });
+    this.el.addEventListener('pointerdown', (e) => { this.dragging = true; start = { x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y, t: performance.now() }; last = { x: e.clientX, y: e.clientY, t: start.t }; this.dragged = false; this.target = null; vel = { x: 0, y: 0 }; this.inertia = null; });
     this.el.addEventListener('pointermove', (e) => {
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
@@ -802,6 +802,7 @@ export class CityMap {
       this.cam.x = start.cx - dx; this.cam.y = start.cy - dy; this.clampCam(); this.place();
     });
     const end = (e) => {
+      this.dragging = false;
       if (!start) return;
       if (!this.dragged) {
         // タップ:建物に当たったお店を選ぶ
@@ -813,7 +814,7 @@ export class CityMap {
       setTimeout(() => { this.dragged = false; }, 0);
     };
     this.el.addEventListener('pointerup', end);
-    this.el.addEventListener('pointercancel', () => { start = null; this.dragged = false; });
+    this.el.addEventListener('pointercancel', () => { this.dragging = false; start = null; this.dragged = false; });
   }
 
   start() {
@@ -821,6 +822,8 @@ export class CityMap {
     this.last = performance.now();
     const loop = (now) => {
       this.raf = requestAnimationFrame(loop);
+      // 指で動かしていない間(光・噴水・花びらだけ動く)は 30fps で十分(発熱対策)
+      if (!this.target && !this.inertia && !this.dragging && now - this.last < 30) return;
       const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.t += dt;
       if (this.target) {
         const k = 1 - Math.exp(-dt * 6);

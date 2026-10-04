@@ -86,7 +86,8 @@ export class Live2DBossView {
       this.root.position.y = Math.abs(Math.sin(this.clearT * 5)) * 0.6 * Math.max(0, 1 - this.clearT / 3);
     }
 
-    if (!this.model) return;
+    // 画面に出ていない間(メニュー・HOME 等)は Live2D を動かさない・描かない(別の WebGL で毎フレーム描くので重い)
+    if (!this.model || this.offscreen) return;
     this.model.update(dt);
     if (!this.model.draw()) return;
     this.mesh.visible = true;
